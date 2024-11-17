@@ -1,5 +1,5 @@
 # transmitter
-```mermaid
+```
 flowchart TD
     binary[binary file]
     chuncks([chuncks])
@@ -28,15 +28,28 @@ flowchart TD
 ```
  
 # listenning
+```
+flowchart TD
+    stream[stream from soundcart]
+    peak([peak detector])
+    server([server launch])
 
-stream from soundcard
-
-peak detection
-
-when peak detected:
-    launch receiver
+    stream --> peak
+    peak --> server
+```
 
 # receiver
+```mermaid
+flowchart TD
+    stream[stream from soundcart]
+    toComplex([hilbert transform])
+    AGC([automatic gain control])
+    downConvert([down conversion])
+
+    stream -- float --> toComplex
+    toComplex -- complex --> AGC
+    AGC -- conplex --> downConvert 
+```
 
 stream from soundcard
 
