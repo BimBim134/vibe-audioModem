@@ -5,7 +5,6 @@ from reedsolo import RSCodec, ReedSolomonError
 import hashlib
 
 
-
 def split_into_chuncks(data, chunck_size):
     """takes some binary data and split it into chuncks
 
@@ -27,7 +26,7 @@ def binary_to_encoded_packet(binaryFile,
                              data_len=1,
                              verbose=False):
     """takes a binary file and split it into encoded packets.
-    
+
     each packet is formatted like so, before Reed Solomon Encoding:
     [ID, data_length, data]
 
@@ -48,7 +47,7 @@ def binary_to_encoded_packet(binaryFile,
                                  packet_size - ecc_size - id_len - data_len)
 
     chunck_with_id = [i.to_bytes(id_len, 'big') + len(c).to_bytes(data_len, 'big') + c
-                  for i, c in enumerate(chuncks)]
+                      for i, c in enumerate(chuncks)]
 
     while len(chunck_with_id[-1]) < packet_size - ecc_size:
         chunck_with_id[-1] += randbytes(1)
@@ -59,10 +58,10 @@ def binary_to_encoded_packet(binaryFile,
 
 
 def encoded_packets_to_binary(packets,
-                             ecc_size=6,
-                             id_len=2,
-                             data_len=1,
-                             verbose=False):
+                              ecc_size=6,
+                              id_len=2,
+                              data_len=1,
+                              verbose=False):
     """takes a list of packet and decode it back to the original file.
 
     Args:
@@ -81,22 +80,25 @@ def encoded_packets_to_binary(packets,
     data = {}
 
     for p in packets:
-        try :
+        try:
             decoded_packet = ecc.decode(p)[0]
             id = int.from_bytes(decoded_packet[:id_len], 'big')
-            d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len], 'big')
-            data[id] = decoded_packet[id_len + data_len:id_len + data_len + d_len]
+            d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len],
+                                    'big')
+            data[id] = decoded_packet[id_len + 
+                                      data_len:id_len + 
+                                      data_len + 
+                                      d_len]
         except ReedSolomonError as e:
             warnings.warn("data is corrupted beyond repair !")
             print(e)
-
 
     data = dict(sorted(data.items()))
     received_ids = set(data.keys())
     check_id = set(range(len(data)))
     if received_ids != check_id:
         warnings.warn("data may be incomplete !", BytesWarning)
-    
+
     data = list(data.values())
     return b''.join(data)
 
@@ -110,11 +112,11 @@ def test_for_decoding():
     binaryFile = randbytes(1000)
     packets = binary_to_encoded_packet(binaryFile)
     # torture test
-    shuffle(packets) # shuffle every packets
+    shuffle(packets)  # shuffle every packets
     for p in packets:
         for error in range(3):
             idx = randint(0, len(p)-1)
-            p[idx] = randint(0, 255) # change byte to simulate an error
+            p[idx] = randint(0, 255)  # change byte to simulate an error
     decoded_binary = encoded_packets_to_binary(packets)
     # calculating hash
     original_file_hash = hashlib.md5(binaryFile).hexdigest()
