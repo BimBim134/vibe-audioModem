@@ -1,9 +1,24 @@
 from random import randbytes, shuffle, randint, choice
 import warnings
 import hashlib
+from pathlib import Path
 
 from reedsolo import RSCodec, ReedSolomonError
 import numpy as np
+
+def importFileFromPath(path):
+    """import file as binary
+
+    Args:
+        path (str): file path
+
+    Returns:
+        data (bytes): output file
+    """
+    with open(path, 'rb') as f:
+        data = f.read()
+    return data
+
 
 def split_into_chuncks(data, chunck_size):
     """takes some binary data and split it into chuncks
@@ -17,6 +32,7 @@ def split_into_chuncks(data, chunck_size):
     """
     for i in range(0, len(data), chunck_size):
         yield data[i:i + chunck_size]
+
 
 
 def binary_to_encoded_packet(binaryFile,
@@ -33,8 +49,10 @@ def binary_to_encoded_packet(binaryFile,
     [ID, data_length, data]
 
     Args:
-        binaryFile (bytes): input binary file
+        binaryFile (bytes, str): input binary file
         packet_size (int, optional): total packet size in bytes. Defaults to 64.
+        preamble_size(int, optionnal): preamble size in packet.
+        postamble_size(int, optionnal): postamble size in packet.
         ecc_size (int, optional): Error Correction Code length. Defaults to 5.
         id_len (int, optional): id descriptor length. (With 2 bytes, 65535 packet can be identified at most). Defaults to 2.
         data_len (int, optional): data length descriptor length. (with 1 byte, max packet size is 255). Defaults to 1.
@@ -42,6 +60,17 @@ def binary_to_encoded_packet(binaryFile,
     Returns:
         output (np.uint8): output packets
     """
+    if isinstance(binaryFile, str):
+        path = Path(binaryFile)
+        if path.is_file():
+            binaryFile = importFileFromPath(path)
+        else:
+            raise FileExistsError
+    elif isinstance(binaryFile, bytes):
+        pass
+    else:
+        raise TypeError
+
     ecc = RSCodec(ecc_size)
     ecc.maxerrata(verbose=verbose)
 
