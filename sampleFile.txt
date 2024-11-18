@@ -1,0 +1,11 @@
+La question fut posée pour la première fois par Henri Poincaré dans son article de 1904, « Cinquième complément à l'Analysis Situs », et peut s'énoncer aujourd'hui ainsi :
+
+    Toute 3-variété compacte sans bord et simplement connexe est-elle homéomorphe à la 3-sphère ?
+
+Dans sa formulation originale de 1904 : « Est-il possible que le groupe fondamental de V se réduise à la substitution identique, et que pourtant V ne soit pas simplement connexe ? »3 (la terminologie signifiant aujourd'hui « ne soit pas une sphère »4)
+
+Poincaré ajouta en conclusion, avec beaucoup de clairvoyance : « mais cette question nous entraînerait trop loin ».
+
+Plus vulgairement, il s'agit de déterminer si « un objet à trois dimensions » donné possédant les mêmes propriétés que celles d'une sphère 3D (dont notamment toutes les boucles peuvent être « resserrées » en un point) est bien seulement une déformation d'une sphère tridimensionnelle (la sphère ordinaire — surface dans l'espace ordinaire — possède seulement deux dimensions).
+
+Aucune 3-variété sans bord autre que R 3 {\displaystyle \mathbb {R} ^{3}} (l'espace ordinaire, non compact) ne peut être dessinée proprement comme objet dans l'espace ordinaire à trois dimensions. C'est l'une des raisons pour lesquelles il est difficile de visualiser mentalement le contenu de la conjecture. 
