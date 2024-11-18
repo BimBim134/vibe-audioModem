@@ -1,9 +1,9 @@
 from random import randbytes, shuffle, randint, choice
 import warnings
-
-from reedsolo import RSCodec, ReedSolomonError
 import hashlib
 
+from reedsolo import RSCodec, ReedSolomonError
+import numpy as np
 
 def split_into_chuncks(data, chunck_size):
     """takes some binary data and split it into chuncks
@@ -40,7 +40,7 @@ def binary_to_encoded_packet(binaryFile,
         data_len (int, optional): data length descriptor length. (with 1 byte, max packet size is 255). Defaults to 1.
         verbose (bool, optional): if true, you get to know the ecc performance.
     Returns:
-        list: output packets
+        output (np.uint8): output packets
     """
     ecc = RSCodec(ecc_size)
     ecc.maxerrata(verbose=verbose)
@@ -60,7 +60,9 @@ def binary_to_encoded_packet(binaryFile,
 
     encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]
 
-    return encoded_chuncks
+    output = [np.frombuffer(ec, dtype=np.uint8) for ec in encoded_chuncks]
+
+    return output
 
 
 def encoded_packets_to_binary(packets,
