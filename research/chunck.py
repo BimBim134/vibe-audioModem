@@ -21,6 +21,8 @@ def split_into_chuncks(data, chunck_size):
 
 def binary_to_encoded_packet(binaryFile,
                              packet_size=64,
+                             preamble_size = 3,
+                             postamble_size = 3,
                              ecc_size=6,
                              id_len=2,
                              data_len=1,
@@ -45,9 +47,13 @@ def binary_to_encoded_packet(binaryFile,
 
     chuncks = split_into_chuncks(binaryFile,
                                  packet_size - ecc_size - id_len - data_len)
+    
+    preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len)] * preamble_size
+    postamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len)] * postamble_size
 
-    chunck_with_id = [(i+1).to_bytes(id_len, 'big') + len(c).to_bytes(data_len, 'big') + c
-                      for i, c in enumerate(chuncks)]
+    chunck_with_id = preamble + [(i+1).to_bytes(id_len, 'big') +
+                                 len(c).to_bytes(data_len, 'big') + c
+                                 for i, c in enumerate(chuncks)] + postamble
 
     while len(chunck_with_id[-1]) < packet_size - ecc_size:
         chunck_with_id[-1] += randbytes(1)
@@ -83,12 +89,15 @@ def encoded_packets_to_binary(packets,
         try:
             decoded_packet = ecc.decode(p)[0]
             id = int.from_bytes(decoded_packet[:id_len], 'big') - 1
-            d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len],
-                                    'big')
-            data[id] = decoded_packet[id_len + 
-                                      data_len:id_len + 
-                                      data_len + 
-                                      d_len]
+            if not id == -1: # filter out the preamble and postamble
+                d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len],
+                                        'big')
+                data[id] = decoded_packet[id_len + 
+                                        data_len:id_len + 
+                                        data_len + 
+                                        d_len]
+            else:
+                pass
         except ReedSolomonError as e:
             warnings.warn("data is corrupted beyond repair !")
             print(e)
