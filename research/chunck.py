@@ -46,7 +46,7 @@ def binary_to_encoded_packet(binaryFile,
     chuncks = split_into_chuncks(binaryFile,
                                  packet_size - ecc_size - id_len - data_len)
 
-    chunck_with_id = [i.to_bytes(id_len, 'big') + len(c).to_bytes(data_len, 'big') + c
+    chunck_with_id = [(i+1).to_bytes(id_len, 'big') + len(c).to_bytes(data_len, 'big') + c
                       for i, c in enumerate(chuncks)]
 
     while len(chunck_with_id[-1]) < packet_size - ecc_size:
@@ -82,7 +82,7 @@ def encoded_packets_to_binary(packets,
     for p in packets:
         try:
             decoded_packet = ecc.decode(p)[0]
-            id = int.from_bytes(decoded_packet[:id_len], 'big')
+            id = int.from_bytes(decoded_packet[:id_len], 'big') - 1
             d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len],
                                     'big')
             data[id] = decoded_packet[id_len + 
