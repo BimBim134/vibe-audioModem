@@ -1,8 +1,13 @@
+"""
+Embedded Python Block: bytes to packets block
+"""
+
 from random import randbytes
 import pmt
 
 from reedsolo import RSCodec
 from gnuradio import gr
+import numpy as np
 
 
 def split_into_chuncks(data, chunck_size):
@@ -43,7 +48,7 @@ def binary_to_encoded_packet(binaryFile,
         data_len (int, optional): data length descriptor length. (with 1 byte, max packet size is 255). Defaults to 1.
         verbose (bool, optional): if true, you get to know the ecc performance.
     Returns:
-        encoded_chuncks (list): output packets
+        output (np.uint8): output packets
     """
     ecc = RSCodec(ecc_size)
     ecc.maxerrata(verbose=verbose)
@@ -63,12 +68,14 @@ def binary_to_encoded_packet(binaryFile,
 
     encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]
 
-    return encoded_chuncks
+    output = [np.frombuffer(ec, dtype=np.uint8) for ec in encoded_chuncks]
+
+    return output
 
 
 class blk(gr.sync_block):
     def __init__(self,
-                 input_binary,
+                 input_binary=randbytes(1000),
                  packet_size=64,
                  preamble_size=3,
                  postamble_size=3,
@@ -78,8 +85,10 @@ class blk(gr.sync_block):
         gr.sync_block.__init__(
             self,
             name='Binary to Packet',
-            out_sig=[bytes]
+            in_sig=None,
+            out_sig=[np.uint8]
         )
+        self.packet_size = packet_size
         self.out_packets = binary_to_encoded_packet(input_binary,
                                                     preamble_size,
                                                     postamble_size,
@@ -88,15 +97,16 @@ class blk(gr.sync_block):
                                                     id_len,
                                                     data_len)
         self.current_packet_index = 0
+        self.indx = 0
         self.packet_count = len(self.out_packets)
         self.eof = False
 
     def work(self, input_items, output_items):
         if not self.eof:
             if self.current_packet_index <= self.packet_count:
-                output_items[0][:] = self.out_packets[self.current_packet_index]
+                output_items[0][:self.packet_size] = self.out_packets[self.current_packet_index]
                 self.current_packet_index += 1
-                
+
                 packet_length = len(output_items[0])
                 key = pmt.intern("packet_len")
                 val = pmt.from_long(packet_length)
@@ -105,9 +115,14 @@ class blk(gr.sync_block):
                                 key,   # Key of the tag
                                 val,
                                 srcid=pmt.PMT_F)
+                self.indx += packet_length
                 return packet_length
             else:
                 self.eof = True
                 return 0
         else:
             return 0
+
+
+if __name__ == "__main__":
+    test = blk()
