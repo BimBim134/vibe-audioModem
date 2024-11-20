@@ -94,6 +94,35 @@ def binary_to_encoded_packet(binaryFile,
     return output
 
 
+def decode_single_packet(packet,
+                         ecc,
+                         id_len,
+                         data_len):
+    """takes a single packet and decode it.
+
+    Args:
+        packet (bytes): input packet
+        ecc (RSCodec): Reed Solomon Encoder
+        id_len (int): id length descriptor length
+        data_len (int): data length descriptor length
+
+    Returns:
+        id, data (int, bytes): packet id, packet data
+    """
+    try:
+        decoded_packet = ecc.decode(packet)[0]
+        id = int.from_bytes(decoded_packet[:id_len], 'big') - 1
+        if id == -1: # filter out the preamble and postamble
+            if (packet[id_len:id_len+3] - np.array([101, 111, 102])).sum() == 0 :
+                return (-1, b'')
+        else:
+            d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len], 'big')
+            return (id, decoded_packet[id_len + data_len:id_len + data_len + d_len])
+    except ReedSolomonError as e:
+        warnings.warn("packet is corrupted beyond repair !")
+        print(e)
+    return (-1, b'')
+
 def encoded_packets_to_binary(packets,
                               ecc_size=6,
                               id_len=2,
@@ -117,24 +146,12 @@ def encoded_packets_to_binary(packets,
     data = {}
 
     for p in packets:
-        try:
-            decoded_packet = ecc.decode(p)[0]
-            id = int.from_bytes(decoded_packet[:id_len], 'big') - 1
-            if id == -1: # filter out the preamble and postamble
-                if (p[id_len:id_len+3] - np.array([101, 111, 102])).sum() == 0 :
-                    break
-            else:
-                d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len],
-                                        'big')
-                data[id] = decoded_packet[id_len + 
-                                        data_len:id_len + 
-                                        data_len + 
-                                        d_len]
-        except ReedSolomonError as e:
-            warnings.warn("data is corrupted beyond repair !")
-            print(e)
+        id, packet_data = decode_single_packet(p, ecc, id_len, data_len)
+        if not id == -1:
+            data[id] = packet_data
 
     data = dict(sorted(data.items()))
+
     received_ids = set(data.keys())
     check_id = set(range(len(data)))
     if received_ids != check_id:
@@ -144,7 +161,8 @@ def encoded_packets_to_binary(packets,
     return b''.join(data)
 
 
-def test_for_decoding():
+
+def test_for_decoding(errors_enable):
     """torture test
 
     Returns:
@@ -153,10 +171,11 @@ def test_for_decoding():
     binaryFile = randbytes(1000)
     packets = binary_to_encoded_packet(binaryFile)
     # torture test
-    for p in packets:
-        for error in range(3):
-            idx = randint(0, len(p)-1)
-            p[idx] = randint(0, 255)  # change byte to simulate an error
+    if errors_enable:
+        for p in packets:
+            for error in range(3):
+                idx = randint(0, len(p)-1)
+                p[idx] = randint(0, 255)  # change byte to simulate an error
     decoded_binary = encoded_packets_to_binary(packets)
     # calculating hash
     original_file_hash = hashlib.md5(binaryFile).hexdigest()
@@ -165,4 +184,5 @@ def test_for_decoding():
 
 
 if __name__ == "__main__":
-    assert test_for_decoding()
+    assert test_for_decoding(errors_enable=False)
+    assert test_for_decoding(errors_enable=True)
