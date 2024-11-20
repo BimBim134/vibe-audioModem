@@ -83,7 +83,7 @@ def binary_to_encoded_packet(binaryFile,
                                  packet_size - ecc_size - id_len - data_len)
     
     preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len)] * preamble_size
-    postamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len)] * postamble_size
+    postamble = [(0).to_bytes(id_len, 'big') + b'eof' + randbytes(packet_size - id_len - 3)] * postamble_size
 
     chunck_with_id = preamble + [(i+1).to_bytes(id_len, 'big') +
                                  len(c).to_bytes(data_len, 'big') + c
