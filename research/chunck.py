@@ -103,7 +103,7 @@ def decode_single_packet(packet,
     Args:
         packet (bytes): input packet
         ecc (RSCodec): Reed Solomon Encoder
-        id_len (int): id length descriptor length
+        id_len (int): id descriptor length
         data_len (int): data length descriptor length
 
     Returns:
