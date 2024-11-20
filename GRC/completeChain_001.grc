@@ -63,7 +63,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [208, 176.0]
+    coordinate: [224, 176.0]
     rotation: 0
     state: enabled
 - name: epy_block_0
@@ -140,19 +140,21 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
-    data_len: ''
-    ecc_size: ''
-    id_len: ''
-    input_binary: ''
+    data_len: '1'
+    ecc_size: '6'
+    id_len: '2'
+    input_binary: '"/home/bimbim/Codes/vibe_5/sampleFile.txt"'
     maxoutbuf: '0'
     minoutbuf: '0'
-    packet_size: ''
-    postamble_size: ''
-    preamble_size: ''
+    packet_size: '64'
+    postamble_size: '3'
+    preamble_size: '3'
   states:
-    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'\\x03\\xd5I\\xa6|\\x88\\xb4\\xd2\\xda\\x0f\\xd1\\xea\\x15\\xbf\\x8a\\xddx\\x86}k{\\xc2\\xefG\\x04l\\x97\\x00\\x01\\xb1\\x8a\\xebp\\x8c1[h\\xcbi\\xb4Qf/\\xb5\\xcf\\xb5\\xb0\\x12fj\\xd5\\x8a\\xb7v\\xfe\\xc4\\xcan\\x19$U\\xee\\x01\\x03&\\xbak\\xcc\\xaa\\xd7S\\x91I\\x11\\xda\\xae\\x89\\rp\\xfc\\x95\\x16\\x1c\\x83\\xaa<\\x94\\x86\\xe0\\xadj\\x87\\x90\\xdd>r;~\\xe9\\xa5Dt\\x15!\\xc0-\\xf1SX\\x8d\\x14\\xa7\\xc3P\\x97v~\\xe4\\xb4\\xfd\\xc3-\\x11_\\xf1Q\\xdcY\\x97\\xb9%\\x88\\xa6.w\\xaae\\x92\\x06\\x88\\xd5ge\\xba\\x1e\\xcd[4v\\xa8z\\xe8e\\xd3\\xc0M\\xf8.\\xe6^\\x01\\xb2\\xc0\\x8ed]\\x04\\xc3D\\xa9\\x14"\\xb8\\x15\\x8dM\\x0eGf\\x0f\\xa5\\xbf\\xeb\\xc6\\xf4t\\xda\\x96\\xb6\\x13^d\\xb7\\xfc\\xdar3\\xab\\x90X\\xa7\\x1e\\xddNq\\x8f,M\\x91\\x86\\x0e\\xad\\xe8F\\xd5\\xbc\\xc1\\x9c\\x01t\\x96\\xe5\\x8b\\x88\\xa7\\xcf_\\xacuE\\xd7_\\xf1\\xcaX0\\xc6\\xca9\\xe5\\xd8\\xa1\\xa0\\x8bJ\\x10mz9\\xa5"\\xed\\x14P\\x8a\\x00\\x07\\xe3\\xb2g\\x96\\xe9\\xb3\\xbb\\x01\\xf1\\xf50\\xd10\\xc1\\xea\\xf9\\xac\\x9d\\xd4T\\xd1\\x15\\xe8\\xe2\\x9e;\\x0f\\xfe\\xfe\\xcc[\\x96\\x87?\\x8eE\\xb5F\\x16U\\xc9\\xc1\\x92\\xfb\\xed]\\xe3(7\\xf7\\x87\\x90\\x89"<\\xaf\\x91l\\xb2?\\xca\\\\]\\xd7\\xafR\\xcdu\\x12J\\x83\\x1bs\\xa7\\xb4\\x93\\xa4\\xebo\\xfd:K\\xa7:\\xfb\\xbbp\\xd6\\xde\\xb0;\\x8f\\xdeD\\xc7hsG\\x1b\\x815lH\\x0c\\xf2\\x7f]\\xf25\\xd9\\x8e\\xf5\\xc9W\\xaa\\x16\\x94L\\xe4\\x8b\\x89\\xb0\\xc0\\x99\\x17i\\xd6\\xf4\\x19IYR\\x93\\xfb\\xf4\\x11\\x18\\x1aw\\xd8\\x89\\xf5Z\\xd4\\x16:\\xd5\\xd3D\\x837\\x12H\\x06:L\\xbf<\\x0f\\xa1\\xb5}\\xb2I\\xabJ7\\x8e\\xe6\\xa8\\x1es\\xa9\\xfad\\x8ad\\x9c\\\'HLG\\xfcT\\xc7\\xe8\\x026\\x0bP\\x8dp\\x82\\xe2\\xca\\x86(A8\\xed\\tX\\xbc!\\x961\\x1f\\xd7\\xcf-=\\xfee\\xa6\\xe1\\xfeI\\xea\\x8b\\x9fA\\x07\\xd2S]\\xd3ZA\\xa9]\\x01\\x9e\\xbe\\x135\\xe8\\x1eS\\xb3\\xbe3\\x84\\xc6\\xc1)\\x1a\\xee\\xea\\x06\\x8c\\x14\\x80!\\xc0\\xca\\xb0\\x17\\x03\\xfc<y\\xa0\\x0f\\x1e\\xe5\\xfd\\x81\\xd3\\xab|\\xd5\\xcdF\\\'\\xddI\\x93\\x1c\\xae\\x7f\\xe1tR,=\\xaaP\\x08U1\\xf1;\\xad\\xf7\\x07\\xc58xxW\\x81,\\xcc\\xcf\\x8cN\\xfa\\xb7\\xf811\\nM\\x12\\xb0\\xdb\\x01[\\x19\\x90\\x19\\x04x\\xf3\\xbd\\xca\\xe9n\\xec\\x14\\x99~6\\x1b\\xf315I\\xc27\\t\\xba6\\xee\\xf8`\\x91fJDb\\x87\\xac\\xb4\\xd9\\xab\\x14\\xfd\\xb8\\xc5z\\x9eD</\\xffz\\xcf&Y\\x9a\\xec\\xbcOu\\td\\xbc^\\xe3\\xae\\\\\\x96f\\xd4=u(\\n*J@\\x11\\x87G\\xe1]\\xbbm~\\x87D\\x94\\xc4\\xc4G\\x0c\\xa5\\xe2\\xe1\\x81\\x840\\xf4*\\xc1\\xf7\\xda\\x1d\\xed6\\x98x\\x84\\xc2\\x11#n\\n5M$|#X!\\xe5on[mq\\xbc\\xa9\\x0f\\xb5\\x9f\\x97\\x8d`k8\\x99\\xd4|\\xc6|,\\xf5\\xab\\x00S\\xa3\\xac|\\xc2\\xcf\\xe9
-      \\xd2\\x8c\\xaa\\xf4Y\\xde\\xdfI%\\x7fur\\xefP\\x97\\xae\\xbeWc)OQ\\xd19\\xf0\\x01w\\xd2*\\x93q\\x06VC\\x97%\\xb5\\xcd2\\x16\\x0e\\x83
-      \\xb6s\\x96\\x19Sc\\xb7\\xe0\\xeaf\\x1d\\xc6\\xd1\\xad\\x16\\x81\\xd7\\x1f\\xd9\\xd278\\x0b\\xa4-`UT\\x1e`4\\xbd\\xbf\\x8d\\x1d\\x84w\\xc5`V)/\\x1deOp\\xc8\\x03\\xbf\\xc0\\xfbx&\\x80\\x0fl\\xf8\\xa2\\x8f\\x92\\xf2\\x9fp\\xce\\xa4k\\xcbA\\xf48ZH\\xce;K\\xa1\\x8e\\\'\\xa6Vt\\x8a\\x8ef\\xbd;\\xe8zE(T+\\\'^\\\\\\xba\\xa7S\\x0bJ\\xa5\\x84\\xb1\\x04\\x9e#bs\\x00\\xfdF\\xe4j9&\\rw:\\x85,\\xd1\\x17\\xfc[m>\\xf0\\xf4\\xbb\\xef\\xfaM\\xe6\\x18\\xf6XZ\\t\\xaa\\xc8\\x19\\xce\\xde\\xc041!\\xb2\\x9a\\\'\\xe0\\x0e\\x86\\x7f\\xcf\\xdc\\x99u\\x84\\xef;\\x08I\\x96"L\\xce\\x8bPn\\xadR\\xdb\\xe5\\xf9b;\\xf2\\xe9RB\\x00\\xba\\x1dcE\\xf4(\\xf3\\x16xn\\xff\\xcb\\x9c\\xa7[u\\x97\\xcc\\x82\\xe3\\x03\\xad\\x18\\x01\\xd4\\xc2H0\\x88E\\x96\\x0c,\\xbb\\xc4\\x7fq(\\x04-@#\\\'\\x0e\\xb9\\x83voh\''),
+    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'\\x7f\\x18>\\x07\\x96g\\xb1\\xc1\\xfd\\xd4\\xc1\\xeed\\x05!\\xdb\\xaa\\xd7sk;\\xdd\\x89\\xe1\\xc9)\\xa1~\\x98\\x80\\xd6\\xeb\\x07,Q\\x11\\x1f\\x16\\xc4\\x9b\\xdf\\x0746>\\xe3\\xec\\xaf\\xf4\\xe4v\\ru\\x9b\\x0e\\xae6B\\x12l&~\\xd204\\xba\\xc6\\xc4+\\x81(\\xd1IqK@n9\\x87\\x11\\xa4\\xf9`4F\\x0br\\xf6\\x92\\x04$\\xc3V\\x1d$\\xf6(\\xb2\\x0b\\xd6\\xe6\\xdb\\xbd\\xc1N\\xbdr\\xa4\\xae\\x9f\\xe4a\\xc7nB\\xf0\\xea\\xc3@\\x0ea\\x02X{ga\\xc5\\xa6\\r\\xd03\\x97\\x96&\\x06\\xcc\\x1f\\xd2bW\\xfe\\xf2\\xe0\\xd5\\xc4\\xc7\\xa2
+      wM*\\xb2\\xf4\\x94o\\xf1\\xdd\\xd5\\xe9\\xe9\\xb6C\\x1eb\\xb6\\xa3\\xb0\\xb4wV\\x94\\x15\\xe3\\xc6\\xcd\\xb4\\x00\\xd4)[\\x82k&\\xd9\\x8d\\x1a\\x94eM\\xcb"aC\\x1e\\xc6\\xf4%\\xe6t\\xb8\\xeco\\x8b\\x84J\\xa0S6\\x14X\\x8d\\x11\\xa6X\\x89\\\'\\xcdG\\x1dom\\x97\\xf5l\\xa0\\x00\\x85\\xc0(f5\\x9f\\x84\\xd4\\x8dG\\x7f\\x8c\\xb7\\xd3z\\xa0\\xb0\\xafmlp\\x02\\xd8\\xc3\\xe8\\xd4GHDHhh\\xdd<\\x13mN\\xcc\\xd7\\xb7\\xf4\\xe16\\xf9\\xdb2s\\xdf\\x7f\\x9d\\xa0g\\xd4\\xd7KvJ{t\\x118*\\xaeP\\x81x}\\x8d\\x08\\x95{/H\\x84\\x8a8\\xf4\\x16\\xe7M\\xe9\\x1d\\x15I\\xbbg\\xec\\xd5\\x81\\x84L\\n\\xd64\\xd1\\xe0\\xc7\\xa5\\x07\\x9b\\xea\\x02|\\xa9\\x9dl\\tfm\\xb2{;\\xf0\\xadDU\\xa29\\x88D\\xb8F\\x7f\\xde\\xc2x#AV\\x8b\\x1e\\xf74\\n\\xb1\\x83\\xfe\\xb1\\x02\\xfa\\x81.~\\xebp\\x99+G\\x0f]\\xd8\\xe7"9\\x9b%\\xcc\\xa5\\xa1q\\x10A\\xfc\\xec\\xbc\\xa9\\xfe\\xe8_]\\xbf\\xb4&\\x8d\\xb0\\xe2\\x07l\\xfb\\xe1\\xde\\xc3;af3\\xa7\\xe5\\x7f07~\\x8b\\xa9\\xa5#_C\\xdc\\xd8f\\xd3~\\x05\\xeb\\xb3Y\\xa9!\\xd0F\\x1c\\xee\\xa4\\xbe\\x922\\x85\\xc92g+\\xa1g\\x1d\\x15\\xc3\\n\\xf5S\\tq\\xf9?#\\x02\\x04\\x01r\\xd0@\\x92\\x03\\xdf\\x0b`\\x8b@\\xca\\ra\\x9e\\xa1+Ya\\x00\\x05\\x9c\\x9e&\\x9eVYR\\xcf}\\xd6\\x1aC\\xdcf-\\x9e\\x8c*2dY\\x0e\\xd6\\xed\\x8f/\\x81z\\x1c\\x80&\\x9c+M\\x1em\\xc2\\xd1\\x0b\\xf7G\\xedtXC\\xdd\\x0b\\x0ba\\x82\\xcb\\xfd,M\\xc0\\x9cZ\\xe1\\xf1\\xf5\\xaa\\xb9\\x1e[\\xd8}\\x8dM\\xa0\\x9a\\xe6\\xc61\\x86\\xb1\\x8drw\\x84>\\xd8r\\xd3\\xf3\\x17t^\\r\\xbe\\x81\\x91|u\\xcd\\xfd\\xa3\\xce\\x11p%nM\\x01]\\xd8\\xb7!0y\\x9f\\x13\\xc6\\xe0\\x0c\\x94?\\x94(\\xa25\\xa1\\xdaYx\\xb3\\xdd\\xd3\\xcfp\\xf9\\x8dC\\x14q^\\x1f\\x17\\x8fE\\x8b\\xe8\\x95\\xd1\\xae9\\x81AA\\xcc&\\x02\\xbe\\xcc\\xbe\\x91\\xda\\xb6\\x80bC\\xc36\\x19\\x9dR%mj\\x90]\\xd7s\\xbd\\xc2\\x0f\\x12\\xe1d\\xc4\\x8a\\xe8\\xf0\\xd3SL\\xeaJ
+      \\xf8y\\xfe\\xd1\\xff\\xf0\\xa4k\\xe1\\x0c\\xb3\\xa1|%\\xa5\\x8f\\xe6\\xe1\\x9c{\\xb7\\x11t\\xab\\x97\\x8a\\x0b5T\\x04\\x1e(\\x80\\xd3\\xa2\\xbc(\\x1f@\\xe4I\\x96\\x08\\x9c\\xdb\\xf7\\xb2\\xcf\\xf5\\xb1\\xda\\xcdB\\x9d\\x84\\xbe\\xdc\\xd8\\\\bcC79)\\x9c\\xac\\x00\\x15\\xdb\\x07\\xc9Kh\\xe9\\x0bap\\xadQ\\x03\\xcb\\x90B\\xfc\\xd45\\xa7\\xf77\\xec\\x86\\x9f\\x8f\\xe5\\xd2\\x14\\xcc#\\xcf\\xf7\\x06I\\xe5\\xb1\\xafc\\xaf\\xbd:^~\\xc3\\xf9\\x83\\x82|\\xa1\\xf56\\xc7\\xb4\\x93\\xe6\\xd2\\x050\\x08\\\'f~\\x07\\x94V\\xec
+      \\xcd\\xfd\\xc3\\x7f\\xa3W\\xbf\\x07#\\xeeOWNl\\x87\\xbd\\x8ej=/\\x1c2^1%-\\x9bi,2\\xf0\\x0fwhG\\xc3\\xf6\\xca\\x10\\x17)4\\x93-\\xe5\\xe9\\x8b\\xe69\\xc3\\x12V"\\xa1\\x86\\xab\\xba2_\\xf2\\xd3\\xb4F\\x1b4\\x1e\\x05q\\xbd\\xca\\xfac\\xca\\xc5\\x97!\\xb8\\x89\\x85\\x80J`P\\x10J\\xbd\\x9eB\\x06Vg\\xf2\\x02{i~H\\x81Q\\xdf\\xb1\\x07\\xe6\\xc6a\\xa2>"\\xb0k\\x1b\\xb2\\x7f;\\xe2\\x05/\\xa1h<\\xa1+\\x05\\xa7\\xf1\\xb4\\x02\\xd1n\\x13\\x97\\xd9,\\xe9\\xa2\\x87\\n\\x88\\x87<\\x03\\x16\\xa6\\x96&\\xd2^
+      \\x19)\\xfcb\\x94;+\\xb0_ \\xbe\\x84\\xf2dLL\\xc7\\xa5rj\\xd3+\\xed\\xb2\\xa9Hg\\x94\\x8d\\xda\\xd2sL\\xe40\\x89\\xb6\\x92jF*\\x98|\\xc0\''),
       ('packet_size', '64'), ('preamble_size', '3'), ('postamble_size', '3'), ('ecc_size',
       '6'), ('id_len', '2'), ('data_len', '1')], [], [('0', 'byte', 1)], '', ['packet_size'])
     bus_sink: false
@@ -167,37 +169,72 @@ blocks:
     _source_code: "\"\"\"\nEmbedded Python Blocks:\n\nEach time this file is saved,\
       \ GRC will instantiate the first class it finds\nto get ports and parameters\
       \ of your block. The arguments to __init__  will\nbe the parameters. All of\
-      \ them are required to have default values!\n\"\"\"\n\nimport numpy as np\n\
-      from gnuradio import gr\n\n\nclass blk(gr.sync_block):  # other base classes\
-      \ are basic_block, decim_block, interp_block\n    \"\"\"Embedded Python Block\
-      \ example - a simple multiply const\"\"\"\n\n    def __init__(self, example_param=1.0):\
-      \  # only default arguments here\n        \"\"\"arguments to this function show\
-      \ up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n         \
-      \   self,\n            name='Embedded Python Block',   # will show up in GRC\n\
-      \            in_sig=[np.complex64],\n            out_sig=[np.complex64]\n  \
-      \      )\n        # if an attribute with the same name as a parameter is found,\n\
-      \        # a callback is registered (properties work, too).\n        self.example_param\
-      \ = example_param\n\n    def work(self, input_items, output_items):\n      \
-      \  \"\"\"example: multiply with constant\"\"\"\n        output_items[0][:] =\
-      \ input_items[0] * self.example_param\n        return len(output_items[0])\n"
+      \ them are required to have default values!\n\"\"\"\n\nimport warnings\n\nimport\
+      \ numpy as np\nfrom gnuradio import gr\nfrom reedsolo import RSCodec, ReedSolomonError\n\
+      \ndef decode_single_packet(packet,\n                         ecc,\n        \
+      \                 id_len,\n                         data_len):\n    \"\"\"takes\
+      \ a single packet and decode it.\n\n    Args:\n        packet (bytes): input\
+      \ packet\n        ecc (RSCodec): Reed Solomon Encoder\n        id_len (int):\
+      \ id descriptor length\n        data_len (int): data length descriptor length\n\
+      \n    Returns:\n        id, data (int, bytes): packet id, packet data\n    \"\
+      \"\"\n    try:\n        decoded_packet = ecc.decode(packet)[0]\n        id =\
+      \ int.from_bytes(decoded_packet[:id_len], 'big') - 1\n        if id == -1: #\
+      \ filter out the preamble and postamble\n            if (packet[id_len:id_len+3]\
+      \ - np.array([101, 111, 102])).sum() == 0 :\n                return (-1, b'eof')\n\
+      \        else:\n            d_len = int.from_bytes(decoded_packet[id_len:id_len\
+      \ + data_len], 'big')\n            return (id, decoded_packet[id_len + data_len:id_len\
+      \ + data_len + d_len])\n    except ReedSolomonError as e:\n        warnings.warn(\"\
+      packet is corrupted beyond repair !\")\n        print(e)\n    return (-1, b'')\n\
+      \nclass blk(gr.sync_block):  # other base classes are basic_block, decim_block,\
+      \ interp_block\n    def __init__(self,\n                 out_filename='',\n\
+      \                 packet_size=64,\n                 ecc_size=6,\n          \
+      \       id_len=2,\n                 data_len=1,\n                 verbose=False):\n\
+      \        gr.sync_block.__init__(\n            self,\n            name='Binary\
+      \ to Packet',\n            in_sig=[np.uint8],\n            out_sig=None\n  \
+      \      )\n        self.out_filename = out_filename\n        self.packet_size\
+      \ = packet_size\n        self.ecc = RSCodec(ecc_size)\n        self.ecc.maxerrata(verbose=verbose)\n\
+      \        self.id_len = id_len\n        self.data_len = data_len\n\n        self.packets\
+      \ = {}\n\n        self.indx = 0\n        self.packet_count = 0\n        self.eof\
+      \ = False\n    \n    def save_file(self):\n        data = dict(sorted(self.packets.items()))\n\
+      \n        received_ids = set(data.keys())\n        check_id = set(range(len(data)))\n\
+      \        if received_ids != check_id:\n            warnings.warn(\"data may\
+      \ be incomplete !\", BytesWarning)\n\n        data = list(data.values())\n \
+      \       with open(self.out_filename, 'wb') as f:\n            f.write(b''.join(data))\n\
+      \n    def work(self, input_items, output_items):\n        if not self.eof:\n\
+      \            for p in input_items[0]:\n                id, packet_data = decode_single_packet(p,\n\
+      \                                                       self.ecc,\n        \
+      \                                               self.id_len,\n             \
+      \                                          self.data_len)\n                if\
+      \ not id == -1:\n                    # saving data\n                    self.packet[id]\
+      \ = packet_data\n                else:\n                    # checking if it\
+      \ is EOF\n                    if packet_data == b'eof':\n                  \
+      \      self.eof = True\n                        break\n            return 0\n\
+      \        else:\n            gr.log_debug(f'saving file to {self.out_filename}')\n\
+      \            self.save_file()\n            return 0\n"
     affinity: ''
     alias: ''
     comment: ''
-    example_param: ''
+    data_len: '1'
+    ecc_size: '6'
+    id_len: '2'
     maxoutbuf: '0'
     minoutbuf: '0'
+    out_filename: '"/home/bimbim/Codes/vibe_5/GRC/test_out/test.txt"'
+    packet_size: '64'
+    verbose: 'False'
   states:
-    _io_cache: ('Embedded Python Block', 'blk', [('example_param', '1.0')], [('0',
-      'complex', 1)], [('0', 'complex', 1)], 'Embedded Python Block example - a simple
-      multiply const', ['example_param'])
+    _io_cache: ('Binary to Packet', 'blk', [('out_filename', "''"), ('packet_size',
+      '64'), ('ecc_size', '6'), ('id_len', '2'), ('data_len', '1'), ('verbose', 'False')],
+      [('0', 'byte', 1)], [], '', ['data_len', 'id_len', 'out_filename', 'packet_size'])
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [376, 184.0]
+    coordinate: [384, 144.0]
     rotation: 0
     state: enabled
 
 connections:
+- [blocks_throttle2_0, '0', epy_block_1, '0']
 - [epy_block_0, '0', blocks_throttle2_0, '0']
 
 metadata:
