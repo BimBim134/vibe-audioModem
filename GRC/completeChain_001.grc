@@ -45,7 +45,160 @@ blocks:
     coordinate: [200, 12]
     rotation: 0
     state: enabled
-connections: []
+- name: blocks_throttle2_0
+  id: blocks_throttle2
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    ignoretag: 'True'
+    limit: auto
+    maximum: '0.1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: samp_rate
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [208, 176.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_0
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nEmbedded Python Block: bytes to packets block\n\"\"\"\n\
+      \nfrom random import randbytes\nimport pmt\nfrom pathlib import Path\n\nfrom\
+      \ reedsolo import RSCodec\nfrom gnuradio import gr\nimport numpy as np\n\n\n\
+      def importFileFromPath(path):\n    \"\"\"import file as binary\n\n    Args:\n\
+      \        path (str): file path\n\n    Returns:\n        data (bytes): output\
+      \ file\n    \"\"\"\n    with open(path, 'rb') as f:\n        data = f.read()\n\
+      \    return data\n\n\ndef split_into_chuncks(data, chunck_size):\n    \"\"\"\
+      takes some binary data and split it into chuncks\n\n    Args:\n        data\
+      \ (bytes): input data\n        chunck_size (int): chunck size in bytes\n\n \
+      \   Yields:\n        bytes: chunck\n    \"\"\"\n    for i in range(0, len(data),\
+      \ chunck_size):\n        yield data[i:i + chunck_size]\n\n\n\ndef binary_to_encoded_packet(binaryFile,\n\
+      \                             packet_size=64,\n                            \
+      \ preamble_size = 3,\n                             postamble_size = 3,\n   \
+      \                          ecc_size=6,\n                             id_len=2,\n\
+      \                             data_len=1,\n                             verbose=False):\n\
+      \    \"\"\"takes a binary file and split it into encoded packets.\n\n    each\
+      \ packet is formatted like so, before Reed Solomon Encoding:\n    [ID, data_length,\
+      \ data]\n\n    Args:\n        binaryFile (bytes, str): input binary file\n \
+      \       packet_size (int, optional): total packet size in bytes. Defaults to\
+      \ 64.\n        preamble_size(int, optionnal): preamble size in packet.\n   \
+      \     postamble_size(int, optionnal): postamble size in packet.\n        ecc_size\
+      \ (int, optional): Error Correction Code length. Defaults to 5.\n        id_len\
+      \ (int, optional): id descriptor length. (With 2 bytes, 65535 packet can be\
+      \ identified at most). Defaults to 2.\n        data_len (int, optional): data\
+      \ length descriptor length. (with 1 byte, max packet size is 255). Defaults\
+      \ to 1.\n        verbose (bool, optional): if true, you get to know the ecc\
+      \ performance.\n    Returns:\n        output (np.uint8): output packets\n  \
+      \  \"\"\"\n    if isinstance(binaryFile, str):\n        path = Path(binaryFile)\n\
+      \        if path.is_file():\n            binaryFile = importFileFromPath(path)\n\
+      \        else:\n            raise FileExistsError\n    elif isinstance(binaryFile,\
+      \ bytes):\n        pass\n    else:\n        raise TypeError\n\n    ecc = RSCodec(ecc_size)\n\
+      \    ecc.maxerrata(verbose=verbose)\n\n    chuncks = split_into_chuncks(binaryFile,\n\
+      \                                 packet_size - ecc_size - id_len - data_len)\n\
+      \    \n    preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size -\
+      \ id_len)] * preamble_size\n    postamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size\
+      \ - id_len)] * postamble_size\n\n    chunck_with_id = preamble + [(i+1).to_bytes(id_len,\
+      \ 'big') +\n                                 len(c).to_bytes(data_len, 'big')\
+      \ + c\n                                 for i, c in enumerate(chuncks)] + postamble\n\
+      \n    while len(chunck_with_id[-1]) < packet_size - ecc_size:\n        chunck_with_id[-1]\
+      \ += randbytes(1)\n\n    encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]\n\
+      \n    output = [np.frombuffer(ec, dtype=np.uint8) for ec in encoded_chuncks]\n\
+      \n    return output\n\n\nclass blk(gr.sync_block):\n    def __init__(self,\n\
+      \                 input_binary=randbytes(1000),\n                 packet_size=64,\n\
+      \                 preamble_size=3,\n                 postamble_size=3,\n   \
+      \              ecc_size=6,\n                 id_len=2,\n                 data_len=1):\n\
+      \        gr.sync_block.__init__(\n            self,\n            name='Binary\
+      \ to Packet',\n            in_sig=None,\n            out_sig=[np.uint8]\n  \
+      \      )\n        self.packet_size = packet_size\n        self.out_packets =\
+      \ binary_to_encoded_packet(input_binary,\n                                 \
+      \                   preamble_size,\n                                       \
+      \             postamble_size,\n                                            \
+      \        packet_size,\n                                                    ecc_size,\n\
+      \                                                    id_len,\n             \
+      \                                       data_len)\n        self.current_packet_index\
+      \ = 0\n        self.indx = 0\n        self.packet_count = len(self.out_packets)\n\
+      \        self.eof = False\n\n    def work(self, input_items, output_items):\n\
+      \        if not self.eof:\n            if self.current_packet_index <= self.packet_count:\n\
+      \                output_items[0][:self.packet_size] = self.out_packets[self.current_packet_index]\n\
+      \                self.current_packet_index += 1\n\n                packet_length\
+      \ = len(output_items[0])\n                key = pmt.intern(\"packet_len\")\n\
+      \                val = pmt.from_long(packet_length)\n                self.add_item_tag(0,\
+      \  # Write to output port 0\n                                self.indx,   #\
+      \ Index of the tag\n                                key,   # Key of the tag\n\
+      \                                val,\n                                srcid=pmt.PMT_F)\n\
+      \                self.indx += packet_length\n                return packet_length\n\
+      \            else:\n                self.eof = True\n                return\
+      \ 0\n        else:\n            return 0\n\n\nif __name__ == \"__main__\":\n\
+      \    test = blk()\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    data_len: ''
+    ecc_size: ''
+    id_len: ''
+    input_binary: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    packet_size: ''
+    postamble_size: ''
+    preamble_size: ''
+  states:
+    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'\\x03\\xd5I\\xa6|\\x88\\xb4\\xd2\\xda\\x0f\\xd1\\xea\\x15\\xbf\\x8a\\xddx\\x86}k{\\xc2\\xefG\\x04l\\x97\\x00\\x01\\xb1\\x8a\\xebp\\x8c1[h\\xcbi\\xb4Qf/\\xb5\\xcf\\xb5\\xb0\\x12fj\\xd5\\x8a\\xb7v\\xfe\\xc4\\xcan\\x19$U\\xee\\x01\\x03&\\xbak\\xcc\\xaa\\xd7S\\x91I\\x11\\xda\\xae\\x89\\rp\\xfc\\x95\\x16\\x1c\\x83\\xaa<\\x94\\x86\\xe0\\xadj\\x87\\x90\\xdd>r;~\\xe9\\xa5Dt\\x15!\\xc0-\\xf1SX\\x8d\\x14\\xa7\\xc3P\\x97v~\\xe4\\xb4\\xfd\\xc3-\\x11_\\xf1Q\\xdcY\\x97\\xb9%\\x88\\xa6.w\\xaae\\x92\\x06\\x88\\xd5ge\\xba\\x1e\\xcd[4v\\xa8z\\xe8e\\xd3\\xc0M\\xf8.\\xe6^\\x01\\xb2\\xc0\\x8ed]\\x04\\xc3D\\xa9\\x14"\\xb8\\x15\\x8dM\\x0eGf\\x0f\\xa5\\xbf\\xeb\\xc6\\xf4t\\xda\\x96\\xb6\\x13^d\\xb7\\xfc\\xdar3\\xab\\x90X\\xa7\\x1e\\xddNq\\x8f,M\\x91\\x86\\x0e\\xad\\xe8F\\xd5\\xbc\\xc1\\x9c\\x01t\\x96\\xe5\\x8b\\x88\\xa7\\xcf_\\xacuE\\xd7_\\xf1\\xcaX0\\xc6\\xca9\\xe5\\xd8\\xa1\\xa0\\x8bJ\\x10mz9\\xa5"\\xed\\x14P\\x8a\\x00\\x07\\xe3\\xb2g\\x96\\xe9\\xb3\\xbb\\x01\\xf1\\xf50\\xd10\\xc1\\xea\\xf9\\xac\\x9d\\xd4T\\xd1\\x15\\xe8\\xe2\\x9e;\\x0f\\xfe\\xfe\\xcc[\\x96\\x87?\\x8eE\\xb5F\\x16U\\xc9\\xc1\\x92\\xfb\\xed]\\xe3(7\\xf7\\x87\\x90\\x89"<\\xaf\\x91l\\xb2?\\xca\\\\]\\xd7\\xafR\\xcdu\\x12J\\x83\\x1bs\\xa7\\xb4\\x93\\xa4\\xebo\\xfd:K\\xa7:\\xfb\\xbbp\\xd6\\xde\\xb0;\\x8f\\xdeD\\xc7hsG\\x1b\\x815lH\\x0c\\xf2\\x7f]\\xf25\\xd9\\x8e\\xf5\\xc9W\\xaa\\x16\\x94L\\xe4\\x8b\\x89\\xb0\\xc0\\x99\\x17i\\xd6\\xf4\\x19IYR\\x93\\xfb\\xf4\\x11\\x18\\x1aw\\xd8\\x89\\xf5Z\\xd4\\x16:\\xd5\\xd3D\\x837\\x12H\\x06:L\\xbf<\\x0f\\xa1\\xb5}\\xb2I\\xabJ7\\x8e\\xe6\\xa8\\x1es\\xa9\\xfad\\x8ad\\x9c\\\'HLG\\xfcT\\xc7\\xe8\\x026\\x0bP\\x8dp\\x82\\xe2\\xca\\x86(A8\\xed\\tX\\xbc!\\x961\\x1f\\xd7\\xcf-=\\xfee\\xa6\\xe1\\xfeI\\xea\\x8b\\x9fA\\x07\\xd2S]\\xd3ZA\\xa9]\\x01\\x9e\\xbe\\x135\\xe8\\x1eS\\xb3\\xbe3\\x84\\xc6\\xc1)\\x1a\\xee\\xea\\x06\\x8c\\x14\\x80!\\xc0\\xca\\xb0\\x17\\x03\\xfc<y\\xa0\\x0f\\x1e\\xe5\\xfd\\x81\\xd3\\xab|\\xd5\\xcdF\\\'\\xddI\\x93\\x1c\\xae\\x7f\\xe1tR,=\\xaaP\\x08U1\\xf1;\\xad\\xf7\\x07\\xc58xxW\\x81,\\xcc\\xcf\\x8cN\\xfa\\xb7\\xf811\\nM\\x12\\xb0\\xdb\\x01[\\x19\\x90\\x19\\x04x\\xf3\\xbd\\xca\\xe9n\\xec\\x14\\x99~6\\x1b\\xf315I\\xc27\\t\\xba6\\xee\\xf8`\\x91fJDb\\x87\\xac\\xb4\\xd9\\xab\\x14\\xfd\\xb8\\xc5z\\x9eD</\\xffz\\xcf&Y\\x9a\\xec\\xbcOu\\td\\xbc^\\xe3\\xae\\\\\\x96f\\xd4=u(\\n*J@\\x11\\x87G\\xe1]\\xbbm~\\x87D\\x94\\xc4\\xc4G\\x0c\\xa5\\xe2\\xe1\\x81\\x840\\xf4*\\xc1\\xf7\\xda\\x1d\\xed6\\x98x\\x84\\xc2\\x11#n\\n5M$|#X!\\xe5on[mq\\xbc\\xa9\\x0f\\xb5\\x9f\\x97\\x8d`k8\\x99\\xd4|\\xc6|,\\xf5\\xab\\x00S\\xa3\\xac|\\xc2\\xcf\\xe9
+      \\xd2\\x8c\\xaa\\xf4Y\\xde\\xdfI%\\x7fur\\xefP\\x97\\xae\\xbeWc)OQ\\xd19\\xf0\\x01w\\xd2*\\x93q\\x06VC\\x97%\\xb5\\xcd2\\x16\\x0e\\x83
+      \\xb6s\\x96\\x19Sc\\xb7\\xe0\\xeaf\\x1d\\xc6\\xd1\\xad\\x16\\x81\\xd7\\x1f\\xd9\\xd278\\x0b\\xa4-`UT\\x1e`4\\xbd\\xbf\\x8d\\x1d\\x84w\\xc5`V)/\\x1deOp\\xc8\\x03\\xbf\\xc0\\xfbx&\\x80\\x0fl\\xf8\\xa2\\x8f\\x92\\xf2\\x9fp\\xce\\xa4k\\xcbA\\xf48ZH\\xce;K\\xa1\\x8e\\\'\\xa6Vt\\x8a\\x8ef\\xbd;\\xe8zE(T+\\\'^\\\\\\xba\\xa7S\\x0bJ\\xa5\\x84\\xb1\\x04\\x9e#bs\\x00\\xfdF\\xe4j9&\\rw:\\x85,\\xd1\\x17\\xfc[m>\\xf0\\xf4\\xbb\\xef\\xfaM\\xe6\\x18\\xf6XZ\\t\\xaa\\xc8\\x19\\xce\\xde\\xc041!\\xb2\\x9a\\\'\\xe0\\x0e\\x86\\x7f\\xcf\\xdc\\x99u\\x84\\xef;\\x08I\\x96"L\\xce\\x8bPn\\xadR\\xdb\\xe5\\xf9b;\\xf2\\xe9RB\\x00\\xba\\x1dcE\\xf4(\\xf3\\x16xn\\xff\\xcb\\x9c\\xa7[u\\x97\\xcc\\x82\\xe3\\x03\\xad\\x18\\x01\\xd4\\xc2H0\\x88E\\x96\\x0c,\\xbb\\xc4\\x7fq(\\x04-@#\\\'\\x0e\\xb9\\x83voh\''),
+      ('packet_size', '64'), ('preamble_size', '3'), ('postamble_size', '3'), ('ecc_size',
+      '6'), ('id_len', '2'), ('data_len', '1')], [], [('0', 'byte', 1)], '', ['packet_size'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 132.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_1
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nEmbedded Python Blocks:\n\nEach time this file is saved,\
+      \ GRC will instantiate the first class it finds\nto get ports and parameters\
+      \ of your block. The arguments to __init__  will\nbe the parameters. All of\
+      \ them are required to have default values!\n\"\"\"\n\nimport numpy as np\n\
+      from gnuradio import gr\n\n\nclass blk(gr.sync_block):  # other base classes\
+      \ are basic_block, decim_block, interp_block\n    \"\"\"Embedded Python Block\
+      \ example - a simple multiply const\"\"\"\n\n    def __init__(self, example_param=1.0):\
+      \  # only default arguments here\n        \"\"\"arguments to this function show\
+      \ up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n         \
+      \   self,\n            name='Embedded Python Block',   # will show up in GRC\n\
+      \            in_sig=[np.complex64],\n            out_sig=[np.complex64]\n  \
+      \      )\n        # if an attribute with the same name as a parameter is found,\n\
+      \        # a callback is registered (properties work, too).\n        self.example_param\
+      \ = example_param\n\n    def work(self, input_items, output_items):\n      \
+      \  \"\"\"example: multiply with constant\"\"\"\n        output_items[0][:] =\
+      \ input_items[0] * self.example_param\n        return len(output_items[0])\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    example_param: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: ('Embedded Python Block', 'blk', [('example_param', '1.0')], [('0',
+      'complex', 1)], [('0', 'complex', 1)], 'Embedded Python Block example - a simple
+      multiply const', ['example_param'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [376, 184.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [epy_block_0, '0', blocks_throttle2_0, '0']
 
 metadata:
   file_format: 1
