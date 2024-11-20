@@ -114,7 +114,7 @@ def decode_single_packet(packet,
         id = int.from_bytes(decoded_packet[:id_len], 'big') - 1
         if id == -1: # filter out the preamble and postamble
             if (packet[id_len:id_len+3] - np.array([101, 111, 102])).sum() == 0 :
-                return (-1, b'')
+                return (-1, b'eof')
         else:
             d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len], 'big')
             return (id, decoded_packet[id_len + data_len:id_len + data_len + d_len])
@@ -148,7 +148,12 @@ def encoded_packets_to_binary(packets,
     for p in packets:
         id, packet_data = decode_single_packet(p, ecc, id_len, data_len)
         if not id == -1:
+            # saving data
             data[id] = packet_data
+        else:
+            # checking if it is EOF
+            if packet_data == b'eof':
+                break
 
     data = dict(sorted(data.items()))
 
