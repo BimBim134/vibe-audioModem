@@ -161,28 +161,27 @@ def encoded_packets_to_binary(packets,
     return b''.join(data)
 
 
-
-def test_for_decoding(errors_enable):
-    """torture test
-
-    Returns:
-        bool: returns True if the test succeed
-    """
-    binaryFile = randbytes(1000)
-    packets = binary_to_encoded_packet(binaryFile)
-    # torture test
-    if errors_enable:
-        for p in packets:
-            for error in range(3):
-                idx = randint(0, len(p)-1)
-                p[idx] = randint(0, 255)  # change byte to simulate an error
-    decoded_binary = encoded_packets_to_binary(packets)
-    # calculating hash
-    original_file_hash = hashlib.md5(binaryFile).hexdigest()
-    decoded_file_hash = hashlib.md5(decoded_binary).hexdigest()
-    return original_file_hash == decoded_file_hash
-
-
 if __name__ == "__main__":
+
+    def test_for_decoding(errors_enable):
+        """torture test
+
+        Returns:
+            bool: returns True if the test succeed
+        """
+        binaryFile = randbytes(1000)
+        packets = binary_to_encoded_packet(binaryFile)
+        # torture test
+        if errors_enable:
+            for p in packets:
+                for error in range(3):
+                    idx = randint(0, len(p)-1)
+                    p[idx] = randint(0, 255)  # change byte to simulate an error
+        decoded_binary = encoded_packets_to_binary(packets)
+        # calculating hash
+        original_file_hash = hashlib.md5(binaryFile).hexdigest()
+        decoded_file_hash = hashlib.md5(decoded_binary).hexdigest()
+        return original_file_hash == decoded_file_hash
+    
     assert test_for_decoding(errors_enable=False)
     assert test_for_decoding(errors_enable=True)
