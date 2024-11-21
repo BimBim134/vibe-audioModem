@@ -130,21 +130,23 @@ class blk(gr.sync_block):
     def work(self, input_items, output_items):
         if not self.eof:
             if self.current_packet_index <= self.packet_count:
-                output_items[0][:self.packet_size] = self.out_packets[self.current_packet_index]
+                current_packet_size = len(self.out_packets[self.current_packet_index])
+                output_items[0][:current_packet_size] = self.out_packets[self.current_packet_index]
                 self.current_packet_index += 1
 
-                packet_length = len(output_items[0])
                 key = pmt.intern("packet_len")
-                val = pmt.from_long(packet_length)
+                val = pmt.from_long(current_packet_size)
                 self.add_item_tag(0,  # Write to output port 0
                                 self.indx,   # Index of the tag
                                 key,   # Key of the tag
                                 val,
                                 srcid=pmt.PMT_F)
-                self.indx += packet_length
-                return packet_length
+                self.indx += current_packet_size
+                gr.log_debug.info(f"sending {current_packet_size} bytes")
+                return current_packet_size
             else:
                 self.eof = True
+                gr.log_debug.info("EOF")
                 return 0
         else:
             return 0
