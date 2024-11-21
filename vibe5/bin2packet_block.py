@@ -144,14 +144,14 @@ class blk(gr.basic_block):
                                 val,
                                 srcid=pmt.PMT_F)
                 
-                gr.log_debug.info(f"sending {current_packet_size} bytes")
+                gr.log_debug.info(f"sending packet {self.current_packet_index:0>6d} : {current_packet_size} bytes")
                 self.indx += current_packet_size
                 self.current_packet_index += 1
                 self.produce(0, current_packet_size)
                 return current_packet_size
             else:
                 self.eof = True
-                gr.log_debug.info("EOF")
+                gr.log_debug.info("sending EOF")
                 return 0
         else:
             return 0
