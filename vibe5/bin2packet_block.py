@@ -82,15 +82,18 @@ def binary_to_encoded_packet(binaryFile,
     chuncks = split_into_chuncks(binaryFile,
                                  packet_size - ecc_size - id_len - data_len)
     
-    preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len)] * preamble_size
-    postamble = [(0).to_bytes(id_len, 'big') + b'eof' + randbytes(packet_size - id_len - 3)] * postamble_size
+    preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len - ecc_size)] * preamble_size
+    postamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len - ecc_size)] * postamble_size
 
-    chunck_with_id = preamble + [(i+1).to_bytes(id_len, 'big') +
-                                 len(c).to_bytes(data_len, 'big') + c
-                                 for i, c in enumerate(chuncks)] + postamble
+    chunck_with_id = [(i+1).to_bytes(id_len, 'big') +
+                      len(c).to_bytes(data_len, 'big') + c
+                      for i, c in enumerate(chuncks)]
 
     while len(chunck_with_id[-1]) < packet_size - ecc_size:
         chunck_with_id[-1] += randbytes(1)
+
+    # adding the preamble and postamble
+    chunck_with_id = preamble + chunck_with_id + postamble
 
     encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]
 
@@ -99,7 +102,7 @@ def binary_to_encoded_packet(binaryFile,
     return output
 
 
-class blk(gr.sync_block):
+class blk(gr.basic_block):
     def __init__(self,
                  input_binary=randbytes(1000),
                  packet_size=64,
@@ -115,13 +118,13 @@ class blk(gr.sync_block):
             out_sig=[np.uint8]
         )
         self.packet_size = packet_size
-        self.out_packets = binary_to_encoded_packet(input_binary,
-                                                    preamble_size,
-                                                    postamble_size,
-                                                    packet_size,
-                                                    ecc_size,
-                                                    id_len,
-                                                    data_len)
+        self.out_packets = binary_to_encoded_packet(binaryFile=input_binary,
+                                                    packet_size=packet_size,
+                                                    preamble_size=preamble_size,
+                                                    postamble_size=postamble_size,
+                                                    ecc_size=ecc_size,
+                                                    id_len=id_len,
+                                                    data_len=data_len)
         self.current_packet_index = 0
         self.indx = 0
         self.packet_count = len(self.out_packets)
@@ -132,7 +135,6 @@ class blk(gr.sync_block):
             if self.current_packet_index <= self.packet_count:
                 current_packet_size = len(self.out_packets[self.current_packet_index])
                 output_items[0][:current_packet_size] = self.out_packets[self.current_packet_index]
-                self.current_packet_index += 1
 
                 key = pmt.intern("packet_len")
                 val = pmt.from_long(current_packet_size)
@@ -141,8 +143,11 @@ class blk(gr.sync_block):
                                 key,   # Key of the tag
                                 val,
                                 srcid=pmt.PMT_F)
-                self.indx += current_packet_size
+                
                 gr.log_debug.info(f"sending {current_packet_size} bytes")
+                self.indx += current_packet_size
+                self.current_packet_index += 1
+                self.produce(0, current_packet_size)
                 return current_packet_size
             else:
                 self.eof = True
