@@ -61,9 +61,28 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [384, 296.0]
+    coordinate: [656, 288.0]
     rotation: 0
-    state: disabled
+    state: enabled
+- name: blocks_tag_gate_0
+  id: blocks_tag_gate
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    propagate_tags: 'True'
+    single_key: '"packet_len"'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [440, 176.0]
+    rotation: 0
+    state: enabled
 - name: blocks_throttle2_0
   id: blocks_throttle2
   parameters:
@@ -122,40 +141,46 @@ blocks:
       \    ecc.maxerrata(verbose=verbose)\n\n    chuncks = split_into_chuncks(binaryFile,\n\
       \                                 packet_size - ecc_size - id_len - data_len)\n\
       \    \n    preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size -\
-      \ id_len)] * preamble_size\n    postamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size\
-      \ - id_len)] * postamble_size\n\n    chunck_with_id = preamble + [(i+1).to_bytes(id_len,\
-      \ 'big') +\n                                 len(c).to_bytes(data_len, 'big')\
-      \ + c\n                                 for i, c in enumerate(chuncks)] + postamble\n\
-      \n    while len(chunck_with_id[-1]) < packet_size - ecc_size:\n        chunck_with_id[-1]\
-      \ += randbytes(1)\n\n    encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]\n\
-      \n    output = [np.frombuffer(ec, dtype=np.uint8) for ec in encoded_chuncks]\n\
-      \n    return output\n\n\nclass blk(gr.sync_block):\n    def __init__(self,\n\
-      \                 input_binary=randbytes(1000),\n                 packet_size=64,\n\
-      \                 preamble_size=3,\n                 postamble_size=3,\n   \
-      \              ecc_size=6,\n                 id_len=2,\n                 data_len=1):\n\
+      \ id_len - ecc_size)] * preamble_size\n    postamble = [(0).to_bytes(id_len,\
+      \ 'big') + randbytes(packet_size - id_len - ecc_size)] * postamble_size\n\n\
+      \    chunck_with_id = [(i+1).to_bytes(id_len, 'big') +\n                   \
+      \   len(c).to_bytes(data_len, 'big') + c\n                      for i, c in\
+      \ enumerate(chuncks)]\n\n    while len(chunck_with_id[-1]) < packet_size - ecc_size:\n\
+      \        chunck_with_id[-1] += randbytes(1)\n\n    # adding the preamble and\
+      \ postamble\n    chunck_with_id = preamble + chunck_with_id + postamble\n\n\
+      \    encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]\n\n    output\
+      \ = [np.frombuffer(ec, dtype=np.uint8) for ec in encoded_chuncks]\n\n    return\
+      \ output\n\n\nclass blk(gr.basic_block):\n    def __init__(self,\n         \
+      \        input_binary=randbytes(1000),\n                 packet_size=64,\n \
+      \                preamble_size=3,\n                 postamble_size=3,\n    \
+      \             ecc_size=6,\n                 id_len=2,\n                 data_len=1):\n\
       \        gr.sync_block.__init__(\n            self,\n            name='Binary\
       \ to Packet',\n            in_sig=None,\n            out_sig=[np.uint8]\n  \
       \      )\n        self.packet_size = packet_size\n        self.out_packets =\
-      \ binary_to_encoded_packet(input_binary,\n                                 \
-      \                   preamble_size,\n                                       \
-      \             postamble_size,\n                                            \
-      \        packet_size,\n                                                    ecc_size,\n\
-      \                                                    id_len,\n             \
-      \                                       data_len)\n        self.current_packet_index\
+      \ binary_to_encoded_packet(binaryFile=input_binary,\n                      \
+      \                              packet_size=packet_size,\n                  \
+      \                                  preamble_size=preamble_size,\n          \
+      \                                          postamble_size=postamble_size,\n\
+      \                                                    ecc_size=ecc_size,\n  \
+      \                                                  id_len=id_len,\n        \
+      \                                            data_len=data_len)\n        self.current_packet_index\
       \ = 0\n        self.indx = 0\n        self.packet_count = len(self.out_packets)\n\
       \        self.eof = False\n\n    def work(self, input_items, output_items):\n\
-      \        if not self.eof:\n            if self.current_packet_index <= self.packet_count:\n\
-      \                output_items[0][:self.packet_size] = self.out_packets[self.current_packet_index]\n\
-      \                self.current_packet_index += 1\n\n                packet_length\
-      \ = len(output_items[0])\n                key = pmt.intern(\"packet_len\")\n\
-      \                val = pmt.from_long(packet_length)\n                self.add_item_tag(0,\
-      \  # Write to output port 0\n                                self.indx,   #\
-      \ Index of the tag\n                                key,   # Key of the tag\n\
-      \                                val,\n                                srcid=pmt.PMT_F)\n\
-      \                self.indx += packet_length\n                return packet_length\n\
-      \            else:\n                self.eof = True\n                return\
+      \        if not self.eof:\n            if self.current_packet_index < self.packet_count:\n\
+      \                current_packet_size = len(self.out_packets[self.current_packet_index])\n\
+      \                output_items[0][:current_packet_size] = self.out_packets[self.current_packet_index]\n\
+      \n                key = pmt.intern(\"packet_len\")\n                val = pmt.from_long(current_packet_size)\n\
+      \                self.add_item_tag(0,  # Write to output port 0\n          \
+      \                      self.indx,   # Index of the tag\n                   \
+      \             key,   # Key of the tag\n                                val,\n\
+      \                                srcid=pmt.PMT_F)\n                \n      \
+      \          gr.log_debug.info(f\"sending {current_packet_size} bytes\")\n   \
+      \             self.indx += current_packet_size\n                self.current_packet_index\
+      \ += 1\n                self.produce(0, current_packet_size)\n             \
+      \   return current_packet_size\n            else:\n                self.eof\
+      \ = True\n                gr.log_debug.info(\"EOF\")\n                return\
       \ 0\n        else:\n            return 0\n\n\nif __name__ == \"__main__\":\n\
-      \    test = blk()\n"
+      \    \n    test = blk()\n"
     affinity: ''
     alias: ''
     comment: ''
@@ -169,13 +194,12 @@ blocks:
     postamble_size: '3'
     preamble_size: '3'
   states:
-    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'wy\\x15\\x1a\\x9d\\x08\\xcb\\xba\\xe3I\\x7f\\x94.U\\x8f\\xcaMnw\\x9b\\x926\\xfc\\xb2%!})-\\x94\\xd8<l\\x01)\\x0e,\\xa0`\\x02\\x0b\\x87\\xc6q\\x8e\\xceXs\\xbd\\xf4\\xc4\\x95\\x01H+\\x96z\\xb9\\xb2\\xd1D\\xd6\\x03\\x0f\\xac\\xc5\\xebT$\\xe9\\xdc\\xf0\\xf4\\x0e"\\x7f\\xde[\\xc4\\x19\\xfc\\xcbw\\xc8\\xe5c_\\xde\\x19*8\\xe4v>l&\\x9e\\xa9\\xb6/\\xf5\\xb4\\x95\\x14%9\\xbc\\x06gg\\xd1\\xa1\\xaf\\xe2\\x99wTsY9U\\x04\\x87\\xdbqz\\xbd\\xe0\\xc5G\\x94\\x7f\\x02\\x92\\x94\\n_w\\xef\\x9c\\xf2\\xb8v\\xc1\\xb2\\xf2\\x08\\xe7WZJ#\\x15\\x0f\\x95l\\x8e\\x11\\xf2\\xe0U\\x14\\x02si\\xday"\\xac\\x0e\\xac\\xba\\xc5\\xe8\\x0fZ\\x97\\x7f\\xeb\\x9b\\x05\\x9a\\x9f=\\xd7\\xb1\\x0b\\xcd\\xe7$\\xf2WoZ\\x8b\\x8a\\x12\\xb9\\x0b\\xf6\\xc5\\x1agx\\x02\\x03\\x05\\xf4\\xf8\\xb3\\x1c
-      ?\\x89Ax\\x9fE\\xc5\\x17\\xd4E\\x0ed\\xa5\\xad[\\x86\\xd2G\\x9ct\\xa3d\\xabM\\xee{\\x9d\\xae\\xadv3\\x06P\\x98/\\xd3\\xb4\\x02\\xba\\x19\\xae\\xff\\xb7\\xe0\\xf79T\\xa8\\x0c\\x06\\x9e\\xa0\\x98P\\x9b\\xff\\xd4D\\xfeo\\xd6T\\x1dx\\x08
-      /\\xfdh>>\\xb9x\\xed0\\x07>\\xe0K\\x1c\\x86!%q\\x17\\xaeU\\xa5\\xb2\\x80\\x89\\xd0\\xcc\\xca\\x0b\\xa9}\\x03@\\x969\\xf9\\x18\\xd2\\xd0R\\x04Zkch\\x04\\xc3\\x02\\x14(\\xb5\\x97\\xf2Rop\\x96\\x01\\xd0\\xac\\x9c\\x87\\x14`p\\xd0v\\xe1e\\x8bS\\xeaW\\x14)\\xcbt\\xcf\\xeb\\xab\\x1f\\xeb\\x10L\\xb4\\xa28\\x04*3\\x1b)?\\xd5>\\x15\\x8d\\xd1
-      \\xa4;]k\\xbf:\\xbc\\x9f\\x99\\xd0\\xc3\\x0c\\x15\\xd3\\x12t\\x15\\xefA\\xce\\x04$\\x0c\\xc9|p\\x90\\x9d\\x18!\\x88\\x93\\xb0{\\x1a\\xae\\xad\\xf8\\xec\\xec\\xcf\\x0ffp\\x04A\\xa1\\x1e\\xe8\\xf1\\x13\\xa8\\xe3\\xe0\\xb1\\xd6IJ0\\x9c\\x8dZ\\xb6^\\xd1\\xd9Cc4\\x19V1\\xf3>\\xea\\xaa\\xe9\\x13~k\\xf3+\\x0be\\xcb\\xcc\\xc4\\xe7\\xd7\\xf8"\\x94\\xb8@\\xd7\\xc7\\xcc\\xa3\\xc0fPck\\xfeAoS\\xe1I\\x1e\\x93\\xd1|.Nl\\xa7G\\xdc\\xaf\\xb1\\\\\\x01\\xeb\\xf5?\\x0b\\x00\\xbf&\\x7f\\x91\\xdc\\x00@\\xabt7\\x9b\\x8f\\x17\\xad\\xb9\\xdf\\xf4y\\x97\\n\\xe6\\xa8\\xab\\x1a\\xd7\\x88\\xddU;\\xcf,/R\\x16\\x0e\\xdf\\x8fDO4s|D\\xd1\\xb0B2@:\\xc4\\x974\\xb5\\x9eYX*/\\tW\\x8a\\xad\\x9c\\x13S\\xcand\\x05aD|?*\\x19\\xb5\\xd8\\x1c\\xa3tm\\x10\\x1a=Ni\\x8e\\x86\\xb7\\xd3,\\x9a&\\x18\\x8d~C\\x14\\xf2\\xc8S\\xb1\\x18\\xb7\\x07\\xfb\\xc6c\\xab\\xa0\\x8ct\\x99e\\x97w\\xa8a\\xfe\\x94B\\xb3\\xd5\\xfa\\xbcJ\\x9b\\x0f\\x1bGu\\xc0\\xac$\\xcfm`y$\\t\\x8bC\\xc7\\xbd\\xf7\\x16\\xf1\\x18k\\x95\\xfd\\x9cj@@\\x05p\\x01W\\xbef_\\x98/\\x9d4\\xe5\\x95\\xd3\\x99\\xd8\\x8e\\xabM_\\xd1Ac\\xfd\\x83\\x84\\x9f\\xdc\\xed\\xcc\\xb5\\x98\\xd1iu&\\xeb\\xd2rP\\xf7\\xdc\\x0c\\xd3\\xd6\\x86\\r>\\xc6\\x91aV\\xa2f:\\x85\\t\\x0f\\xe8!\\xd0\\xbc\\x84EP\\xc7\\xd8d\\x13DC\\x0e\\xc8\\x8c\\xa2\\x1d\\x90\\x98\\xb8N\\x03\\x8bc\\xc0{v@X\\xbd\\xfeS\\x02h\\x9b\\xa19X\\xbe\\xadY\\x07\\x7f_ph\\xe8\\x07w}s_\\xfe:\\xd0\\x8e%juW\\x7fY\\xe9\\xcb&\\x08>F]\\xdbi\\xb8|]\\xfa\\xb2\\x9bg\\xa1\\x8a\\xef\\xc8\\xa2\\xcd\\x8a\\xf1\\x91\\xe53\\x1e\\xecr\\x9d/\\x96\\x86\\\'\\x91\\xbe#\\x96\\x06
-      8\\xf3h\\x98\\xc9\\x94\\xc0\\xaeeN&,z\\x89\\t\\xdcn\\xfeZ\\xe7\\x8c\\x94\\\'\\xd4\\xdf\\x04\\x0e\\xcf\\xac\\xc3\\x058\\xf5e\\x81\\x7f\\x07m\\xeb\\x1bA\\xe1\\xbc\\x11\\x9c\\x98]w\\xf24\\xb5T\\xb5t\\x1b\\xc7\\x8e%\\xd6\\xfa\\xb1\\x17\\x18\\x0b\\xfb\\xdb\\xc4O\\x00%w\\xdc\\xe6\\x16\\x1a\\x9e[$\\x06\\x04\\xa5I\\xe4@\\xbf\\xfb\\xf7\\xbe\\xadQ\\x0b\\xb1+3N\\x9e8?T\\x00\\xf8)McR\\xaa$\\x9c\\x04\\xa9b\\x03\\xceE\\xc1\\xd5\\x88b\\xb5\\xac\\xccL<\\xf7\\\'\\xc8y\\xb3B\\xc0\\x16}\\x05|HRzw>O\\xc9\\n~\\x93\\xbdWS\\xf0\\xdf3w?\\xa8\\xbcB\\x1f\\x17\\xba\\xd047V\\xb2\\xffo\\xc1}\\x90\\x01\\x8d\\\'\\xe2\\xde\\xafk\\xa0\\xb6t\''),
-      ('packet_size', '64'), ('preamble_size', '3'), ('postamble_size', '3'), ('ecc_size',
-      '6'), ('id_len', '2'), ('data_len', '1')], [], [('0', 'byte', 1)], '', ['packet_size'])
+    _io_cache: '(''Binary to Packet'', ''blk'', [(''input_binary'', ''b\''\\x10\\xf5\\xef9\\x10\\t\\xab\\xdf^\\x13\\xc17\\xefL\\xd0\\xcf\\xbc_\\t\\xc6\\r\\x9f=\\x86\\x13\\x80\\x04\\xb2\\x9c\\x9d\\xe2\\n\\xd1\\x18E\\xec`\\rn\\x1c\\x15Dc\\xf3L\\x01fS\\x0e\\xde\\x01+u\\xadI[\\x1b)\\xc5\\xe6\\xe1\\x86\\xcc\\xa0\\xfc\\x1f\\xabZ\\xcaz\\xd1\\x92\\\''L\\x00\\xb1\\x08\\xe6\\x1eV\\x94z\\xa1\\x9c\\x9a-\\xa3\\xea7\\xeffU\\xe5L)\\xea6q\\x15\\x88\\xd71\\xca\\xe4*\\xde\\xf29\\x1a2\\x1b\\xdc\\xc8\\xde\\xed\\xfb\\xed\\xf7\\x02xN\\x13\\xfe\\x97\\xa2).\\x93\\xe1\\xc3\\x18\\xed\\x94\\x85I\\xe4\\xc7\\x8f\\xe4\\x81\\x9c\\x85m\\x96\\x920\\x96\\x1f\\xd6\\x8f\\xf7\\xc9\\x82(>C\\xf0J\\\''\\x8e,kz(,/\\x99\\x9d\\xc5\\xa4zIpJD\\xca\\x1a@y\\xd3\\xfd\\xa4\\x82i\\xa7\\x80>~!\\xb5\\x9bXO\\x1fy\\x8f:
+      \\xc5\\xc7\\xc3I\\x15\\xda\\xc2\\tn\\xa2By(m\\xc5\\xc5\\xac)\\xa5\\xa5\\xdf\\xf7\\x1a=%4\\xa4\\x90\\x93\\xb3\\xb4i\\xc9\\xac<\\xf2\\xfa\\x05\\x1f\\xdex\\x8d\\xf9S\\xe9p\\xb7)p2y\\x7f\\xd8\\xd5\\x96a\\xa5,\\x9a\\x86,\\x90\\xdb\\xfd*\\xae\\xfc~\\xf8\\x80\\xa6t\\xd4Gg\\x88%Q\\xa6wA\\x80\\xb5E\\x1b\\xd4ay\\xc1\\xa0\\xeee\\xe3\\x95\\xb6\\x13F(\\xd3RQ\\xc2\\x11\\xd0u\\x16\\x1al\\xf9\\xc59yQ\\x07\\x8d&kX\\xc0\\xe6\\xd6\\xb4\\xc1\\xb7\\xb4\\xf3\\xc8\\x9d\\xef\\x9d\\xf9]\\x03$u\\x1bN\\xd9\\xef\\xb4\\x87\\xb1e<{\\xc0\\xca\\x9a\\xe8\\xc7\\xa5\\x19\\x86\\xbc\\xc6\\xd2\\xf9\\xc0\\xc2\\xc6%\\xf3\\xe7v\\xa1\\xdbv"\\x89\\xef\\xae|Yi\\xb2\\xa5\\x84S7G\\x923m\\xaf\\xf9\\xb6L\\x9b\\xb7\\x1d\\xbb\\xd0\\xbf/E\\xd6\\xdb,\\x97j\\x8c\\x85x\\x93\\xcc\\xdd\\x81\\xc8\\x9d\\xa2\\x16\\xee0\\x98\\xda\\xa0\\xc2\\x11\\xee*\\\''U
+      -\\xc1\\x12,\\x84\\xf7\\xcf\\xa12,\\xd8\\xf7\\x0e\\x8b\\xb3\\xbf\\xc8\\x89\\x05\\x0c\\x87\\xb0\\x1c\\xdf\\x15\\xf8E\\xfa\\xd3\\xc6\\xc1\\xe4:\\x8f\\xafg/}[\\xdf\\xcc6\\x96\\xd8\\x14\\x1c\\x8e\\x93\\xee\\tm\\x15\\xc3\\xf8\\xf0\\x1f\\xee9\\xfcy\\xfb\\\''\\xaa\\x81t\\xfbS\\x87c\\xcf\\xf4\\xbb\\x97\\xe9\\xe3\\xa5\\xe6\\x05%\\xe9O\\xe0b^\\x13}*_\\x80\\xae\\xc1\\xe4\\x1b\\xca\\x9c%#\\xeeE+\\xfbQ\\xfc\\x12l\\xa6i\\x16\\xf2\\xc6\\xff\\xac\\xd5\\x10\\xacM\\xa2\\xef\\x99\\x1bi\\xda\\xb3\\x93%\\xb9\\x99<\\x83\\x1fI2\\x18O\\xb0:\\xee4~\\x91\\x10~\\xec\\xeal\\r5\\xedn\\x12f\\xdaF\\xb8a\\x84\\x99\\x18\\x97\\x8eP\\xe4@t\\x9d\\x14\\xa7i\\xcd\\xf6\\x8dU:\\xfffk\\xaf\\xc7\\x8aM\\xdd\\xe1\\xc8IC\\xde\\xf1\\xdb\\xe7\\x11?\\x92}\\xc8\\x8c~\\x1ccd,\\x10\\xa7\\x97\\xceq]\\x91f?\\x85\\xe3\\xe7\\x14\\x82\\xdfrY\\x0f\\x99\\x19\\x15i<\\xd3I\\x80\\xc7\\xbb\\x01\\xe9\\xb5\\x0f\\xb1\\xb0h\\xbc\\xcc\\xea]\\x88\\xc9?\\xdbsV\\xfd\\xa0\\xb8\\xaf9X\\xfd76\\rk\\xd6\\xca\\xaa:B.\\x97\\xe9-\\x9d!\\x93\\xbf\\x0c\\xf1\\xe7\\x03\\xe2b\\x84\\xb0_|\\xb2\\xf484\\x86;\\x10u\\xc3a\\x82\\xfd&E\\xd0n\\xfaX\\xb4\\t\\x93\\xc5lk\\x1e\\x9eYr\\xa0N\\xc3|\\x8c\\xc2\\xbf\\xdfq\\xe3\\\\\\xb20\\xc53\\x11>\\xae\\xb5\\xcf\\x7f7\\x9f&+[\\xe3\\x03E`\\xbf\\xd4\\xc6\\x08UM\\xea\\xb1\\x1e;\\xd6\\x035L^C\\xe7m\\x07Xw\\x08\\xed\\xd6\\xcc\\xb1S4\\xee\\xc41q\\xdd\\x13\\xcd\\x94\\xc5\\xd8\\xde\\x99[G\\x0f\\x02UZ\\x90\\x87G\\x10\\x137Lk^\\x0b-,\\x04\\xb0\\xad}\\xcd\\xf3\\xc4^\\xb9\\x12\\x81x\\xae{v7\\n\\x82\\x08\\xee\\x92\\xee\\xf0\\x15b\\xf4\\x07\\xa9\\x8b\\x02+\\x062:\\x8d\\xd1\\xf3\\x98\\xb8\\x9d\\x86\\x02l\\xc9\\x9d\\xee\\xe0(H\\x07\\xfe\\xec\\xda\\xe0\\xc7\\x11r\\xfc)\\xfb\\xe7\\xf4\\x9d/\\x94\\xab\\xd2\\r\\xd1\\xb0!\\xaf\\xfd\\x13\\xa6e\\xf2\\x8a{\\xf1&\\xda\\x06#\\x98\\xbb\\xa84?\\xe5\\xd0\\x00+\\xc7\\xfb_\\x13w\\xc4Y=\\x05\\x02_\\xf2\\xe0:\\x8e(\\xc9tk6\\xb8\\nW\\xc0+m\\xbd\\xfb\\xdd\\xb9\\xc3\\xbd5\\xc5\\\''"e\\x94g_\\xc6\\xa6b=*\\xfcF_)Y1u\\xb6\\xed\\xbc^\\xb0\\xc1\\x1f.\\xbb\\xdb\\xe4\\xa1O#\\x8a{\\xff\\xf5\\x06D\\xfc\\x1b\\xf6\\xb2r:\\xa3\\xec\\x87\\xc2\\xc1\\x06\\xd7\\xbaC\\xbel=>\''''),
+      (''packet_size'', ''64''), (''preamble_size'', ''3''), (''postamble_size'',
+      ''3''), (''ecc_size'', ''6''), (''id_len'', ''2''), (''data_len'', ''1'')],
+      [], [(''0'', ''byte'', 1)], '''', [''packet_size''])'
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -203,33 +227,37 @@ blocks:
       \        else:\n            d_len = int.from_bytes(decoded_packet[id_len:id_len\
       \ + data_len], 'big')\n            return (id, decoded_packet[id_len + data_len:id_len\
       \ + data_len + d_len])\n    except ReedSolomonError as e:\n        warnings.warn(\"\
-      packet is corrupted beyond repair !\")\n        print(e)\n    return (-1, b'')\n\
-      \nclass blk(gr.sync_block):  # other base classes are basic_block, decim_block,\
-      \ interp_block\n    def __init__(self,\n                 out_filename='',\n\
-      \                 packet_size=64,\n                 ecc_size=6,\n          \
-      \       id_len=2,\n                 data_len=1,\n                 verbose=False):\n\
-      \        gr.sync_block.__init__(\n            self,\n            name='Binary\
-      \ to Packet',\n            in_sig=[np.uint8],\n            out_sig=None\n  \
-      \      )\n        self.out_filename = out_filename\n        self.packet_size\
-      \ = packet_size\n        self.ecc = RSCodec(ecc_size)\n        self.ecc.maxerrata(verbose=verbose)\n\
-      \        self.id_len = id_len\n        self.data_len = data_len\n\n        self.packets\
-      \ = {}\n\n        self.indx = 0\n        self.packet_count = 0\n        self.eof\
-      \ = False\n    \n    def save_file(self):\n        data = dict(sorted(self.packets.items()))\n\
-      \n        received_ids = set(data.keys())\n        check_id = set(range(len(data)))\n\
+      packet is corrupted beyond repair !\")\n        print(e)\n    except TypeError:\n\
+      \        pass\n    return (-1, b'')\n\nclass blk(gr.basic_block):  # other base\
+      \ classes are basic_block, decim_block, interp_block\n    def __init__(self,\n\
+      \                 out_filename='',\n                 packet_size=64,\n     \
+      \            ecc_size=6,\n                 id_len=2,\n                 data_len=1,\n\
+      \                 verbose=False):\n        gr.sync_block.__init__(\n       \
+      \     self,\n            name='Binary to Packet',\n            in_sig=[np.uint8],\n\
+      \            out_sig=None\n        )\n        self.out_filename = out_filename\n\
+      \        self.packet_size = packet_size\n        self.ecc = RSCodec(ecc_size)\n\
+      \        self.ecc.maxerrata(verbose=verbose)\n        self.id_len = id_len\n\
+      \        self.data_len = data_len\n\n        self.packets = {}\n\n        self.indx\
+      \ = 0\n        self.packet_count = 0\n        self.eof = False\n    \n    def\
+      \ save_file(self):\n        data = dict(sorted(self.packets.items()))\n\n  \
+      \      received_ids = set(data.keys())\n        check_id = set(range(len(data)))\n\
       \        if received_ids != check_id:\n            warnings.warn(\"data may\
       \ be incomplete !\", BytesWarning)\n\n        data = list(data.values())\n \
       \       with open(self.out_filename, 'wb') as f:\n            f.write(b''.join(data))\n\
       \n    def work(self, input_items, output_items):\n        if not self.eof:\n\
-      \            for p in input_items[0]:\n                id, packet_data = decode_single_packet(p,\n\
-      \                                                       self.ecc,\n        \
-      \                                               self.id_len,\n             \
-      \                                          self.data_len)\n                if\
-      \ not id == -1:\n                    # saving data\n                    self.packet[id]\
-      \ = packet_data\n                else:\n                    # checking if it\
-      \ is EOF\n                    if packet_data == b'eof':\n                  \
-      \      self.eof = True\n                        break\n            return 0\n\
-      \        else:\n            gr.log_debug(f'saving file to {self.out_filename}')\n\
-      \            self.save_file()\n            return 0\n"
+      \            for p in input_items[0][:]:\n                id, packet_data =\
+      \ decode_single_packet(p,\n                                                \
+      \       self.ecc,\n                                                       self.id_len,\n\
+      \                                                       self.data_len)\n   \
+      \             self.indx += len(packet_data)\n                self.consume(0,\
+      \ len(packet_data))\n                gr.log_debug.info(f\"receiving {len(packet_data)}\"\
+      )\n                \n                if not id == -1:\n                    #\
+      \ saving data\n                    self.packet[id] = packet_data\n         \
+      \       else:\n                    # checking if it is EOF\n               \
+      \     if packet_data == b'eof':\n                        self.eof = True\n \
+      \                       break\n            return 0\n        else:\n       \
+      \     gr.log_debug(f'saving file to {self.out_filename}')\n            self.save_file()\n\
+      \            return 0\n"
     affinity: ''
     alias: ''
     comment: ''
@@ -248,13 +276,14 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [384, 144.0]
+    coordinate: [656, 144.0]
     rotation: 0
     state: enabled
 
 connections:
-- [blocks_throttle2_0, '0', blocks_tag_debug_0, '0']
-- [blocks_throttle2_0, '0', epy_block_1, '0']
+- [blocks_tag_gate_0, '0', blocks_tag_debug_0, '0']
+- [blocks_tag_gate_0, '0', epy_block_1, '0']
+- [blocks_throttle2_0, '0', blocks_tag_gate_0, '0']
 - [epy_block_0, '0', blocks_throttle2_0, '0']
 
 metadata:

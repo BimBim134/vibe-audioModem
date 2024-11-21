@@ -41,9 +41,9 @@ def decode_single_packet(packet,
         print(e)
     return (-1, b'')
 
-class blk(gr.sync_block):  # other base classes are basic_block, decim_block, interp_block
+class blk(gr.basic_block):  # other base classes are basic_block, decim_block, interp_block
     def __init__(self,
-                 out_filename,
+                 out_filename='',
                  packet_size=64,
                  ecc_size=6,
                  id_len=2,
@@ -52,8 +52,8 @@ class blk(gr.sync_block):  # other base classes are basic_block, decim_block, in
         gr.sync_block.__init__(
             self,
             name='Binary to Packet',
-            in_sig=None,
-            out_sig=[np.uint8]
+            in_sig=[np.uint8],
+            out_sig=None
         )
         self.out_filename = out_filename
         self.packet_size = packet_size
@@ -82,20 +82,28 @@ class blk(gr.sync_block):  # other base classes are basic_block, decim_block, in
 
     def work(self, input_items, output_items):
         if not self.eof:
-            for p in input_items[0]:
-                id, packet_data = decode_single_packet(p,
-                                                       self.ecc,
-                                                       self.id_len,
-                                                       self.data_len)
-                if not id == -1:
-                    # saving data
-                    self.packet[id] = packet_data
+            for p in input_items[0][:]:
+                if p == 0:
+                    return 0
                 else:
-                    # checking if it is EOF
-                    if packet_data == b'eof':
-                        self.eof = True
-                        break
+                    id, packet_data = decode_single_packet(p,
+                                                        self.ecc,
+                                                        self.id_len,
+                                                        self.data_len)
+                    self.indx += len(packet_data)
+                    self.consume(0, len(packet_data))
+                    gr.log_debug.info(f"receiving {len(packet_data)}")
+                    
+                    if not id == -1:
+                        # saving data
+                        self.packet[id] = packet_data
+                    else:
+                        # checking if it is EOF
+                        if packet_data == b'eof':
+                            self.eof = True
+                            break
             return 0
         else:
+            gr.log_debug(f'saving file to {self.out_filename}')
             self.save_file()
             return 0

@@ -132,7 +132,7 @@ class blk(gr.basic_block):
 
     def work(self, input_items, output_items):
         if not self.eof:
-            if self.current_packet_index <= self.packet_count:
+            if self.current_packet_index < self.packet_count:
                 current_packet_size = len(self.out_packets[self.current_packet_index])
                 output_items[0][:current_packet_size] = self.out_packets[self.current_packet_index]
 
@@ -158,4 +158,5 @@ class blk(gr.basic_block):
 
 
 if __name__ == "__main__":
+    
     test = blk()
