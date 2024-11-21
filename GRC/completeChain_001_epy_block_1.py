@@ -83,18 +83,21 @@ class blk(gr.sync_block):  # other base classes are basic_block, decim_block, in
     def work(self, input_items, output_items):
         if not self.eof:
             for p in input_items[0]:
-                id, packet_data = decode_single_packet(p,
-                                                       self.ecc,
-                                                       self.id_len,
-                                                       self.data_len)
-                if not id == -1:
-                    # saving data
-                    self.packet[id] = packet_data
+                if isinstance(p, np.uint8):
+                    return 0
                 else:
-                    # checking if it is EOF
-                    if packet_data == b'eof':
-                        self.eof = True
-                        break
+                    id, packet_data = decode_single_packet(p,
+                                                        self.ecc,
+                                                        self.id_len,
+                                                        self.data_len)
+                    if not id == -1:
+                        # saving data
+                        self.packet[id] = packet_data
+                    else:
+                        # checking if it is EOF
+                        if packet_data == b'eof':
+                            self.eof = True
+                            break
             return 0
         else:
             gr.log_debug(f'saving file to {self.out_filename}')
