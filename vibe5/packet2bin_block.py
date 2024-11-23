@@ -7,6 +7,7 @@ be the parameters. All of them are required to have default values!
 """
 
 import warnings
+import base64
 
 import numpy as np
 from gnuradio import gr
@@ -77,8 +78,10 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
             warnings.warn("data may be incomplete !", BytesWarning)
 
         data = list(data.values())
+        output = b''.join(data)
+        output = base64.urlsafe_b64decode(output)
         with open(self.out_filename, 'wb') as f:
-            f.write(b''.join(data))
+            f.write()
 
     def work(self, input_items, output_items):
         if not self.eof:
