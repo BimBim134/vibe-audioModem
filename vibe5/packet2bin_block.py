@@ -12,6 +12,7 @@ import base64
 import numpy as np
 from gnuradio import gr
 from reedsolo import RSCodec, ReedSolomonError
+import pmt
 
 def decode_single_packet(packet,
                          ecc,
@@ -31,16 +32,18 @@ def decode_single_packet(packet,
     try:
         decoded_packet = ecc.decode(packet)[0]
         id = int.from_bytes(decoded_packet[:id_len], 'big') - 1
+        d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len], 'big')
         if id == -1: # filter out the preamble and postamble
-            if (packet[id_len:id_len+3] - np.array([101, 111, 102])).sum() == 0 :
+            if b'eof' in decoded_packet:
                 return (-1, b'eof')
+            else:
+                return (-1, decoded_packet[id_len + data_len:id_len + data_len + d_len])
         else:
-            d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len], 'big')
             return (id, decoded_packet[id_len + data_len:id_len + data_len + d_len])
     except ReedSolomonError as e:
         warnings.warn("packet is corrupted beyond repair !")
         print(e)
-    return (-1, b'')
+    return (-1, packet)
 
 class blk(gr.basic_block):  # other base classes are basic_block, decim_block, interp_block
     def __init__(self,
@@ -65,9 +68,9 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
 
         self.packets = {}
 
-        self.indx = 0
         self.packet_count = 0
         self.eof = False
+
     
     def save_file(self):
         data = dict(sorted(self.packets.items()))
@@ -84,29 +87,41 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
             f.write()
 
     def work(self, input_items, output_items):
-        if not self.eof:
-            for p in input_items[0][:]:
-                if p == 0:
-                    return 0
-                else:
-                    id, packet_data = decode_single_packet(p,
-                                                        self.ecc,
-                                                        self.id_len,
-                                                        self.data_len)
-                    self.indx += len(packet_data)
-                    self.consume(0, len(packet_data))
-                    gr.log_debug.info(f"receiving {len(packet_data)}")
-                    
-                    if not id == -1:
-                        # saving data
-                        self.packet[id] = packet_data
+        in0 = input_items[0]
+        tags = self.get_tags_in_window(0, 0, len(in0))
+
+        packet_start = 0
+        for tag in tags:
+            if tag.key == pmt.string_to_symbol("packet_len"):
+                packet_len = pmt.to_long(tag.value)
+                packet_end = packet_start + packet_len
+
+                if packet_end <= len(in0):
+                    raw_packet = in0[packet_start:packet_end]
+
+                    if not self.eof:
+                        id, packet_data = decode_single_packet(raw_packet,
+                                                            self.ecc,
+                                                            self.id_len,
+                                                            self.data_len)
+                        packet_start = packet_end
+                        self.consume(0, packet_start)
+                        if not id == -1:
+                            # saving data
+                            gr.log_debug.info(f"receiving packet {id:0>6d} : {len(packet_data)}")
+                            self.packets[id] = packet_data
+                            return 0
+                        else:
+                            # checking if it is EOF
+                            if b'eof' in packet_data:
+                                gr.log_debug.info("receving EOF")
+                                self.eof = True
+                            return 0
                     else:
-                        # checking if it is EOF
-                        if packet_data == b'eof':
-                            self.eof = True
-                            break
-            return 0
-        else:
-            gr.log_debug(f'saving file to {self.out_filename}')
-            self.save_file()
-            return 0
+                        gr.log_debug(f'saving file to {self.out_filename}')
+                        self.save_file()
+                        return 0
+        return 0
+
+if __name__ == "__main__":
+    test = blk()
