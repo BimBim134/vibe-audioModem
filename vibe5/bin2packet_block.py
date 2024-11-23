@@ -5,6 +5,7 @@ Embedded Python Block: bytes to packets block
 from random import randbytes
 import pmt
 from pathlib import Path
+import base64
 
 from reedsolo import RSCodec
 from gnuradio import gr
@@ -79,14 +80,15 @@ def binary_to_encoded_packet(binaryFile,
     ecc = RSCodec(ecc_size)
     ecc.maxerrata(verbose=verbose)
 
+    binaryFile = base64.urlsafe_b64encode(binaryFile)
+
     chuncks = split_into_chuncks(binaryFile,
                                  packet_size - ecc_size - id_len - data_len)
     
     preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len - ecc_size)] * preamble_size
-    postamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size - id_len - ecc_size)] * postamble_size
+    postamble = [(0).to_bytes(id_len, 'big') + b'eof' + randbytes(packet_size - id_len - ecc_size -3)] * postamble_size
 
-    chunck_with_id = [(i+1).to_bytes(id_len, 'big') +
-                      len(c).to_bytes(data_len, 'big') + c
+    chunck_with_id = [(i+1).to_bytes(id_len, 'big') + len(c).to_bytes(data_len, 'big') + c
                       for i, c in enumerate(chuncks)]
 
     while len(chunck_with_id[-1]) < packet_size - ecc_size:
@@ -125,6 +127,7 @@ class blk(gr.basic_block):
                                                     ecc_size=ecc_size,
                                                     id_len=id_len,
                                                     data_len=data_len)
+        self.id_len = id_len
         self.current_packet_index = 0
         self.indx = 0
         self.packet_count = len(self.out_packets)
@@ -133,8 +136,10 @@ class blk(gr.basic_block):
     def work(self, input_items, output_items):
         if not self.eof:
             if self.current_packet_index < self.packet_count:
-                current_packet_size = len(self.out_packets[self.current_packet_index])
-                output_items[0][:current_packet_size] = self.out_packets[self.current_packet_index]
+                current_packet = self.out_packets[self.current_packet_index]
+                current_packet_size = len(current_packet)
+                output_items[0][:current_packet_size] = current_packet
+                id = int.from_bytes(current_packet[:self.id_len], 'big') - 1
 
                 key = pmt.intern("packet_len")
                 val = pmt.from_long(current_packet_size)
@@ -143,8 +148,10 @@ class blk(gr.basic_block):
                                 key,   # Key of the tag
                                 val,
                                 srcid=pmt.PMT_F)
-                
-                gr.log_debug.info(f"sending packet {self.current_packet_index:0>6d} : {current_packet_size} bytes")
+                if not id == -1:
+                    gr.log_debug.info(f"sending packet {id:0>6d} : {current_packet_size} bytes")
+                else:
+                    gr.log_debug.info(f"sending packet pre/postamble : {current_packet_size} bytes")
                 self.indx += current_packet_size
                 self.current_packet_index += 1
                 self.produce(0, current_packet_size)
@@ -158,5 +165,4 @@ class blk(gr.basic_block):
 
 
 if __name__ == "__main__":
-    
     test = blk()
