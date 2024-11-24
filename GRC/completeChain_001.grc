@@ -45,17 +45,16 @@ blocks:
     coordinate: [200, 12]
     rotation: 0
     state: enabled
-- name: blocks_tag_debug_0
-  id: blocks_tag_debug
+- name: blocks_file_sink_0
+  id: blocks_file_sink
   parameters:
     affinity: ''
     alias: ''
+    append: 'False'
     comment: ''
-    display: 'True'
-    filter: '""'
-    name: packet_len
-    num_inputs: '1'
+    file: /home/bimbim/Codes/vibe5/GRC/test_out/out_bin2packet
     type: byte
+    unbuffered: 'False'
     vlen: '1'
   states:
     bus_sink: false
@@ -64,23 +63,41 @@ blocks:
     coordinate: [656, 288.0]
     rotation: 0
     state: enabled
-- name: blocks_tag_gate_0
-  id: blocks_tag_gate
+- name: blocks_tag_debug_0
+  id: blocks_tag_debug
   parameters:
     affinity: ''
     alias: ''
     comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    propagate_tags: 'True'
-    single_key: '"packet_len"'
+    display: 'True'
+    filter: packet_len
+    name: ''
+    num_inputs: '1'
     type: byte
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [440, 176.0]
+    coordinate: [656, 384.0]
+    rotation: 0
+    state: enabled
+- name: blocks_tagged_stream_align_0
+  id: blocks_tagged_stream_align
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    lengthtagname: packet_len
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [416, 184.0]
     rotation: 0
     state: enabled
 - name: blocks_throttle2_0
@@ -101,18 +118,18 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [224, 176.0]
+    coordinate: [240, 176.0]
     rotation: 0
     state: enabled
 - name: epy_block_0
   id: epy_block
   parameters:
     _source_code: "\"\"\"\nEmbedded Python Block: bytes to packets block\n\"\"\"\n\
-      \nfrom random import randbytes\nimport pmt\nfrom pathlib import Path\n\nfrom\
-      \ reedsolo import RSCodec\nfrom gnuradio import gr\nimport numpy as np\n\n\n\
-      def importFileFromPath(path):\n    \"\"\"import file as binary\n\n    Args:\n\
-      \        path (str): file path\n\n    Returns:\n        data (bytes): output\
-      \ file\n    \"\"\"\n    with open(path, 'rb') as f:\n        data = f.read()\n\
+      \nfrom random import randbytes\nimport pmt\nfrom pathlib import Path\nimport\
+      \ base64\n\nfrom reedsolo import RSCodec\nfrom gnuradio import gr\nimport numpy\
+      \ as np\n\n\ndef importFileFromPath(path):\n    \"\"\"import file as binary\n\
+      \n    Args:\n        path (str): file path\n\n    Returns:\n        data (bytes):\
+      \ output file\n    \"\"\"\n    with open(path, 'rb') as f:\n        data = f.read()\n\
       \    return data\n\n\ndef split_into_chuncks(data, chunck_size):\n    \"\"\"\
       takes some binary data and split it into chuncks\n\n    Args:\n        data\
       \ (bytes): input data\n        chunck_size (int): chunck size in bytes\n\n \
@@ -138,17 +155,17 @@ blocks:
       \        if path.is_file():\n            binaryFile = importFileFromPath(path)\n\
       \        else:\n            raise FileExistsError\n    elif isinstance(binaryFile,\
       \ bytes):\n        pass\n    else:\n        raise TypeError\n\n    ecc = RSCodec(ecc_size)\n\
-      \    ecc.maxerrata(verbose=verbose)\n\n    chuncks = split_into_chuncks(binaryFile,\n\
-      \                                 packet_size - ecc_size - id_len - data_len)\n\
-      \    \n    preamble = [(0).to_bytes(id_len, 'big') + randbytes(packet_size -\
-      \ id_len - ecc_size)] * preamble_size\n    postamble = [(0).to_bytes(id_len,\
-      \ 'big') + randbytes(packet_size - id_len - ecc_size)] * postamble_size\n\n\
-      \    chunck_with_id = [(i+1).to_bytes(id_len, 'big') +\n                   \
-      \   len(c).to_bytes(data_len, 'big') + c\n                      for i, c in\
-      \ enumerate(chuncks)]\n\n    while len(chunck_with_id[-1]) < packet_size - ecc_size:\n\
-      \        chunck_with_id[-1] += randbytes(1)\n\n    # adding the preamble and\
-      \ postamble\n    chunck_with_id = preamble + chunck_with_id + postamble\n\n\
-      \    encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]\n\n    output\
+      \    ecc.maxerrata(verbose=verbose)\n\n    binaryFile = base64.urlsafe_b64encode(binaryFile)\n\
+      \n    chuncks = split_into_chuncks(binaryFile,\n                           \
+      \      packet_size - ecc_size - id_len - data_len)\n    \n    preamble = [(0).to_bytes(id_len,\
+      \ 'big') + randbytes(packet_size - id_len - ecc_size)] * preamble_size\n   \
+      \ postamble = [(0).to_bytes(id_len, 'big') + b'eof' + randbytes(packet_size\
+      \ - id_len - ecc_size -3)] * postamble_size\n\n    chunck_with_id = [(i+1).to_bytes(id_len,\
+      \ 'big') + len(c).to_bytes(data_len, 'big') + c\n                      for i,\
+      \ c in enumerate(chuncks)]\n\n    while len(chunck_with_id[-1]) < packet_size\
+      \ - ecc_size:\n        chunck_with_id[-1] += randbytes(1)\n\n    # adding the\
+      \ preamble and postamble\n    chunck_with_id = preamble + chunck_with_id + postamble\n\
+      \n    encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]\n\n    output\
       \ = [np.frombuffer(ec, dtype=np.uint8) for ec in encoded_chuncks]\n\n    return\
       \ output\n\n\nclass blk(gr.basic_block):\n    def __init__(self,\n         \
       \        input_binary=randbytes(1000),\n                 packet_size=64,\n \
@@ -163,47 +180,53 @@ blocks:
       \                                          postamble_size=postamble_size,\n\
       \                                                    ecc_size=ecc_size,\n  \
       \                                                  id_len=id_len,\n        \
-      \                                            data_len=data_len)\n        self.current_packet_index\
-      \ = 0\n        self.indx = 0\n        self.packet_count = len(self.out_packets)\n\
-      \        self.eof = False\n\n    def work(self, input_items, output_items):\n\
-      \        if not self.eof:\n            if self.current_packet_index < self.packet_count:\n\
-      \                current_packet_size = len(self.out_packets[self.current_packet_index])\n\
-      \                output_items[0][:current_packet_size] = self.out_packets[self.current_packet_index]\n\
-      \n                key = pmt.intern(\"packet_len\")\n                val = pmt.from_long(current_packet_size)\n\
-      \                self.add_item_tag(0,  # Write to output port 0\n          \
-      \                      self.indx,   # Index of the tag\n                   \
-      \             key,   # Key of the tag\n                                val,\n\
-      \                                srcid=pmt.PMT_F)\n                \n      \
-      \          gr.log_debug.info(f\"sending {current_packet_size} bytes\")\n   \
-      \             self.indx += current_packet_size\n                self.current_packet_index\
-      \ += 1\n                self.produce(0, current_packet_size)\n             \
-      \   return current_packet_size\n            else:\n                self.eof\
-      \ = True\n                gr.log_debug.info(\"EOF\")\n                return\
-      \ 0\n        else:\n            return 0\n\n\nif __name__ == \"__main__\":\n\
-      \    \n    test = blk()\n"
+      \                                            data_len=data_len)\n        self.id_len\
+      \ = id_len\n        self.current_packet_index = 0\n        self.indx = 0\n \
+      \       self.packet_count = len(self.out_packets)\n        self.eof = False\n\
+      \n    def work(self, input_items, output_items):\n        if not self.eof:\n\
+      \            if self.current_packet_index < self.packet_count:\n           \
+      \     current_packet = self.out_packets[self.current_packet_index]\n       \
+      \         current_packet_size = len(current_packet)\n                output_items[0][:current_packet_size]\
+      \ = current_packet\n                id = int.from_bytes(current_packet[:self.id_len],\
+      \ 'big') - 1\n\n                key = pmt.intern(\"packet_len\")\n         \
+      \       val = pmt.from_long(current_packet_size)\n                self.add_item_tag(0,\
+      \  # Write to output port 0\n                                self.indx,   #\
+      \ Index of the tag\n                                key,   # Key of the tag\n\
+      \                                val,\n                                srcid=pmt.PMT_F)\n\
+      \                if not id == -1:\n                    gr.log_debug.info(f\"\
+      sending packet {id:0>6d} : {current_packet_size} bytes\")\n                else:\n\
+      \                    gr.log_debug.info(f\"sending packet pre/postamble : {current_packet_size}\
+      \ bytes\")\n                self.indx += current_packet_size\n             \
+      \   self.current_packet_index += 1\n                self.produce(0, current_packet_size)\n\
+      \                return current_packet_size\n            else:\n           \
+      \     self.eof = True\n                gr.log_debug.info(\"EOF\")\n        \
+      \        return 0\n        else:\n            return 0\n\n\nif __name__ == \"\
+      __main__\":\n    test = blk()"
     affinity: ''
     alias: ''
     comment: ''
     data_len: '1'
     ecc_size: '6'
     id_len: '2'
-    input_binary: '"/home/bimbim/Codes/vibe_5/sampleFile.txt"'
+    input_binary: '"/home/bimbim/Codes/vibe5/sampleFile.txt"'
     maxoutbuf: '0'
     minoutbuf: '0'
     packet_size: '64'
     postamble_size: '3'
     preamble_size: '3'
   states:
-    _io_cache: '(''Binary to Packet'', ''blk'', [(''input_binary'', ''b\''\\x10\\xf5\\xef9\\x10\\t\\xab\\xdf^\\x13\\xc17\\xefL\\xd0\\xcf\\xbc_\\t\\xc6\\r\\x9f=\\x86\\x13\\x80\\x04\\xb2\\x9c\\x9d\\xe2\\n\\xd1\\x18E\\xec`\\rn\\x1c\\x15Dc\\xf3L\\x01fS\\x0e\\xde\\x01+u\\xadI[\\x1b)\\xc5\\xe6\\xe1\\x86\\xcc\\xa0\\xfc\\x1f\\xabZ\\xcaz\\xd1\\x92\\\''L\\x00\\xb1\\x08\\xe6\\x1eV\\x94z\\xa1\\x9c\\x9a-\\xa3\\xea7\\xeffU\\xe5L)\\xea6q\\x15\\x88\\xd71\\xca\\xe4*\\xde\\xf29\\x1a2\\x1b\\xdc\\xc8\\xde\\xed\\xfb\\xed\\xf7\\x02xN\\x13\\xfe\\x97\\xa2).\\x93\\xe1\\xc3\\x18\\xed\\x94\\x85I\\xe4\\xc7\\x8f\\xe4\\x81\\x9c\\x85m\\x96\\x920\\x96\\x1f\\xd6\\x8f\\xf7\\xc9\\x82(>C\\xf0J\\\''\\x8e,kz(,/\\x99\\x9d\\xc5\\xa4zIpJD\\xca\\x1a@y\\xd3\\xfd\\xa4\\x82i\\xa7\\x80>~!\\xb5\\x9bXO\\x1fy\\x8f:
-      \\xc5\\xc7\\xc3I\\x15\\xda\\xc2\\tn\\xa2By(m\\xc5\\xc5\\xac)\\xa5\\xa5\\xdf\\xf7\\x1a=%4\\xa4\\x90\\x93\\xb3\\xb4i\\xc9\\xac<\\xf2\\xfa\\x05\\x1f\\xdex\\x8d\\xf9S\\xe9p\\xb7)p2y\\x7f\\xd8\\xd5\\x96a\\xa5,\\x9a\\x86,\\x90\\xdb\\xfd*\\xae\\xfc~\\xf8\\x80\\xa6t\\xd4Gg\\x88%Q\\xa6wA\\x80\\xb5E\\x1b\\xd4ay\\xc1\\xa0\\xeee\\xe3\\x95\\xb6\\x13F(\\xd3RQ\\xc2\\x11\\xd0u\\x16\\x1al\\xf9\\xc59yQ\\x07\\x8d&kX\\xc0\\xe6\\xd6\\xb4\\xc1\\xb7\\xb4\\xf3\\xc8\\x9d\\xef\\x9d\\xf9]\\x03$u\\x1bN\\xd9\\xef\\xb4\\x87\\xb1e<{\\xc0\\xca\\x9a\\xe8\\xc7\\xa5\\x19\\x86\\xbc\\xc6\\xd2\\xf9\\xc0\\xc2\\xc6%\\xf3\\xe7v\\xa1\\xdbv"\\x89\\xef\\xae|Yi\\xb2\\xa5\\x84S7G\\x923m\\xaf\\xf9\\xb6L\\x9b\\xb7\\x1d\\xbb\\xd0\\xbf/E\\xd6\\xdb,\\x97j\\x8c\\x85x\\x93\\xcc\\xdd\\x81\\xc8\\x9d\\xa2\\x16\\xee0\\x98\\xda\\xa0\\xc2\\x11\\xee*\\\''U
-      -\\xc1\\x12,\\x84\\xf7\\xcf\\xa12,\\xd8\\xf7\\x0e\\x8b\\xb3\\xbf\\xc8\\x89\\x05\\x0c\\x87\\xb0\\x1c\\xdf\\x15\\xf8E\\xfa\\xd3\\xc6\\xc1\\xe4:\\x8f\\xafg/}[\\xdf\\xcc6\\x96\\xd8\\x14\\x1c\\x8e\\x93\\xee\\tm\\x15\\xc3\\xf8\\xf0\\x1f\\xee9\\xfcy\\xfb\\\''\\xaa\\x81t\\xfbS\\x87c\\xcf\\xf4\\xbb\\x97\\xe9\\xe3\\xa5\\xe6\\x05%\\xe9O\\xe0b^\\x13}*_\\x80\\xae\\xc1\\xe4\\x1b\\xca\\x9c%#\\xeeE+\\xfbQ\\xfc\\x12l\\xa6i\\x16\\xf2\\xc6\\xff\\xac\\xd5\\x10\\xacM\\xa2\\xef\\x99\\x1bi\\xda\\xb3\\x93%\\xb9\\x99<\\x83\\x1fI2\\x18O\\xb0:\\xee4~\\x91\\x10~\\xec\\xeal\\r5\\xedn\\x12f\\xdaF\\xb8a\\x84\\x99\\x18\\x97\\x8eP\\xe4@t\\x9d\\x14\\xa7i\\xcd\\xf6\\x8dU:\\xfffk\\xaf\\xc7\\x8aM\\xdd\\xe1\\xc8IC\\xde\\xf1\\xdb\\xe7\\x11?\\x92}\\xc8\\x8c~\\x1ccd,\\x10\\xa7\\x97\\xceq]\\x91f?\\x85\\xe3\\xe7\\x14\\x82\\xdfrY\\x0f\\x99\\x19\\x15i<\\xd3I\\x80\\xc7\\xbb\\x01\\xe9\\xb5\\x0f\\xb1\\xb0h\\xbc\\xcc\\xea]\\x88\\xc9?\\xdbsV\\xfd\\xa0\\xb8\\xaf9X\\xfd76\\rk\\xd6\\xca\\xaa:B.\\x97\\xe9-\\x9d!\\x93\\xbf\\x0c\\xf1\\xe7\\x03\\xe2b\\x84\\xb0_|\\xb2\\xf484\\x86;\\x10u\\xc3a\\x82\\xfd&E\\xd0n\\xfaX\\xb4\\t\\x93\\xc5lk\\x1e\\x9eYr\\xa0N\\xc3|\\x8c\\xc2\\xbf\\xdfq\\xe3\\\\\\xb20\\xc53\\x11>\\xae\\xb5\\xcf\\x7f7\\x9f&+[\\xe3\\x03E`\\xbf\\xd4\\xc6\\x08UM\\xea\\xb1\\x1e;\\xd6\\x035L^C\\xe7m\\x07Xw\\x08\\xed\\xd6\\xcc\\xb1S4\\xee\\xc41q\\xdd\\x13\\xcd\\x94\\xc5\\xd8\\xde\\x99[G\\x0f\\x02UZ\\x90\\x87G\\x10\\x137Lk^\\x0b-,\\x04\\xb0\\xad}\\xcd\\xf3\\xc4^\\xb9\\x12\\x81x\\xae{v7\\n\\x82\\x08\\xee\\x92\\xee\\xf0\\x15b\\xf4\\x07\\xa9\\x8b\\x02+\\x062:\\x8d\\xd1\\xf3\\x98\\xb8\\x9d\\x86\\x02l\\xc9\\x9d\\xee\\xe0(H\\x07\\xfe\\xec\\xda\\xe0\\xc7\\x11r\\xfc)\\xfb\\xe7\\xf4\\x9d/\\x94\\xab\\xd2\\r\\xd1\\xb0!\\xaf\\xfd\\x13\\xa6e\\xf2\\x8a{\\xf1&\\xda\\x06#\\x98\\xbb\\xa84?\\xe5\\xd0\\x00+\\xc7\\xfb_\\x13w\\xc4Y=\\x05\\x02_\\xf2\\xe0:\\x8e(\\xc9tk6\\xb8\\nW\\xc0+m\\xbd\\xfb\\xdd\\xb9\\xc3\\xbd5\\xc5\\\''"e\\x94g_\\xc6\\xa6b=*\\xfcF_)Y1u\\xb6\\xed\\xbc^\\xb0\\xc1\\x1f.\\xbb\\xdb\\xe4\\xa1O#\\x8a{\\xff\\xf5\\x06D\\xfc\\x1b\\xf6\\xb2r:\\xa3\\xec\\x87\\xc2\\xc1\\x06\\xd7\\xbaC\\xbel=>\''''),
-      (''packet_size'', ''64''), (''preamble_size'', ''3''), (''postamble_size'',
-      ''3''), (''ecc_size'', ''6''), (''id_len'', ''2''), (''data_len'', ''1'')],
-      [], [(''0'', ''byte'', 1)], '''', [''packet_size''])'
+    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'\\xf9N\\xe1\\xa7\\x95=\\x14\\xcc\\xe8XT\\x1b\\xb2i\\x18\\xf9;w\\xe5\\xc7y%M\\x13\\xf6ti\\x83s\\xb7\\x10>D:\\xb0[?yO\\x94\\x19\\xfb&\\xf5\\xb6\\xbb\\xf4\\xbdM\\xe8\\xcd\\xd2\\xde\\xd4\\xae\\x9fu\\x849\\xd3\\xba\\x8d\\x10\\xd6\\xd7\\xd1"\\x06j\\xb8\\\\\\xcb\\x18\\x895\\x15\\x83\\xf2\\xd9$F>\\xd2\\x9f\\xc0\\xa1DZg\\xbaj8\\xcc\\x0e!\\xca\\xdc%\\x86\\x11\\xec\\n\\x9f/\\r$\\xe34\\xc41\\x92>\\x9d\\x87K\\\'\\x1a\\xb4\\x82=\\x10i\\xd8gP"\\x00{\\x86\\xd9\\xadE\\x83\\x8e\\x00=\\xa7\\x8a\\xe6\\xbc\\xca>\\xe3u\\xe9Js`"\\x82\\x1b\\x86\\x95\\xd5\\xad\\xdc\\xb7\\xd0&\\x10.3.\\x8fa\\x12\\rO`\\xcf5\\x94\\xd3\\xce\\x87.\\x16\\x18$\\xe2\\x85\\x1bU2\\xa0\\xb6\\xa6p`\\x16J\\x16\\xf6s\\xc0\\x13\\x04IO\\xa2_n\\x12\\x90i\\x1fH\\xef\\xad\\xb3;\\x00\\xac\\xd6\\x04k\\xda\\xe3\\xd5N\\xf8hn\\xfb\\xb5\\x92\\x85\\xea\\x8d\\xbf0\\xae}\\x1d\\xebNUx;\\x1b\\x0cP\\xc4)"6^ic\\xf4
+      \\xb2\\x08\\x959\\xbb\\x84-r\\t\\n4\\xd9\\xe4\\xc4\\xfc\\xbf( \\xda\\xd5\\xe1r\\xa0\\x995AY\\xe1\\xb0\\x02\\xed\\x9cE\\xb46\\xa1DYJ\\nV\\r0\\xf1\\xc0\\t\\xe8@\\xf0H\\xac&1\\xc4x\\x97\\x184\\x82%\\xa1\\xa5\\xf8\\xa7[\\xf7\\xc9\\xa0[Uw\\x1c\\xea!\\xde\\x9a\\xf3\\x82d\\xfePw\\xe46c\\xed\\x9c\\xb1W\\xa6\\x1a\\xb7\\xf3\\xfd\\xb3\\xf8+\\x9c\\xa3\\x9fO6\\x02-\\xd42\\xf1\\xf0\\xae@\\xc3kG\\xbe7.&\\xc7\\x0b\\x15\\x0e\\xf7\\xc6\\x8ag\\x17\\xad\\x1e\\xc0NRV\\xbaaT\\xb4\\xe1\\xa6\\xc9}\\xfa}\\xac\\xac\\xf5c%\\x07\\xf6\\xe8\\xd9\\xf6\\xb1\\xd5\\x0f7\\xae+Q\\x12\\xa0\\xc6\\x88\\xbf\\xdc\\xb4k\\x03I9\\x8a\\xc2I\\xa4\\xbb\\xb9\\x81\\xb5*f\\x8e\\xbde\\xbd<\\xef\\xecE\\xc6B\\x11U^\\x04\\xd3q\\xe0}\\xc2\\xce\\x0eZ`\\xf3\\x9b,\\xa1K\\x9dE;\\nw\\xafF\\x07\\xe9\\x97Z\\x00^\\xcc\\xb9\\xab\\xed\\x0bW\\xa0\\xe8;\\xd1\\x03\\x0b\\x05\\x178\\xbf\\x88\\x81\\xa1^Y\\xfc=\\xa10\\x9e]\\x7fe\\xc7O\\xeb\\xfe\\x7fc\\xac\\xc8+\\xd0,{\\x0f]v\\x82\\x99k\\xdd6{T\\xf67\\x9aK<\\x9d\\x92\\xa1\\xc0\\xdec_\\xff3\\xb7\\xb9\\xcb3*\\xb1\\xd7s8&\\xd6;K0wL\\xb1j\\t1\\xd6&V8\\xb46G
+      \\xd2\\xe2B?.\\xe4\\xf2B\\xe5\\xa0O\\x8f\\xb7\\xc3\\n\\x10\\r\\xf51\\xde\\xb6\\xd4W\\x07\\xd9\\x03\\x0e\\x1d`\\xbb*o\\xaf\\xd5\\xb3\\xcaAC\\xc5A\\xefj2\\xc4\\xf0$+\\xa0\\x9a\\x10\\xdaN\\x96\\xf8\\x9b7\\xf7Wq\\x18\\xce\\x91\\x81\\x9b\\x83\\x021\\xdb\\xaa\\t\\xdc\\xceUO\\xf6\\xc8Ej\\x9f\\x85T\\xe1R\\xf1\\xa7-b\\xa4\\x176}Q\\\'I\\x17]\\xd2h{M\\xc3\\x12\\xd4\\x97zR\\xec\\xaa\\xfa\\x89\\xaf\\xe9)Y\\xe00Pwz\\x107D\\xd2\\xcdY\\xda%Yt4~61\\x0f
+      \\xb3\\xc5\\xf2yG\\x85S\\xed\\xb6\\xe2\\xa1\\x1ep\\x81\\x03D\\x7f\\x804\\x16)v\\x87X\\xf00\\x1fP;\\x02\\xc0\\xdc\\x19\\xc9\\\'\\xbd\\x8eV\\x13\\x8b\\xa5)\\x9b\\xac\\xc4Ut\\x83\\xc4\\xe3\\x1aV\\xe92d\\x9e\\xfb\\x07\\xda\\xbd\\xcc\\x9dl1\\x9d"\\xa7\\xfeM\\xfbX\\xa6\\x9e\\xcd\\x99k\\xf8\\x8d\\xd1\\xb2g\\x8a\\xcf;*\\xdbZ\\x98\\nr\\xf8P\\x90\\xc2\\xcb\\x94\\x98\\xf8\\xcb^\\xff\\xf0\\xd3.\\x9e\\xd1o\\xcfB\\xe3\\x15\\x02\\xcf\\xe4\\x8c\\x0cI\\xb5L\\xednboE\\xbe\\x87\\xc6\\xef\\xc4\\x10\\x00\\xc3\\xed(O\\x96\\x19\\xc1%\\x02\\x89\\xdc*^Z)\\x12\\xae\\x8c\\xa4\\xb0\\xb6\\x18\\xadc\\xb9*\\xc1\\xf2\\xfdE\\xaa\\xfawq\\x07\\xfe\\xb0\\xec\\xce\\xd7\\x9c\\xc8\\\\\\x9a\\xfa\\xd4vY\\x93:\\xdf\\x81g\\xaaz\\t\\xb6c\\xfe\\xd5\\x10`\\x97aMnc\\xb8\\x9e0;\\xd2\\xe7\\xdd\\xcb\\xbfQ\\xdb\\xd2F\\x80&\\x90\\xac\\xa5`)\\n\\x89\\xd0/
+      \\xa3\\xfa\\xf0e\\xd9)BmA\\x92U\\x80\\xc4\\xe9\\xf04\\x80+\\x12\\xe2\\\\k\\x7f\\x8d\\x81\\xccF\\xe5\\x91\\x1d\\x7f\\xb2\\xa7\\x15\\xa7\\x07\\xd6-\\\\\\xce\\x91N\\xbc\\xff\\xce\\xe3>\\x0eFS$\\xbb\\x8bX\\x92\\xb5\\xf2\\x9bh%\\xfd\\x13,\\xfbX7\\xbaE"`\\x00&\\x92\\xb8\\x91\\x19*\''),
+      ('packet_size', '64'), ('preamble_size', '3'), ('postamble_size', '3'), ('ecc_size',
+      '6'), ('id_len', '2'), ('data_len', '1')], [], [('0', 'byte', 1)], '', ['id_len',
+      'packet_size'])
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [16, 132.0]
+    coordinate: [8, 136.0]
     rotation: 0
     state: enabled
 - name: epy_block_1
@@ -266,7 +289,7 @@ blocks:
     id_len: '2'
     maxoutbuf: '0'
     minoutbuf: '0'
-    out_filename: '"/home/bimbim/Codes/vibe_5/GRC/test_out/test.txt"'
+    out_filename: '"/home/bimbim/Codes/vibe5/GRC/test_out/est.txt"'
     packet_size: '64'
     verbose: 'False'
   states:
@@ -278,12 +301,13 @@ blocks:
     bus_structure: null
     coordinate: [656, 144.0]
     rotation: 0
-    state: enabled
+    state: disabled
 
 connections:
-- [blocks_tag_gate_0, '0', blocks_tag_debug_0, '0']
-- [blocks_tag_gate_0, '0', epy_block_1, '0']
-- [blocks_throttle2_0, '0', blocks_tag_gate_0, '0']
+- [blocks_tagged_stream_align_0, '0', blocks_file_sink_0, '0']
+- [blocks_tagged_stream_align_0, '0', blocks_tag_debug_0, '0']
+- [blocks_tagged_stream_align_0, '0', epy_block_1, '0']
+- [blocks_throttle2_0, '0', blocks_tagged_stream_align_0, '0']
 - [epy_block_0, '0', blocks_throttle2_0, '0']
 
 metadata:
