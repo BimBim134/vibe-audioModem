@@ -43,7 +43,7 @@ def decode_single_packet(packet,
     except ReedSolomonError as e:
         warnings.warn("packet is corrupted beyond repair !")
         print(e)
-    return (-1, packet)
+        return (-1, packet)
 
 class blk(gr.basic_block):  # other base classes are basic_block, decim_block, interp_block
     def __init__(self,
@@ -123,9 +123,15 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
                             gr.log_debug.info("no data in packet")
                             return 0
                     else:
-                        gr.log_debug(f'saving file to {self.out_filename}')
+                        gr.log_debug.info(f'saving file to {self.out_filename}')
                         self.save_file()
                         return 0
+                else:
+                    gr.log_debug.info("packet not complete, waiting for more data")
+                    return 0              
+            else:
+                gr.log_debug.info(f'unknown tag {tag.key}')
+                return 0        
         return 0
 
 if __name__ == "__main__":
