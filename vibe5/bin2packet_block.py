@@ -155,7 +155,7 @@ class blk(gr.basic_block):
                 self.indx += current_packet_size
                 self.current_packet_index += 1
                 self.produce(0, current_packet_size)
-                return current_packet_size
+                return 0
             else:
                 self.eof = True
                 gr.log_debug.info("EOF")

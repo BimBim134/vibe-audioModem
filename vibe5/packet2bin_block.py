@@ -84,22 +84,22 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
         output = b''.join(data)
         output = base64.urlsafe_b64decode(output)
         with open(self.out_filename, 'wb') as f:
-            f.write()
+            f.write(output)
 
     def work(self, input_items, output_items):
-        in0 = input_items[0]
-        tags = self.get_tags_in_window(0, 0, len(in0))
+        if not self.eof:
+            in0 = input_items[0]
+            tags = self.get_tags_in_window(0, 0, len(in0))
 
-        packet_start = 0
-        for tag in tags:
-            if tag.key == pmt.string_to_symbol("packet_len"):
-                packet_len = pmt.to_long(tag.value)
-                packet_end = packet_start + packet_len
+            packet_start = 0
+            for tag in tags:
+                if tag.key == pmt.string_to_symbol("packet_len"):
+                    packet_len = pmt.to_long(tag.value)
+                    packet_end = packet_start + packet_len
 
-                if packet_end <= len(in0):
-                    raw_packet = in0[packet_start:packet_end]
+                    if packet_end <= len(in0):
+                        raw_packet = in0[packet_start:packet_end]
 
-                    if not self.eof:
                         id, packet_data = decode_single_packet(raw_packet,
                                                             self.ecc,
                                                             self.id_len,
@@ -118,20 +118,19 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
                                 if b'eof' in packet_data:
                                     gr.log_debug.info("receving EOF")
                                     self.eof = True
+                                    self.save_file()
+                                    gr.log_debug.info(f'saving file to {self.out_filename}')
                                 return 0
                         else:
                             gr.log_debug.info("no data in packet")
                             return 0
+
                     else:
-                        gr.log_debug.info(f'saving file to {self.out_filename}')
-                        self.save_file()
-                        return 0
+                        gr.log_debug.info("packet not complete, waiting for more data")
+                        return 0              
                 else:
-                    gr.log_debug.info("packet not complete, waiting for more data")
-                    return 0              
-            else:
-                gr.log_debug.info(f'unknown tag {tag.key}')
-                return 0        
+                    gr.log_debug.info(f'unknown tag {tag.key}')
+                    return 0
         return 0
 
 if __name__ == "__main__":

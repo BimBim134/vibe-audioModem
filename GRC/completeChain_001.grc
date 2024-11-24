@@ -198,10 +198,10 @@ blocks:
       \                    gr.log_debug.info(f\"sending packet pre/postamble : {current_packet_size}\
       \ bytes\")\n                self.indx += current_packet_size\n             \
       \   self.current_packet_index += 1\n                self.produce(0, current_packet_size)\n\
-      \                return current_packet_size\n            else:\n           \
-      \     self.eof = True\n                gr.log_debug.info(\"EOF\")\n        \
-      \        return 0\n        else:\n            return 0\n\n\nif __name__ == \"\
-      __main__\":\n    test = blk()"
+      \                return 0\n            else:\n                self.eof = True\n\
+      \                gr.log_debug.info(\"EOF\")\n                return 0\n    \
+      \    else:\n            return 0\n\n\nif __name__ == \"__main__\":\n    test\
+      \ = blk()"
     affinity: ''
     alias: ''
     comment: ''
@@ -215,11 +215,13 @@ blocks:
     postamble_size: '3'
     preamble_size: '3'
   states:
-    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'\\xf9N\\xe1\\xa7\\x95=\\x14\\xcc\\xe8XT\\x1b\\xb2i\\x18\\xf9;w\\xe5\\xc7y%M\\x13\\xf6ti\\x83s\\xb7\\x10>D:\\xb0[?yO\\x94\\x19\\xfb&\\xf5\\xb6\\xbb\\xf4\\xbdM\\xe8\\xcd\\xd2\\xde\\xd4\\xae\\x9fu\\x849\\xd3\\xba\\x8d\\x10\\xd6\\xd7\\xd1"\\x06j\\xb8\\\\\\xcb\\x18\\x895\\x15\\x83\\xf2\\xd9$F>\\xd2\\x9f\\xc0\\xa1DZg\\xbaj8\\xcc\\x0e!\\xca\\xdc%\\x86\\x11\\xec\\n\\x9f/\\r$\\xe34\\xc41\\x92>\\x9d\\x87K\\\'\\x1a\\xb4\\x82=\\x10i\\xd8gP"\\x00{\\x86\\xd9\\xadE\\x83\\x8e\\x00=\\xa7\\x8a\\xe6\\xbc\\xca>\\xe3u\\xe9Js`"\\x82\\x1b\\x86\\x95\\xd5\\xad\\xdc\\xb7\\xd0&\\x10.3.\\x8fa\\x12\\rO`\\xcf5\\x94\\xd3\\xce\\x87.\\x16\\x18$\\xe2\\x85\\x1bU2\\xa0\\xb6\\xa6p`\\x16J\\x16\\xf6s\\xc0\\x13\\x04IO\\xa2_n\\x12\\x90i\\x1fH\\xef\\xad\\xb3;\\x00\\xac\\xd6\\x04k\\xda\\xe3\\xd5N\\xf8hn\\xfb\\xb5\\x92\\x85\\xea\\x8d\\xbf0\\xae}\\x1d\\xebNUx;\\x1b\\x0cP\\xc4)"6^ic\\xf4
-      \\xb2\\x08\\x959\\xbb\\x84-r\\t\\n4\\xd9\\xe4\\xc4\\xfc\\xbf( \\xda\\xd5\\xe1r\\xa0\\x995AY\\xe1\\xb0\\x02\\xed\\x9cE\\xb46\\xa1DYJ\\nV\\r0\\xf1\\xc0\\t\\xe8@\\xf0H\\xac&1\\xc4x\\x97\\x184\\x82%\\xa1\\xa5\\xf8\\xa7[\\xf7\\xc9\\xa0[Uw\\x1c\\xea!\\xde\\x9a\\xf3\\x82d\\xfePw\\xe46c\\xed\\x9c\\xb1W\\xa6\\x1a\\xb7\\xf3\\xfd\\xb3\\xf8+\\x9c\\xa3\\x9fO6\\x02-\\xd42\\xf1\\xf0\\xae@\\xc3kG\\xbe7.&\\xc7\\x0b\\x15\\x0e\\xf7\\xc6\\x8ag\\x17\\xad\\x1e\\xc0NRV\\xbaaT\\xb4\\xe1\\xa6\\xc9}\\xfa}\\xac\\xac\\xf5c%\\x07\\xf6\\xe8\\xd9\\xf6\\xb1\\xd5\\x0f7\\xae+Q\\x12\\xa0\\xc6\\x88\\xbf\\xdc\\xb4k\\x03I9\\x8a\\xc2I\\xa4\\xbb\\xb9\\x81\\xb5*f\\x8e\\xbde\\xbd<\\xef\\xecE\\xc6B\\x11U^\\x04\\xd3q\\xe0}\\xc2\\xce\\x0eZ`\\xf3\\x9b,\\xa1K\\x9dE;\\nw\\xafF\\x07\\xe9\\x97Z\\x00^\\xcc\\xb9\\xab\\xed\\x0bW\\xa0\\xe8;\\xd1\\x03\\x0b\\x05\\x178\\xbf\\x88\\x81\\xa1^Y\\xfc=\\xa10\\x9e]\\x7fe\\xc7O\\xeb\\xfe\\x7fc\\xac\\xc8+\\xd0,{\\x0f]v\\x82\\x99k\\xdd6{T\\xf67\\x9aK<\\x9d\\x92\\xa1\\xc0\\xdec_\\xff3\\xb7\\xb9\\xcb3*\\xb1\\xd7s8&\\xd6;K0wL\\xb1j\\t1\\xd6&V8\\xb46G
-      \\xd2\\xe2B?.\\xe4\\xf2B\\xe5\\xa0O\\x8f\\xb7\\xc3\\n\\x10\\r\\xf51\\xde\\xb6\\xd4W\\x07\\xd9\\x03\\x0e\\x1d`\\xbb*o\\xaf\\xd5\\xb3\\xcaAC\\xc5A\\xefj2\\xc4\\xf0$+\\xa0\\x9a\\x10\\xdaN\\x96\\xf8\\x9b7\\xf7Wq\\x18\\xce\\x91\\x81\\x9b\\x83\\x021\\xdb\\xaa\\t\\xdc\\xceUO\\xf6\\xc8Ej\\x9f\\x85T\\xe1R\\xf1\\xa7-b\\xa4\\x176}Q\\\'I\\x17]\\xd2h{M\\xc3\\x12\\xd4\\x97zR\\xec\\xaa\\xfa\\x89\\xaf\\xe9)Y\\xe00Pwz\\x107D\\xd2\\xcdY\\xda%Yt4~61\\x0f
-      \\xb3\\xc5\\xf2yG\\x85S\\xed\\xb6\\xe2\\xa1\\x1ep\\x81\\x03D\\x7f\\x804\\x16)v\\x87X\\xf00\\x1fP;\\x02\\xc0\\xdc\\x19\\xc9\\\'\\xbd\\x8eV\\x13\\x8b\\xa5)\\x9b\\xac\\xc4Ut\\x83\\xc4\\xe3\\x1aV\\xe92d\\x9e\\xfb\\x07\\xda\\xbd\\xcc\\x9dl1\\x9d"\\xa7\\xfeM\\xfbX\\xa6\\x9e\\xcd\\x99k\\xf8\\x8d\\xd1\\xb2g\\x8a\\xcf;*\\xdbZ\\x98\\nr\\xf8P\\x90\\xc2\\xcb\\x94\\x98\\xf8\\xcb^\\xff\\xf0\\xd3.\\x9e\\xd1o\\xcfB\\xe3\\x15\\x02\\xcf\\xe4\\x8c\\x0cI\\xb5L\\xednboE\\xbe\\x87\\xc6\\xef\\xc4\\x10\\x00\\xc3\\xed(O\\x96\\x19\\xc1%\\x02\\x89\\xdc*^Z)\\x12\\xae\\x8c\\xa4\\xb0\\xb6\\x18\\xadc\\xb9*\\xc1\\xf2\\xfdE\\xaa\\xfawq\\x07\\xfe\\xb0\\xec\\xce\\xd7\\x9c\\xc8\\\\\\x9a\\xfa\\xd4vY\\x93:\\xdf\\x81g\\xaaz\\t\\xb6c\\xfe\\xd5\\x10`\\x97aMnc\\xb8\\x9e0;\\xd2\\xe7\\xdd\\xcb\\xbfQ\\xdb\\xd2F\\x80&\\x90\\xac\\xa5`)\\n\\x89\\xd0/
-      \\xa3\\xfa\\xf0e\\xd9)BmA\\x92U\\x80\\xc4\\xe9\\xf04\\x80+\\x12\\xe2\\\\k\\x7f\\x8d\\x81\\xccF\\xe5\\x91\\x1d\\x7f\\xb2\\xa7\\x15\\xa7\\x07\\xd6-\\\\\\xce\\x91N\\xbc\\xff\\xce\\xe3>\\x0eFS$\\xbb\\x8bX\\x92\\xb5\\xf2\\x9bh%\\xfd\\x13,\\xfbX7\\xbaE"`\\x00&\\x92\\xb8\\x91\\x19*\''),
+    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'p\\xe2\\xe7*\\xaf\\xed_\\x18.S\\x15Ip\\xc0L\\xc9\\xc6?\\x89Z\\xed\\x13\\xf4Z\\x0en\\x05^\\xf4\\rySsW~\\xdd\\xca\\x9eR\\x9c\\x9b\\x1a^\\xbd\\x8d\\xf6\\xc9\\x16\\xc8\\xcf\\xd3\\xbfM5t\\xb57\\xb8\\x89
+      \\x84!9\\x85$\\xe7\\x99\\x93\\x1b\\xfd\\xbf\\xa2\\x01g\\xc9f+\\x0c\\xa7ua\\xc35\\xc5`\\xe6\\xf0?!.=\\xc4\\x02\\xa2\\xab\\x01\\xa8h\\xe0R\\x87\\xb6wT\\xa3\\xdclF\\x9blX-\\xc0\\x94\\x87\\xfe=w\\xa8]\\x11\\x84kv\\x1d\\xc4\\xd26\\x8d}\\xb2\\xbdr\\xf3F\\xc4-\\xa9oT\\x11\\xca\\xef\\xd1i\\x08\\x15\\xe0P1\\x12\\xa6\\xd3
+      l\\xe7\\nj\\xd0\\x18\\x05\\x9a\\xd9\\t\\x81\\xcfS9\\x8e\\xe5\\xca\\xbd\\xc7\\x14\\xed\\\\\\xfc\\x1d\\xdd+\\xfb\\x06].\\xcb\\x9c\\x97\\xcf\\xef\\\'^Lz\\xbb\\xba\\xecB}\\xc1\\xdf\\xa1\\xd0w\\xd0\\x0fUr14\\x977\\xf2A\\xd3\\xae\\xd6\\x9a\\x88\\x94\\xac\\x9a\\x9f~\\xea=\\x7f$J\\x08pi\\x84\\x065z\\x9f\\x94\\xf3\\x7f\\x17\\xd3\\x0f|\\x8f\\xb6\\xe0\\xe8\\xe2*\\xaa\\xf2\\xb2\\xffm\\xb3z\\xfa4\\xf2\\t\\xfc\\xbd\\xb1\\xf1\\xf65G9\\x95\\xb3\\xe2\\x9fx\\x7f:e\\x1f\\x7f\\xd4\\xbe\\xc3\\xcf\\xf5%U\\xf0Q*\\x92\\x94
+      \\x9a\\x9c)\\xfa\\xba\\xeb\\xf1\\xec)[\\x9c\\xec\\xac\\x87\\xf8D9\\x8f\\x07\\xd4\\xfe\\x8a\\xb9\\xac\\xef\\xc1\\xffGw/l\\xe49n?\\xeeK\\xbee\\x84\\x08\\x0f\\x8fX\\xa1;\\x0c\\xf2y\\xdf(\\x82\\xd7C\\x92@\\x14\\x1fb\\x91v\\xc4\\x92OR6\\\\\\x86U6\\x80\\x08\\xdf\\xde\\xd0\\xbf\\xdb\\x15\\xfd5\\xbd\\xaa\\xa8\\x98\\xc2\\xdd\\x95k>\\xc5\\x82\\x8c\\x07\\x87\\x907\\x8er\\xcc\\xfc\\xaa\\x10%\\xce\\xe2p\\xa0[#\\xb6\\x9a\\xd2J\\xdf\\x86_\\xa0Z\\x9e\\x02k\\xa0\\xa5\\x83\\x8c\\x19=\\xde\\xfd\\x86\\x8f\\xff\\x9d\\x10F\\xc7=\\x96\\xfe\\xbd\\xb6\\xa5E\\xd9\\xef\\x96\\xf4\\x10\\xac\\x86\\xe2\\xafJ\\x9e7\\x9fI\\xb3\\x1a8\\xa2\\xc7\\x10N\\xb04n\\xc0\\xf8\\xc2vr\\xb2r\\xdd\\r\\x1f\\xe4_\\x85\\xfb\\xfe\\xf6\\xfc\\x96h\\xd97\\x1cQ\\xd3G\\xda\\x99NV\\xacjaJ\\xdfR0\\xa3\\xc2
+      K\\x16.\\xd5l\\xb8T\\x8azm\\x94\\x89\\x87\\xfd\\x12\\xf8t|\\xd6\\xd2m\\xd9\\xd7\\xdb\\xaa\\xc3+%\\xc2Xj\\\\\\x11\\xe8J\\xe9\\xd8`\\xb2rT\\x9fi(<\\x80\\xe3\\xf5\\xc7{\\xb9\\xbc\\xb2\\xbaTp\\xc8\\xf4*\\xc9\\xf9\\xfa\\x0bb\\xfdBc7s\\xd1Y\\rp\\x8dv<\\xab\\xb8]\\xe4\\x1d/\\xa9\\xe6\\xd8\\xb1O\\xfe\\x0c\\xfc\\xb3\\x95\\x10
+      \\xdf\\x0b\\xda\\xcc4\\x18\\xfb\\x82~\\xebA*{\\x81m\\xe7\\x88]\\xb6&J\\x18UK\\x0b\\x88bx\\xda\\x1a\\xac\\xdd~68\\xf8\\n\\xf9x\\xd1\\xd0h\\xbf\\x0c%l\\xa0\\x9b\\xbf\\xf8\\x8aw\\xa7n-fo\\xae\\x14\\xd8*AJg\\x18\\xbb<\\xc4\\x86\\xfe\\xbf\\x9bu\\xea\\x10\\xf4\\x86\\xe1\\x18b*\\x05eq\\x7fD7\\x19|R\\xe1\\x81\\r\\x8b|``\\xd3i\\xaa\\xfe\\xadR$ze3\\xc0\\x13\\x0eLzj\\xf2`k\\xca\\x11\\xdfZ\\xf9\\xbf\\xbc~,\\xc0\\x9d\\x8b\\xad\\xf6\\xba\\xca\\xe2\\xdbk\\xec1(\\x86]\\xee\\\'\\xbb\\xea\\xc0\\x93?\\xdfY\\x1d\\xcaI\\x0f\\xa5\\xcd\\x89\\xcb\\xa0\\xa88O\\x9a\\x1aG\\xa8\\xd1\\r\\xbb\\xfbH\\x8e\\x80n\\xa5\\x11+GP\\xcb\\x00"\\x04N\\x84\\xe0\\xbf\\xc9\\xe1\\xef\\x82\\xfb`\\xf3\\x9b\\x92\\\\\\xb2\\xee\\x1f\\x90,=\\x06\\x01xY\\xe9w\\xfa`\\x80\\\\|\\xb9\\xd6"\\xe1\\xbe
+      \\xe0-\\xf5?-M\\xd1\\x00\\x844\\xac\\x0c\\x82^\\x8a<\\xd4w\\xd9I\\x01\\x08\\xd0\\x94\\x92eO\\xeef\\xb8\\xa7\\xbd\\x9b:\\xc6\\x8c\\xba\\x80\\x16\\xe9=,\\\\+\\xe1dg\\xc3\\xaf\\xa8W\\xc0\\x884d\\x13\\xe5\\xfa\\n4ly\\xd5\\xeb\\xd1\\xfc\\xe8ab\\x07\\xcd\\x92\\xdc\\x810\\xaf\\x06a\\xb03\\xa6\\x91\\r\\x08\\xb6\\xdd6\\x8c\\xdc\\xc1d0%u\\xec\\xd6\\xd2\\x9fS\\xa41\\x91\\xa2\\x08\\xdf\\xc3\\xe3\\x05\\xca\\xf36\\xde\\x801\\x838T-\\xb4\\\'/\\xf2\\x13\\x86\\xe6\\x93\\xf8\\xd9M\\xc2M\\xe2\\xfa\\\'\\x8b\\x0e\\x01\\x8d]lC\\x00;|9T\\x85%W=\\xbc\\xb4kcY\\x7f\\xf1\\xaa\\xedd\\xd0\\xc7v\\xff?skQ\\xf3\\xed4/\\x1d!\\x8c\\xca\\xae\\xfa\\xe5e\\x83\\x05\\xbb\\x91\\xb4\\xe3~\\x9d\\x1d\\x93\''),
       ('packet_size', '64'), ('preamble_size', '3'), ('postamble_size', '3'), ('ecc_size',
       '6'), ('id_len', '2'), ('data_len', '1')], [], [('0', 'byte', 1)], '', ['id_len',
       'packet_size'])
@@ -235,52 +237,71 @@ blocks:
     _source_code: "\"\"\"\nEmbedded Python Blocks:\n\nEach time this file is saved,\
       \ GRC will instantiate the first class it finds\nto get ports and parameters\
       \ of your block. The arguments to __init__  will\nbe the parameters. All of\
-      \ them are required to have default values!\n\"\"\"\n\nimport warnings\n\nimport\
-      \ numpy as np\nfrom gnuradio import gr\nfrom reedsolo import RSCodec, ReedSolomonError\n\
-      \ndef decode_single_packet(packet,\n                         ecc,\n        \
-      \                 id_len,\n                         data_len):\n    \"\"\"takes\
-      \ a single packet and decode it.\n\n    Args:\n        packet (bytes): input\
-      \ packet\n        ecc (RSCodec): Reed Solomon Encoder\n        id_len (int):\
-      \ id descriptor length\n        data_len (int): data length descriptor length\n\
-      \n    Returns:\n        id, data (int, bytes): packet id, packet data\n    \"\
-      \"\"\n    try:\n        decoded_packet = ecc.decode(packet)[0]\n        id =\
-      \ int.from_bytes(decoded_packet[:id_len], 'big') - 1\n        if id == -1: #\
-      \ filter out the preamble and postamble\n            if (packet[id_len:id_len+3]\
-      \ - np.array([101, 111, 102])).sum() == 0 :\n                return (-1, b'eof')\n\
-      \        else:\n            d_len = int.from_bytes(decoded_packet[id_len:id_len\
-      \ + data_len], 'big')\n            return (id, decoded_packet[id_len + data_len:id_len\
-      \ + data_len + d_len])\n    except ReedSolomonError as e:\n        warnings.warn(\"\
-      packet is corrupted beyond repair !\")\n        print(e)\n    except TypeError:\n\
-      \        pass\n    return (-1, b'')\n\nclass blk(gr.basic_block):  # other base\
-      \ classes are basic_block, decim_block, interp_block\n    def __init__(self,\n\
-      \                 out_filename='',\n                 packet_size=64,\n     \
-      \            ecc_size=6,\n                 id_len=2,\n                 data_len=1,\n\
+      \ them are required to have default values!\n\"\"\"\n\nimport warnings\nimport\
+      \ base64\n\nimport numpy as np\nfrom gnuradio import gr\nfrom reedsolo import\
+      \ RSCodec, ReedSolomonError\nimport pmt\n\ndef decode_single_packet(packet,\n\
+      \                         ecc,\n                         id_len,\n         \
+      \                data_len):\n    \"\"\"takes a single packet and decode it.\n\
+      \n    Args:\n        packet (bytes): input packet\n        ecc (RSCodec): Reed\
+      \ Solomon Encoder\n        id_len (int): id descriptor length\n        data_len\
+      \ (int): data length descriptor length\n\n    Returns:\n        id, data (int,\
+      \ bytes): packet id, packet data\n    \"\"\"\n    try:\n        decoded_packet\
+      \ = ecc.decode(packet)[0]\n        id = int.from_bytes(decoded_packet[:id_len],\
+      \ 'big') - 1\n        d_len = int.from_bytes(decoded_packet[id_len:id_len +\
+      \ data_len], 'big')\n        if id == -1: # filter out the preamble and postamble\n\
+      \            if b'eof' in decoded_packet:\n                return (-1, b'eof')\n\
+      \            else:\n                return (-1, decoded_packet[id_len + data_len:id_len\
+      \ + data_len + d_len])\n        else:\n            return (id, decoded_packet[id_len\
+      \ + data_len:id_len + data_len + d_len])\n    except ReedSolomonError as e:\n\
+      \        warnings.warn(\"packet is corrupted beyond repair !\")\n        print(e)\n\
+      \        return (-1, packet)\n\nclass blk(gr.basic_block):  # other base classes\
+      \ are basic_block, decim_block, interp_block\n    def __init__(self,\n     \
+      \            out_filename='',\n                 packet_size=64,\n          \
+      \       ecc_size=6,\n                 id_len=2,\n                 data_len=1,\n\
       \                 verbose=False):\n        gr.sync_block.__init__(\n       \
       \     self,\n            name='Binary to Packet',\n            in_sig=[np.uint8],\n\
       \            out_sig=None\n        )\n        self.out_filename = out_filename\n\
       \        self.packet_size = packet_size\n        self.ecc = RSCodec(ecc_size)\n\
       \        self.ecc.maxerrata(verbose=verbose)\n        self.id_len = id_len\n\
-      \        self.data_len = data_len\n\n        self.packets = {}\n\n        self.indx\
-      \ = 0\n        self.packet_count = 0\n        self.eof = False\n    \n    def\
-      \ save_file(self):\n        data = dict(sorted(self.packets.items()))\n\n  \
-      \      received_ids = set(data.keys())\n        check_id = set(range(len(data)))\n\
-      \        if received_ids != check_id:\n            warnings.warn(\"data may\
-      \ be incomplete !\", BytesWarning)\n\n        data = list(data.values())\n \
-      \       with open(self.out_filename, 'wb') as f:\n            f.write(b''.join(data))\n\
-      \n    def work(self, input_items, output_items):\n        if not self.eof:\n\
-      \            for p in input_items[0][:]:\n                id, packet_data =\
-      \ decode_single_packet(p,\n                                                \
-      \       self.ecc,\n                                                       self.id_len,\n\
-      \                                                       self.data_len)\n   \
-      \             self.indx += len(packet_data)\n                self.consume(0,\
-      \ len(packet_data))\n                gr.log_debug.info(f\"receiving {len(packet_data)}\"\
-      )\n                \n                if not id == -1:\n                    #\
-      \ saving data\n                    self.packet[id] = packet_data\n         \
-      \       else:\n                    # checking if it is EOF\n               \
-      \     if packet_data == b'eof':\n                        self.eof = True\n \
-      \                       break\n            return 0\n        else:\n       \
-      \     gr.log_debug(f'saving file to {self.out_filename}')\n            self.save_file()\n\
-      \            return 0\n"
+      \        self.data_len = data_len\n\n        self.packets = {}\n\n        self.packet_count\
+      \ = 0\n        self.eof = False\n\n    \n    def save_file(self):\n        data\
+      \ = dict(sorted(self.packets.items()))\n\n        received_ids = set(data.keys())\n\
+      \        check_id = set(range(len(data)))\n        if received_ids != check_id:\n\
+      \            warnings.warn(\"data may be incomplete !\", BytesWarning)\n\n \
+      \       data = list(data.values())\n        output = b''.join(data)\n      \
+      \  output = base64.urlsafe_b64decode(output)\n        with open(self.out_filename,\
+      \ 'wb') as f:\n            f.write()\n\n    def work(self, input_items, output_items):\n\
+      \        in0 = input_items[0]\n        tags = self.get_tags_in_window(0, 0,\
+      \ len(in0))\n\n        packet_start = 0\n        for tag in tags:\n        \
+      \    if tag.key == pmt.string_to_symbol(\"packet_len\"):\n                packet_len\
+      \ = pmt.to_long(tag.value)\n                packet_end = packet_start + packet_len\n\
+      \n                if packet_end <= len(in0):\n                    raw_packet\
+      \ = in0[packet_start:packet_end]\n\n                    if not self.eof:\n \
+      \                       id, packet_data = decode_single_packet(raw_packet,\n\
+      \                                                            self.ecc,\n   \
+      \                                                         self.id_len,\n   \
+      \                                                         self.data_len)\n \
+      \                       if len(packet_data) > 0:\n                         \
+      \   packet_start = packet_end\n                            self.consume(0, packet_start)\n\
+      \                            if not id == -1:\n                            \
+      \    # saving data\n                                gr.log_debug.info(f\"receiving\
+      \ packet {id:0>6d} : {len(packet_data)}\")\n                               \
+      \ self.packets[id] = packet_data\n                                return 0\n\
+      \                            else:\n                                # checking\
+      \ if it is EOF\n                                gr.log_debug.info(f\"receiving\
+      \ packet pre/postamble : {len(packet_data)}\")\n                           \
+      \     if b'eof' in packet_data:\n                                    gr.log_debug.info(\"\
+      receving EOF\")\n                                    self.eof = True\n     \
+      \                           return 0\n                        else:\n      \
+      \                      gr.log_debug.info(\"no data in packet\")\n          \
+      \                  return 0\n                    else:\n                   \
+      \     gr.log_debug.info(f'saving file to {self.out_filename}')\n           \
+      \             self.save_file()\n                        return 0\n         \
+      \       else:\n                    gr.log_debug.info(\"packet not complete,\
+      \ waiting for more data\")\n                    return 0              \n   \
+      \         else:\n                gr.log_debug.info(f'unknown tag {tag.key}')\n\
+      \                return 0        \n        return 0\n\nif __name__ == \"__main__\"\
+      :\n    test = blk()"
     affinity: ''
     alias: ''
     comment: ''
@@ -289,7 +310,7 @@ blocks:
     id_len: '2'
     maxoutbuf: '0'
     minoutbuf: '0'
-    out_filename: '"/home/bimbim/Codes/vibe5/GRC/test_out/est.txt"'
+    out_filename: '"/home/bimbim/Codes/vibe5/GRC/test_out/test.txt"'
     packet_size: '64'
     verbose: 'False'
   states:
@@ -301,7 +322,7 @@ blocks:
     bus_structure: null
     coordinate: [656, 144.0]
     rotation: 0
-    state: disabled
+    state: enabled
 
 connections:
 - [blocks_tagged_stream_align_0, '0', blocks_file_sink_0, '0']
