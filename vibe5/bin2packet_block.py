@@ -158,7 +158,7 @@ class blk(gr.basic_block):
                 return current_packet_size
             else:
                 self.eof = True
-                gr.log_debug.info("sending EOF")
+                gr.log_debug.info("EOF")
                 return 0
         else:
             return 0
