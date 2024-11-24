@@ -104,18 +104,23 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
                                                             self.ecc,
                                                             self.id_len,
                                                             self.data_len)
-                        packet_start = packet_end
-                        self.consume(0, packet_start)
-                        if not id == -1:
-                            # saving data
-                            gr.log_debug.info(f"receiving packet {id:0>6d} : {len(packet_data)}")
-                            self.packets[id] = packet_data
-                            return 0
+                        if len(packet_data) > 0:
+                            packet_start = packet_end
+                            self.consume(0, packet_start)
+                            if not id == -1:
+                                # saving data
+                                gr.log_debug.info(f"receiving packet {id:0>6d} : {len(packet_data)}")
+                                self.packets[id] = packet_data
+                                return 0
+                            else:
+                                # checking if it is EOF
+                                gr.log_debug.info(f"receiving packet pre/postamble : {len(packet_data)}")
+                                if b'eof' in packet_data:
+                                    gr.log_debug.info("receving EOF")
+                                    self.eof = True
+                                return 0
                         else:
-                            # checking if it is EOF
-                            if b'eof' in packet_data:
-                                gr.log_debug.info("receving EOF")
-                                self.eof = True
+                            gr.log_debug.info("no data in packet")
                             return 0
                     else:
                         gr.log_debug(f'saving file to {self.out_filename}')
