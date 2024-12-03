@@ -10,6 +10,19 @@ flowchart TD
     protocol([protocol formatting])
     access@{shape: text, label: access key}
     FEC([Forward Error Correction])
+
+    CCencoder["`CC encoder
+    constraint length = 15
+    inverse rate = 6
+    polynomials = [
+        19665,
+        21177,
+        29021,
+        26551,
+        30399,
+        32075]`"]
+    CCencoder@{shape: text}
+
     constObject@{shape: text}
     const_mod([consteallation modulator])
     carrier_freq@{shape: text}
@@ -26,10 +39,11 @@ flowchart TD
     access -- bytes --> protocol
     encoded_packet -- bytes --> protocol
     protocol -- bytes --> FEC
-    FEC -- bytes --> const_mod
     constObject -- const_object --> const_mod
-    carrier_freq -- float --> upconvert
+    CCencoder -- FEC encoder definition --> FEC
+    FEC -- bytes --> const_mod
     const_mod -- complex --> upconvert
+    carrier_freq -- float --> upconvert
     upconvert -- float --> audio
 ```
  
