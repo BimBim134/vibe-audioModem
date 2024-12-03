@@ -55,7 +55,7 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
                  verbose=False):
         gr.sync_block.__init__(
             self,
-            name='Binary to Packet',
+            name='Packets to Binaries',
             in_sig=[np.uint8],
             out_sig=None
         )
