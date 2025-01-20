@@ -37,8 +37,8 @@ class completeChain_001(gr.top_block):
         # Blocks
         ##################################################
 
-        self.epy_block_1 = epy_block_1.blk(out_filename="/home/bimbim/Codes/vibe5/GRC/test_out/test.txt", packet_size=64, ecc_size=6, id_len=2, data_len=1, verbose=False)
-        self.epy_block_0 = epy_block_0.blk(input_binary="/home/bimbim/Codes/vibe5/sampleFile.txt", packet_size=64, preamble_size=3, postamble_size=3, ecc_size=6, id_len=2, data_len=1)
+        self.epy_block_1 = epy_block_1.blk(out_filename="/home/bimbim/Codes/vibe-audioModem/GRC/test_out/test.txt", packet_size=64, ecc_size=6, id_len=2, data_len=1, verbose=False)
+        self.epy_block_0 = epy_block_0.blk(input_binary="/home/bimbim/Codes/vibe-audioModem/sampleFile.txt", packet_size=64, preamble_size=3, postamble_size=3, ecc_size=6, id_len=2, data_len=1)
         self.blocks_throttle2_0 = blocks.throttle( gr.sizeof_char*1, samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * samp_rate) if "auto" == "time" else int(0.1), 1) )
         self.blocks_tagged_stream_align_0 = blocks.tagged_stream_align(gr.sizeof_char*1, 'packet_len')
 
