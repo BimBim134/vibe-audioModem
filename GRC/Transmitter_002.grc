@@ -1,0 +1,524 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: transmitter_002
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: transmitter
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: access_key
+  id: variable
+  parameters:
+    comment: ''
+    value: '''11100001010110101110100010010011'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 208.0]
+    rotation: 0
+    state: enabled
+- name: baudrate
+  id: variable
+  parameters:
+    comment: ''
+    value: '500'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1384, 40.0]
+    rotation: 0
+    state: enabled
+- name: carrier_freq
+  id: variable
+  parameters:
+    comment: ''
+    value: '5000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1536, 40.0]
+    rotation: 0
+    state: enabled
+- name: cc_enc
+  id: variable_cc_encoder_def
+  parameters:
+    comment: ''
+    dim1: '1'
+    dim2: '1'
+    framebits: '2048'
+    k: '7'
+    mode: fec.CC_STREAMING
+    ndim: '0'
+    padding: 'False'
+    polys: '[79,109]'
+    rate: '2'
+    state_start: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [936, 100.0]
+    rotation: 0
+    state: enabled
+- name: const_definition
+  id: variable_constellation
+  parameters:
+    comment: ''
+    const_points: '[-1-1j, -1+1j, 1+1j, 1-1j]'
+    dims: '1'
+    normalization: digital.constellation.POWER_NORMALIZATION
+    npwr: '0'
+    precision: '8'
+    rot_sym: '4'
+    soft_dec_lut: '''auto'''
+    sym_map: '[0, 1, 3, 2]'
+    type: calcdist
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1352, 112.0]
+    rotation: 0
+    state: enabled
+- name: hdr_format
+  id: variable
+  parameters:
+    comment: ''
+    value: digital.header_format_default(access_key, 0)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 136.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '44100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1296, 40.0]
+    rotation: 0
+    state: enabled
+- name: sps
+  id: variable
+  parameters:
+    comment: ''
+    value: int(samp_rate/baudrate)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1464, 40.0]
+    rotation: 0
+    state: enabled
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '0.7'
+    comment: ''
+    freq: carrier_freq
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: samp_rate
+    showports: 'False'
+    type: complex
+    waveform: analog.GR_SIN_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1376, 416.0]
+    rotation: 0
+    state: enabled
+- name: band_pass_filter_0
+  id: band_pass_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '6.76'
+    comment: ''
+    decim: '1'
+    gain: '1'
+    high_cutoff_freq: carrier_freq+baudrate
+    interp: '1'
+    low_cutoff_freq: carrier_freq-baudrate
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    type: interp_fir_filter_fff
+    width: '1'
+    win: window.WIN_HAMMING
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1896, 284.0]
+    rotation: 0
+    state: enabled
+- name: blocks_complex_to_real_0
+  id: blocks_complex_to_real
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1728, 352.0]
+    rotation: 0
+    state: enabled
+- name: blocks_multiply_xx_0
+  id: blocks_multiply_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_inputs: '2'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1600, 336.0]
+    rotation: 0
+    state: enabled
+- name: blocks_repack_bits_bb_1_0
+  id: blocks_repack_bits_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    align_output: 'False'
+    comment: ''
+    endianness: gr.GR_MSB_FIRST
+    k: '1'
+    l: '8'
+    len_tag_key: '""'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1160, 320.0]
+    rotation: 0
+    state: enabled
+- name: blocks_tagged_stream_mux_0
+  id: blocks_tagged_stream_mux
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    lengthtagname: packet_len
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    ninputs: '2'
+    tag_preserve_head_pos: '0'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 320.0]
+    rotation: 0
+    state: enabled
+- name: blocks_throttle2_0
+  id: blocks_throttle2
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    ignoretag: 'True'
+    limit: auto
+    maximum: '0.1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: samp_rate
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2096, 336.0]
+    rotation: 0
+    state: enabled
+- name: blocks_unpack_k_bits_bb_0
+  id: blocks_unpack_k_bits_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    k: '8'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [784, 328.0]
+    rotation: 0
+    state: enabled
+- name: blocks_wavfile_sink_0
+  id: blocks_wavfile_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    bits_per_sample1: FORMAT_PCM_16
+    bits_per_sample2: FORMAT_PCM_16
+    bits_per_sample3: FORMAT_VORBIS
+    bits_per_sample4: FORMAT_PCM_16
+    comment: ''
+    file: /home/bimbim/Codes/vibe-audioModem/GRC/test_out/clean_transmission.wav
+    format: FORMAT_WAV
+    nchan: '1'
+    samp_rate: samp_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2280, 312.0]
+    rotation: 0
+    state: enabled
+- name: digital_constellation_modulator_0
+  id: digital_constellation_modulator
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: const_definition
+    differential: 'True'
+    excess_bw: '0.35'
+    log: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_symbol: sps
+    truncate: 'False'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1376, 304.0]
+    rotation: 0
+    state: enabled
+- name: digital_protocol_formatter_bb_0
+  id: digital_protocol_formatter_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    format: hdr_format
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 280.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_0
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nEmbedded Python Block: bytes to packets block\n\"\"\"\n\
+      \nfrom random import randbytes\nimport pmt\nfrom pathlib import Path\nimport\
+      \ base64\n\nfrom reedsolo import RSCodec\nfrom gnuradio import gr\nimport numpy\
+      \ as np\n\n\ndef importFileFromPath(path):\n    \"\"\"import file as binary\n\
+      \n    Args:\n        path (str): file path\n\n    Returns:\n        data (bytes):\
+      \ output file\n    \"\"\"\n    with open(path, 'rb') as f:\n        data = f.read()\n\
+      \    return data\n\n\ndef split_into_chuncks(data, chunck_size):\n    \"\"\"\
+      takes some binary data and split it into chuncks\n\n    Args:\n        data\
+      \ (bytes): input data\n        chunck_size (int): chunck size in bytes\n\n \
+      \   Yields:\n        bytes: chunck\n    \"\"\"\n    for i in range(0, len(data),\
+      \ chunck_size):\n        yield data[i:i + chunck_size]\n\n\n\ndef binary_to_encoded_packet(binaryFile,\n\
+      \                             packet_size=64,\n                            \
+      \ preamble_size = 3,\n                             postamble_size = 3,\n   \
+      \                          ecc_size=6,\n                             id_len=2,\n\
+      \                             data_len=1,\n                             verbose=False):\n\
+      \    \"\"\"takes a binary file and split it into encoded packets.\n\n    each\
+      \ packet is formatted like so, before Reed Solomon Encoding:\n    [ID, data_length,\
+      \ data]\n\n    Args:\n        binaryFile (bytes, str): input binary file\n \
+      \       packet_size (int, optional): total packet size in bytes. Defaults to\
+      \ 64.\n        preamble_size(int, optionnal): preamble size in packet.\n   \
+      \     postamble_size(int, optionnal): postamble size in packet.\n        ecc_size\
+      \ (int, optional): Error Correction Code length. Defaults to 5.\n        id_len\
+      \ (int, optional): id descriptor length. (With 2 bytes, 65535 packet can be\
+      \ identified at most). Defaults to 2.\n        data_len (int, optional): data\
+      \ length descriptor length. (with 1 byte, max packet size is 255). Defaults\
+      \ to 1.\n        verbose (bool, optional): if true, you get to know the ecc\
+      \ performance.\n    Returns:\n        output (np.uint8): output packets\n  \
+      \  \"\"\"\n    if isinstance(binaryFile, str):\n        path = Path(binaryFile)\n\
+      \        if path.is_file():\n            binaryFile = importFileFromPath(path)\n\
+      \        else:\n            raise FileExistsError\n    elif isinstance(binaryFile,\
+      \ bytes):\n        pass\n    else:\n        raise TypeError\n\n    ecc = RSCodec(ecc_size)\n\
+      \    ecc.maxerrata(verbose=verbose)\n\n    binaryFile = base64.urlsafe_b64encode(binaryFile)\n\
+      \n    chuncks = split_into_chuncks(binaryFile,\n                           \
+      \      packet_size - ecc_size - id_len - data_len)\n    \n    preamble = [(0).to_bytes(id_len,\
+      \ 'big') + randbytes(packet_size - id_len - ecc_size)] * preamble_size\n   \
+      \ postamble = [(0).to_bytes(id_len, 'big') + b'eof' + randbytes(packet_size\
+      \ - id_len - ecc_size -3)] * postamble_size\n\n    chunck_with_id = [(i+1).to_bytes(id_len,\
+      \ 'big') + len(c).to_bytes(data_len, 'big') + c\n                      for i,\
+      \ c in enumerate(chuncks)]\n\n    while len(chunck_with_id[-1]) < packet_size\
+      \ - ecc_size:\n        chunck_with_id[-1] += randbytes(1)\n\n    # adding the\
+      \ preamble and postamble\n    chunck_with_id = preamble + chunck_with_id + postamble\n\
+      \n    encoded_chuncks = [ecc.encode(c) for c in chunck_with_id]\n\n    output\
+      \ = [np.frombuffer(ec, dtype=np.uint8) for ec in encoded_chuncks]\n\n    return\
+      \ output\n\n\nclass blk(gr.basic_block):\n    def __init__(self,\n         \
+      \        input_binary=randbytes(1000),\n                 packet_size=64,\n \
+      \                preamble_size=3,\n                 postamble_size=3,\n    \
+      \             ecc_size=6,\n                 id_len=2,\n                 data_len=1):\n\
+      \        gr.sync_block.__init__(\n            self,\n            name='Binary\
+      \ to Packet',\n            in_sig=None,\n            out_sig=[np.uint8]\n  \
+      \      )\n        self.packet_size = packet_size\n        self.out_packets =\
+      \ binary_to_encoded_packet(binaryFile=input_binary,\n                      \
+      \                              packet_size=packet_size,\n                  \
+      \                                  preamble_size=preamble_size,\n          \
+      \                                          postamble_size=postamble_size,\n\
+      \                                                    ecc_size=ecc_size,\n  \
+      \                                                  id_len=id_len,\n        \
+      \                                            data_len=data_len)\n        self.id_len\
+      \ = id_len\n        self.current_packet_index = 0\n        self.indx = 0\n \
+      \       self.packet_count = len(self.out_packets)\n        self.eof = False\n\
+      \n    def work(self, input_items, output_items):\n        if not self.eof:\n\
+      \            if self.current_packet_index < self.packet_count:\n           \
+      \     current_packet = self.out_packets[self.current_packet_index]\n       \
+      \         current_packet_size = len(current_packet)\n                output_items[0][:current_packet_size]\
+      \ = current_packet\n                id = int.from_bytes(current_packet[:self.id_len],\
+      \ 'big') - 1\n\n                key = pmt.intern(\"packet_len\")\n         \
+      \       val = pmt.from_long(current_packet_size)\n                self.add_item_tag(0,\
+      \  # Write to output port 0\n                                self.indx,   #\
+      \ Index of the tag\n                                key,   # Key of the tag\n\
+      \                                val,\n                                srcid=pmt.PMT_F)\n\
+      \                if not id == -1:\n                    gr.log_debug.info(f\"\
+      sending packet {id:0>6d} : {current_packet_size} bytes\")\n                else:\n\
+      \                    gr.log_debug.info(f\"sending packet pre/postamble : {current_packet_size}\
+      \ bytes\")\n                self.indx += current_packet_size\n             \
+      \   self.current_packet_index += 1\n                self.produce(0, current_packet_size)\n\
+      \                return 0\n            else:\n                self.eof = True\n\
+      \                gr.log_debug.info(\"EOF\")\n                return 0\n    \
+      \    else:\n            return 0\n\n\nif __name__ == \"__main__\":\n    test\
+      \ = blk()"
+    affinity: ''
+    alias: ''
+    comment: ''
+    data_len: '1'
+    ecc_size: '6'
+    id_len: '2'
+    input_binary: '"/home/bimbim/Codes/vibe-audioModem/sampleFile.txt"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    packet_size: '64'
+    postamble_size: '6'
+    preamble_size: '3'
+  states:
+    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'\\xc4\\xef\\x98\\x9d\\n\\xa7\\x8b\\xc3\\xebo(#^\\xe5\\x1a1C\\xb5\\xf7\\x89\\xaa\\xbdUDy[\\x7f\\xa6\\xde\\xea\\xa6\\x92\\x11\\xfe\\xe0\\x14N\\x14\\x80\\x92\\x92\\x81\\xdaj\\\'U\\xbcH\\xae`\\xf9B\\xe4\\xd8\\xdb\\x82\\xe4\\xd9X\\x12\\xf6\\xbe\\xb7\\x98\\xd6\\x9de\\xdb\\xbb\\x07\\x86A\\xf2\\xa5\\xcd\\xba\\xc0X\\x83\\xa8\\xe5\\xce}}&\\xeabqf\\xdc\\xd5`\\xb9\\xbd\\xfanqG\\x85%^)\\xb0s\\xf1\\x05\\xd0t\\xa5\\xfd\\xa4\\xe3\\xf2k\\xf4:\\xdf\\xab~O\\xf4\\x0f\\xae^\\xa9i}\\x86\\xdd\\xf1\\x1b\\x94}\\x86\\xa1\\xb3\\xb3}\\x0e\\x16\\xcb[aM\\x8b\\xa8\\x82\\xd8\\x14N\\x0c\\x94\\xacB\\x18\\xf1O\\x02\\x8dn~\\x1b\\xa4\\x82\\xf5=403\\xd6\\x15\\xee\\xf4\\x84\\xf7?\\x0e\\xffx\\xe40@?\\x01\\xfb\\xe7y*#U\\xa7n\\x07\\x06\\x90\\xae\\xbf\\xfa"-\\xd5\\x11\\x0f\\x13\\xc6\\x16\\x91\\xde?0\\x1c\\x19\\xb8\\xfdn4\\xd46\\xba\\xca\\x94!1Sx\\x871H\\xc4\\x92\\xa0S\\x0e\\xc3\\xa4y\\x07\\x15O)\\xb5\\xff\\x07)\\xf2&\\xc5\\x8b\\x81\\x14\\x10\\xa2\\xc9r\\x8a\\xcc\\x19!\\x0e\\xb2L\\n\\xb8\\xe7\\x1c\\xb4c\\xea/\\xa8!\\\'\\x8bJ\\x17\\x9bf!\\x87E\\xc3M\\xdah\\x98=\\x04\\xb83\\xe5\\xb4S5X\\xd2\\x80@\\xad29\\xe3[\\xc0\\xd8\\x9a\\x17\\x13\\t\\xa0p0\\x8f\\xd0\\xa7/\\xfc\\x1a\\xd5\\xd7\\xd8"\\xf1mx\\xc9\\xdfk\\xb8\\xab\\xc1\\xaf\\xf2\\x9d\\xb8\\x95/\\xf3\\\'\\xf3\\x95m0\\xd9\\xa7\\x16\\xbbx\\x11\\xa6\\xb4\\xf26?5\\x07Z(\\xa6_\\x1a\\x07\\x821\\xfe*B5\\xdd\\nY\\xb18\\xaf\\xf6\\xfcE\\xa1\\x80\\xdfn\\xbe\\x8dMbGA\\xb6\\x93\\xdb\\xc3\\xbb\\x92S\\xac\\x9d\\xb0\\xd8\\x81v\\xddGFM3\\xf7.4b\\x7f\\x98C\\xa7<\\x90I\\x04\\x1c\\xfe-\\xda\\xcca\\xf2\\xa1\\xc2\\x80}\\xad\\xa9\\xa3\\x9f\\xc4m\\xbc\\x0b\\x8a*\\xd8\\xb6\\xbf\\xc8j{\\xc1[+g\\xa3\\xadt3\\xc7\\xcbOOF\\xba\\xab%\\xe5\\xf5\\xd1^(\\xc57\\x83\\x0f\\x1f\\x0ej\\xfa\\x8bK\\xc7\\xef\\x9cpoN\\xde\\xd9\\x8b\\xd4\\xe6F\\xd6\\x06\\xb8\\xa5\\x15=\\x10\\x9dD=y\\xf1sZln\\xf7\\xc2M#\\x8bQT\\xad\\xd9/\\xa3\\x97\\x00\\xef\\xb3\\xff\\x8c\\x8e\\x02l\\xbck\\x10\\xee)\\xd1\\xa7\\xef\\xdc5,\\xc5\\xe5=a\\x1b\\xf6\\x1a#5\\xed\\xf1\\xfbtF\\x93\\x1aB\\xed\\xb9\\x10\\xf0Y\\xe5\\xb5\\xfa\\x07\\xe8\\xfb\\x10\\x8b\\x1b\\xd6\\xc3\\xbb\\xf1\\xc9)\\xcap\\x82\\x95\\xe13\\xfb\\xca\\x06\\x135\\x03n\\xd6\\x90\\xce0\\x00\\xf6\\x99\\xcc~\\x84*\\x1dN\\xf9\\xd0\\x83\\xba\\x86\\x0b\\xb2\\x0b\\x0cu\\xdb\\xdc\\xc0-\\xde\\x02\\xa5a\\xabr/R\\xc3\\xf5\\x19\\x98`\\xac\\x16p\\xee*g\\x06\\xe6Q\\xd5G\\x06\\x1a\\xd6r[)S\\x0f\\x93e\\xf0\\xd6\\x1a\\xc1\\x98c-d\\x03\\x1f\\xf6\\xdbG\\x006]\\xd5\\xad\\x95\\xc9\\x84\\x13(\\xfb\\x14\\xfb\\xba\\xe8\\x9e8O!+\\x9e-\\xa5$\\xff\\xe1\\x8b\\xa8\\xd8QV2\\xa6\\\'d\\xfcaM@\\xc7\\x0cCr\\xc5\\xb8\\xf9\\xcbQ\\xc3a\\x94\\x86(\\xf41\\xa1\\xc7B\\xb2\\xe8\\x89
+      d\\x95\\xd3e\\x95\\xc5\\x13\\xe9^\\xcc\\xcfQo_*\\x04\\xaa\\xe4\\xb3\\x9f\\xb7L\\xe8\\xdbY\\xcd\\xce\\xae\\x06P\\x02\\xfcC\\xdc\\xb0\\xa4\\xd6\\xd87\\x88\\xf6\\x94`\\xb4\\xcb\\x83\\x8e\\xee\\xf6\\x1d\\xb6\\x92{\\xb5\\x04\\xedq\\xfaj?z\\\'\\x1c$\\x9dE(\\x1b\\xb0C\\xac\\x8d\\xde|\\xca\\x9e\\x1a\\x81^\\xa1\\x9d\\x14\\xe4\\xf2\\x84,\\x0e,\\x89\\x8fp\\xd0\\xa7\\x0b\\n9\\xc8\\xda\\x88<\\xb6f\\xd3X\\xd1\\xce[F\\xb9\\x14)\\x99\\xaa\\x9cz^\\\\\\t\\xf7+\\xa9\\xf8\\x10\\x91\\x83T\\xbc+\\xa5W\\xb0\\xa2\\x0c\\x9f\\x8b\\x94\\xe7\\xf7\\x8a\\xe7\\xde\\x85\\x00\\xca\\xf2&\\x8a\\x08F\\xb0\\xbd\\x02\\xe7\\xf2w\\xe1}\\xc4?Z\\xfe\\xe8\\xd6\\xd53\\x8e\\x84\\xc8\\xaa\\x8a\\xdd!\\xd6\\xc2\\xb1\\xfft\\x02w.\\xfb\\n\\xd6\\xcb\\x1f\\xcd9\\xbf\\x89\\x9c`:\\x89\\xf9\\xe1\\x1evmI\\xbe\\x88A\\xe2\\xac\\x7f\\xe4Y\\xa3:\\xc5\\xbeA\\xfeD\\nN\\xf7\\xbd\\xb3\\xa95\\xf1
+      \\x8fL\\xe8]\\xaaM\\xf0\\x05(\\xb9\\xb9\\x13\\x81\\xc7z\\xd3\\xbf\\xa0>\\xc3\\xe5\\xba\\x9a\\xf3\\x17vo0k\\x12\\xc4\\xb4^9\\x9a\\xe5\\xf5f\\xb8\\xbak\\xc7\\x81-\\x94\\xc1\\xc9\\xa3\\x0b\\xfdO\\x1c
+      !\\xce`{\\x03\''), ('packet_size', '64'), ('preamble_size', '3'), ('postamble_size',
+      '3'), ('ecc_size', '6'), ('id_len', '2'), ('data_len', '1')], [], [('0', 'byte',
+      1)], '', ['id_len', 'packet_size'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 292.0]
+    rotation: 0
+    state: enabled
+- name: fec_extended_encoder_0
+  id: fec_extended_encoder
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    encoder_list: cc_enc
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    puncpat: '''11'''
+    threadtype: capillary
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [936, 312.0]
+    rotation: 0
+    state: enabled
+- name: import_0
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: import numpy as np
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 8.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [analog_sig_source_x_0, '0', blocks_multiply_xx_0, '1']
+- [band_pass_filter_0, '0', blocks_throttle2_0, '0']
+- [blocks_complex_to_real_0, '0', band_pass_filter_0, '0']
+- [blocks_multiply_xx_0, '0', blocks_complex_to_real_0, '0']
+- [blocks_repack_bits_bb_1_0, '0', digital_constellation_modulator_0, '0']
+- [blocks_tagged_stream_mux_0, '0', blocks_unpack_k_bits_bb_0, '0']
+- [blocks_throttle2_0, '0', blocks_wavfile_sink_0, '0']
+- [blocks_unpack_k_bits_bb_0, '0', fec_extended_encoder_0, '0']
+- [digital_constellation_modulator_0, '0', blocks_multiply_xx_0, '0']
+- [digital_protocol_formatter_bb_0, '0', blocks_tagged_stream_mux_0, '0']
+- [epy_block_0, '0', blocks_tagged_stream_mux_0, '1']
+- [epy_block_0, '0', digital_protocol_formatter_bb_0, '0']
+- [fec_extended_encoder_0, '0', blocks_repack_bits_bb_1_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.10.0
