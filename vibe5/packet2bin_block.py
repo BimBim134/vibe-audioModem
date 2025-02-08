@@ -131,7 +131,7 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
                 else:
                     gr.log_debug.info(f'unknown tag {tag.key}')
                     return 0
-        return 0
+        return -1 # Return -1 to indicate end of file
 
 if __name__ == "__main__":
     test = blk()
