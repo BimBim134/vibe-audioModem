@@ -133,6 +133,7 @@ class blk(gr.basic_block):
         self.packet_count = len(self.out_packets)
         self.eof = False
 
+
     def work(self, input_items, output_items):
         if not self.eof:
             if self.current_packet_index < self.packet_count:
@@ -156,10 +157,25 @@ class blk(gr.basic_block):
                 self.current_packet_index += 1
                 self.produce(0, current_packet_size)
                 return 0
+            
             else:
+                # End of file reached
+                # Send a dummy packet to indicate end of file
                 self.eof = True
+                current_packet_size = self.packet_size
+                output_items[0][:current_packet_size] = [0] * current_packet_size
+                key = pmt.intern("packet_len")
+                val = pmt.from_long(current_packet_size)
+                self.add_item_tag(0,  # Write to output port 0
+                                self.indx,   # Index of the tag
+                                key,   # Key of the tag
+                                val,
+                                srcid=pmt.PMT_F)
+                self.indx += current_packet_size
+                self.current_packet_index += 1
+                self.produce(0, current_packet_size)
                 gr.log_debug.info("EOF")
-                return 0
+                return -1 # End of file marker
         else:
             return 0
 

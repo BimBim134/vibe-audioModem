@@ -10,6 +10,7 @@ def plot_fft(filename):
     sample_rate, data = wav.read(filename)
     # compute the fft
     fft_data = np.fft.fft(data)
+    # power spectrum to log scale
     fft_data /= np.max(np.abs(fft_data))
     # compute the frequency bins
     freqs = np.fft.fftfreq(len(data), 1/sample_rate)

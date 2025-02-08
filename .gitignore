@@ -164,3 +164,4 @@ cython_debug/
 .vscode
 GRC/*py
 GRC/test_out
+test.py
