@@ -133,51 +133,44 @@ class blk(gr.basic_block):
         self.packet_count = len(self.out_packets)
         self.eof = False
 
+        # Define the tag key and value
+        self.key = pmt.intern("packet_len")
+        self.val = pmt.from_long(packet_size)
 
     def work(self, input_items, output_items):
         if not self.eof:
             if self.current_packet_index < self.packet_count:
-                current_packet = self.out_packets[self.current_packet_index]
-                current_packet_size = len(current_packet)
-                output_items[0][:current_packet_size] = current_packet
-                id = int.from_bytes(current_packet[:self.id_len], 'big') - 1
+                # Calculate the number of packets to transmit
+                nb_packet_to_transmit = min(len(output_items[0])//self.packet_size, self.packet_count)
+                gr.log_debug.info(f"Transmitting {nb_packet_to_transmit}/{self.packet_count} packets")
 
-                key = pmt.intern("packet_len")
-                val = pmt.from_long(current_packet_size)
-                self.add_item_tag(0,  # Write to output port 0
-                                self.indx,   # Index of the tag
-                                key,   # Key of the tag
-                                val,
-                                srcid=pmt.PMT_F)
-                if not id == -1:
-                    gr.log_debug.info(f"sending packet {id:0>6d} : {current_packet_size} bytes")
-                else:
-                    gr.log_debug.info(f"sending packet pre/postamble : {current_packet_size} bytes")
-                self.indx += current_packet_size
-                self.current_packet_index += 1
-                self.produce(0, current_packet_size)
+                # Transmit the packets
+                for _ in range(nb_packet_to_transmit):
+                    current_packet = self.out_packets[self.current_packet_index]
+                    current_packet_size = len(current_packet)
+                    output_items[0][self.indx:self.indx+current_packet_size] = current_packet
+
+                    id = int.from_bytes(current_packet[:self.id_len], 'big') - 1
+
+                    self.add_item_tag(0, self.indx, self.key, self.val, srcid=pmt.PMT_F)
+
+                    if not id == -1:
+                        gr.log_debug.info(f"sending packet {id:0>6d} : {current_packet_size} bytes")
+                    else:
+                        gr.log_debug.info(f"sending packet pre/postamble : {current_packet_size} bytes")
+
+                    self.indx += current_packet_size
+                    self.current_packet_index += 1
+                    self.produce(0, current_packet_size)
                 return 0
             
             else:
-                # End of file reached
-                # Send a dummy packet to indicate end of file
                 self.eof = True
-                current_packet_size = self.packet_size
-                output_items[0][:current_packet_size] = [0] * current_packet_size
-                key = pmt.intern("packet_len")
-                val = pmt.from_long(current_packet_size)
-                self.add_item_tag(0,  # Write to output port 0
-                                self.indx,   # Index of the tag
-                                key,   # Key of the tag
-                                val,
-                                srcid=pmt.PMT_F)
-                self.indx += current_packet_size
-                self.current_packet_index += 1
-                self.produce(0, current_packet_size)
                 gr.log_debug.info("EOF")
-                return -1 # End of file marker
+                return 0
         else:
-            return 0
+            self.produce(0, 0)
+            return -1
 
 
 if __name__ == "__main__":
