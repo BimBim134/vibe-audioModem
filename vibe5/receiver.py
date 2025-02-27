@@ -5,7 +5,8 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: Not titled yet
+# Title: receiver 004
+# Author: bimbim
 # GNU Radio version: 3.10.10.0
 
 from gnuradio import analog
@@ -22,15 +23,15 @@ from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 import numpy as np
-import packet2bin_block as epy_block_1  # embedded python block
+import packet2bin_block as epy_packet2bin_block  # embedded python block
 
 
 
 
-class receiver_003(gr.top_block):
+class receiver_004(gr.top_block):
 
     def __init__(self):
-        gr.top_block.__init__(self, "Not titled yet", catch_exceptions=True)
+        gr.top_block.__init__(self, "receiver 004", catch_exceptions=True)
 
         ##################################################
         # Variables
@@ -38,16 +39,17 @@ class receiver_003(gr.top_block):
         self.samp_rate = samp_rate = 44100
         self.baudrate = baudrate = 100
         self.sps = sps = int(samp_rate/baudrate)
-        self.access_key = access_key = '11100001010110101110100010010011'
         self.rrc_taps = rrc_taps = firdes.root_raised_cosine(1, samp_rate,baudrate, 0.35, (51*sps))
+        self.packet_size = packet_size = 64
+        self.output_file_path = output_file_path = ""
         self.nfilts = nfilts = 64
-        self.loop_bandwidth = loop_bandwidth = -0.111344*np.log(baudrate) + 1.045302
-        self.hdr_format = hdr_format = digital.header_format_default(access_key, 0)
+        self.loop_bandwidth = loop_bandwidth = 2*np.pi*0.04
+        self.input_file_path = input_file_path = ""
         self.const_definition = const_definition = digital.constellation_calcdist([-1-1j, -1+1j, 1+1j, 1-1j], [0, 1, 3, 2],
-        4, 1, digital.constellation.POWER_NORMALIZATION).base()
+        4, 1, digital.constellation.AMPLITUDE_NORMALIZATION).base()
         self.const_definition.set_npwr(0)
         self.const_definition.gen_soft_dec_lut(8)
-        self.cc_dec = cc_dec = fec.cc_decoder.make(2048,7, 2, [79,109], 0, (-1), fec.CC_STREAMING, False)
+        self.cc_dec = cc_dec = fec.cc_decoder.make(8,7, 2, [79,109], 0, 0, fec.CC_STREAMING, True)
         self.carrier_freq = carrier_freq = 5000
 
         ##################################################
@@ -57,9 +59,9 @@ class receiver_003(gr.top_block):
         self.fft_filter_xxx_0 = filter.fft_filter_ccf(1, rrc_taps, 1)
         self.fft_filter_xxx_0.declare_sample_delay(0)
         self.fec_extended_decoder_0 = fec.extended_decoder(decoder_obj_list=cc_dec, threading= None, ann=None, puncpat='11', integration_period=10000)
-        self.epy_block_1 = epy_block_1.blk(out_filename="/home/bimbim/Codes/vibe-audioModem/test_cc.txt", packet_size=64, ecc_size=6, id_len=2, data_len=1, verbose=False)
+        self.epy_packet2bin_block = epy_packet2bin_block.blk(out_filename=output_file_path, packet_size=packet_size, ecc_size=10, id_len=2, data_len=1, verbose=False)
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
-            digital.TED_MOD_MUELLER_AND_MULLER,
+            digital.TED_GARDNER,
             sps,
             loop_bandwidth,
             (1.0/np.sqrt(2.0)),
@@ -70,13 +72,14 @@ class receiver_003(gr.top_block):
             digital.IR_PFB_NO_MF,
             nfilts,
             rrc_taps)
+        self.digital_probe_mpsk_snr_est_c_0 = digital.probe_mpsk_snr_est_c(3, 10000, 0.001)
         self.digital_map_bb_1_0 = digital.map_bb(const_definition.pre_diff_code())
         self.digital_diff_decoder_bb_0_0 = digital.diff_decoder_bb(len(const_definition.points()), digital.DIFF_DIFFERENTIAL)
-        self.digital_costas_loop_cc_0_0 = digital.costas_loop_cc(0.1, len(const_definition.points()), False)
-        self.digital_correlate_access_code_xx_ts_0 = digital.correlate_access_code_bb_ts(access_key,
-          0, 'packet_len')
+        self.digital_costas_loop_cc_0_0 = digital.costas_loop_cc((2*np.pi/100), len(const_definition.points()), True)
+        self.digital_correlate_access_code_xx_ts_0 = digital.correlate_access_code_bb_ts('access_key',
+          3, 'packet_len')
         self.digital_constellation_decoder_cb_0_0_0 = digital.constellation_decoder_cb(const_definition)
-        self.blocks_wavfile_source_0 = blocks.wavfile_source('/home/bimbim/Codes/vibe-audioModem/clean_transmission.wav', False)
+        self.blocks_wavfile_source_0 = blocks.wavfile_source(input_file_path, False)
         self.blocks_unpack_k_bits_bb_0_0 = blocks.unpack_k_bits_bb(int(np.log2(len(const_definition.points()))))
         self.blocks_uchar_to_float_0_0_0 = blocks.uchar_to_float()
         self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(1, 8, "packet_len", True, gr.GR_MSB_FIRST)
@@ -92,14 +95,16 @@ class receiver_003(gr.top_block):
         ##################################################
         # Connections
         ##################################################
+        self.msg_connect((self.digital_probe_mpsk_snr_est_c_0, 'noise'), (self.digital_costas_loop_cc_0_0, 'noise'))
         self.connect((self.analog_agc_xx_0, 0), (self.blocks_multiply_xx_1, 0))
         self.connect((self.analog_const_source_x_0, 0), (self.blocks_float_to_complex_0, 1))
         self.connect((self.analog_sig_source_x_1, 0), (self.blocks_multiply_xx_1, 1))
         self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
         self.connect((self.blocks_float_to_complex_0, 0), (self.analog_agc_xx_0, 0))
         self.connect((self.blocks_multiply_const_xx_1_0_0, 0), (self.blocks_add_const_vxx_0_0_0, 0))
+        self.connect((self.blocks_multiply_xx_1, 0), (self.digital_probe_mpsk_snr_est_c_0, 0))
         self.connect((self.blocks_multiply_xx_1, 0), (self.fft_filter_xxx_0, 0))
-        self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.epy_block_1, 0))
+        self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.epy_packet2bin_block, 0))
         self.connect((self.blocks_uchar_to_float_0_0_0, 0), (self.blocks_multiply_const_xx_1_0_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
         self.connect((self.blocks_wavfile_source_0, 0), (self.blocks_float_to_complex_0, 0))
@@ -127,7 +132,6 @@ class receiver_003(gr.top_block):
 
     def set_baudrate(self, baudrate):
         self.baudrate = baudrate
-        self.set_loop_bandwidth(-0.111344*np.log(self.baudrate) + 1.045302)
         self.set_rrc_taps(firdes.root_raised_cosine(1, self.samp_rate, self.baudrate, 0.35, (51*self.sps)))
         self.set_sps(int(self.samp_rate/self.baudrate))
 
@@ -139,19 +143,26 @@ class receiver_003(gr.top_block):
         self.set_rrc_taps(firdes.root_raised_cosine(1, self.samp_rate, self.baudrate, 0.35, (51*self.sps)))
         self.digital_symbol_sync_xx_0.set_sps(self.sps)
 
-    def get_access_key(self):
-        return self.access_key
-
-    def set_access_key(self, access_key):
-        self.access_key = access_key
-        self.set_hdr_format(digital.header_format_default(self.access_key, 0))
-
     def get_rrc_taps(self):
         return self.rrc_taps
 
     def set_rrc_taps(self, rrc_taps):
         self.rrc_taps = rrc_taps
         self.fft_filter_xxx_0.set_taps(self.rrc_taps)
+
+    def get_packet_size(self):
+        return self.packet_size
+
+    def set_packet_size(self, packet_size):
+        self.packet_size = packet_size
+        self.epy_packet2bin_block.packet_size = self.packet_size
+
+    def get_output_file_path(self):
+        return self.output_file_path
+
+    def set_output_file_path(self, output_file_path):
+        self.output_file_path = output_file_path
+        self.epy_packet2bin_block.out_filename = self.output_file_path
 
     def get_nfilts(self):
         return self.nfilts
@@ -166,11 +177,11 @@ class receiver_003(gr.top_block):
         self.loop_bandwidth = loop_bandwidth
         self.digital_symbol_sync_xx_0.set_loop_bandwidth(self.loop_bandwidth)
 
-    def get_hdr_format(self):
-        return self.hdr_format
+    def get_input_file_path(self):
+        return self.input_file_path
 
-    def set_hdr_format(self, hdr_format):
-        self.hdr_format = hdr_format
+    def set_input_file_path(self, input_file_path):
+        self.input_file_path = input_file_path
 
     def get_const_definition(self):
         return self.const_definition
@@ -195,8 +206,10 @@ class receiver_003(gr.top_block):
 
 
 
-def main(top_block_cls=receiver_003, options=None):
+def main(input_file_path, output_file_path, top_block_cls=receiver_004, options=None):
     tb = top_block_cls()
+    tb.set_input_file_path = input_file_path
+    tb.set_output_file_path = output_file_path
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
