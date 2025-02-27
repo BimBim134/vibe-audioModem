@@ -109,7 +109,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1592, 416.0]
+    coordinate: [1800, 416.0]
     rotation: 0
     state: disabled
 - name: loop_bandwidth
@@ -201,6 +201,23 @@ blocks:
     coordinate: [704, 16.0]
     rotation: 0
     state: enabled
+- name: variable_adaptive_algorithm_0
+  id: variable_adaptive_algorithm
+  parameters:
+    comment: ''
+    cons: const_definition
+    delta: '10.0'
+    ffactor: '0.99'
+    modulus: '4'
+    step_size: '.0001'
+    type: cma
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1568, 272.0]
+    rotation: 0
+    state: true
 - name: analog_agc_xx_0
   id: analog_agc_xx
   parameters:
@@ -451,7 +468,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1624, 352.0]
+    coordinate: [1832, 352.0]
     rotation: 0
     state: enabled
 - name: digital_diff_decoder_bb_0_0
@@ -469,6 +486,27 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [2368, 336.0]
+    rotation: 0
+    state: enabled
+- name: digital_linear_equalizer_0
+  id: digital_linear_equalizer
+  parameters:
+    adapt_after_training: 'True'
+    affinity: ''
+    alg: variable_adaptive_algorithm_0
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_taps: '15'
+    sps: '2'
+    training_sequence: '[ ]'
+    training_start_tag: corr_est
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1568, 376.0]
     rotation: 0
     state: enabled
 - name: digital_map_bb_1_0
@@ -766,7 +804,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1856, 208.0]
+    coordinate: [2064, 208.0]
     rotation: 0
     state: enabled
 - name: qtgui_freq_sink_x_0
@@ -932,9 +970,10 @@ connections:
 - [digital_costas_loop_cc_0_0, '0', digital_constellation_decoder_cb_0_0_0, '0']
 - [digital_costas_loop_cc_0_0, '0', qtgui_const_sink_x_0, '1']
 - [digital_diff_decoder_bb_0_0, '0', digital_map_bb_1_0, '0']
+- [digital_linear_equalizer_0, '0', digital_costas_loop_cc_0_0, '0']
 - [digital_map_bb_1_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
 - [digital_probe_mpsk_snr_est_c_0, noise, digital_costas_loop_cc_0_0, noise]
-- [digital_symbol_sync_xx_0, '0', digital_costas_loop_cc_0_0, '0']
+- [digital_symbol_sync_xx_0, '0', digital_linear_equalizer_0, '0']
 - [digital_symbol_sync_xx_0, '0', qtgui_const_sink_x_0, '0']
 - [fec_extended_decoder_0, '0', digital_correlate_access_code_xx_ts_0, '0']
 - [fft_filter_xxx_0, '0', digital_symbol_sync_xx_0, '0']
