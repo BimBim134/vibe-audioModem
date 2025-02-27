@@ -189,10 +189,14 @@ class transmitter_003(gr.top_block):
 
 
 
-def transmit(input_file_path, output_file_path, top_block_cls=transmitter_003, options=None):
+def transmit(input_file_path, output_file_path, baudrate=250, carrier_freq=2500, top_block_cls=transmitter_003, options=None):
     tb = top_block_cls()
-    tb.set_input_file_path = input_file_path
-    tb.set_output_file_path = output_file_path
+
+    tb.set_baudrate(baudrate)
+    tb.set_carrier_freq(carrier_freq)
+    
+    tb.set_input_file_path(input_file_path)
+    tb.set_output_file_path(output_file_path)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
