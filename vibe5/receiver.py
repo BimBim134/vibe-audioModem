@@ -206,9 +206,9 @@ class receiver_004(gr.top_block):
 
 
 
-def main(input_file_path, output_file_path, baudrate=250, carrier_freq=2500, top_block_cls=receiver_004, options=None):
+def receive(input_file_path, output_file_path, baudrate=250, carrier_freq=2500, top_block_cls=receiver_004, options=None):
     tb = top_block_cls()
-    
+
     tb.set_baudrate(baudrate)
     tb.set_carrier_freq(carrier_freq)
     
@@ -230,4 +230,4 @@ def main(input_file_path, output_file_path, baudrate=250, carrier_freq=2500, top
 
 
 if __name__ == '__main__':
-    main()
+    receive()
