@@ -42,19 +42,19 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [744, 272.0]
+    coordinate: [576, 272.0]
     rotation: 0
     state: enabled
 - name: baudrate
   id: variable
   parameters:
     comment: ''
-    value: '100'
+    value: '1000'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1984, 120.0]
+    coordinate: [1984, 104.0]
     rotation: 0
     state: enabled
 - name: carrier_freq
@@ -66,7 +66,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2136, 120.0]
+    coordinate: [2136, 104.0]
     rotation: 0
     state: enabled
 - name: cc_dec
@@ -75,14 +75,14 @@ blocks:
     comment: ''
     dim1: '1'
     dim2: '1'
-    framebits: '2048'
+    framebits: '8'
     k: '7'
     mode: fec.CC_STREAMING
     ndim: '0'
-    padding: 'False'
+    padding: 'True'
     polys: '[79,109]'
     rate: '2'
-    state_end: '-1'
+    state_end: '0'
     state_start: '0'
     value: '"ok"'
   states:
@@ -98,11 +98,11 @@ blocks:
     comment: ''
     dim1: '1'
     dim2: '1'
-    framebits: '2048'
+    framebits: '128'
     k: '7'
     mode: fec.CC_STREAMING
     ndim: '0'
-    padding: 'False'
+    padding: 'True'
     polys: '[79,109]'
     rate: '2'
     state_start: '0'
@@ -110,7 +110,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1552, 196.0]
+    coordinate: [1400, 196.0]
     rotation: 0
     state: enabled
 - name: const_definition
@@ -130,7 +130,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1952, 188.0]
+    coordinate: [1952, 172.0]
     rotation: 0
     state: enabled
 - name: hdr_format
@@ -142,7 +142,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [744, 200.0]
+    coordinate: [576, 200.0]
     rotation: 0
     state: enabled
 - name: loop_bandwidth
@@ -195,7 +195,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1896, 120.0]
+    coordinate: [1896, 104.0]
     rotation: 0
     state: enabled
 - name: sps
@@ -207,7 +207,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2064, 120.0]
+    coordinate: [2064, 104.0]
     rotation: 0
     state: enabled
 - name: analog_agc_xx_0
@@ -267,7 +267,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1968, 488.0]
+    coordinate: [1992, 504.0]
     rotation: 0
     state: enabled
 - name: analog_sig_source_x_1
@@ -336,7 +336,7 @@ blocks:
     comment: ''
     file: /home/bimbim/Codes/vibe-audioModem/GRC/test_out/test_crc32_nopython.txt
     type: byte
-    unbuffered: 'False'
+    unbuffered: 'True'
     vlen: '1'
   states:
     bus_sink: false
@@ -454,7 +454,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3936, 864.0]
+    coordinate: [4064, 864.0]
     rotation: 0
     state: enabled
 - name: blocks_repack_bits_bb_1_0
@@ -474,7 +474,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1776, 392.0]
+    coordinate: [1624, 392.0]
     rotation: 0
     state: enabled
 - name: blocks_stream_to_tagged_stream_0
@@ -486,14 +486,14 @@ blocks:
     len_tag_key: '"packet_len"'
     maxoutbuf: '0'
     minoutbuf: '0'
-    packet_len: '64'
+    packet_len: '32'
     type: byte
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [232, 408.0]
+    coordinate: [312, 408.0]
     rotation: 0
     state: enabled
 - name: blocks_tagged_stream_mux_0
@@ -513,7 +513,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1008, 392.0]
+    coordinate: [840, 392.0]
     rotation: 0
     state: enabled
 - name: blocks_throttle2_0
@@ -565,7 +565,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1400, 400.0]
+    coordinate: [1248, 400.0]
     rotation: 0
     state: enabled
 - name: blocks_unpack_k_bits_bb_0_0
@@ -613,13 +613,13 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     samples_per_symbol: sps
-    truncate: 'False'
+    truncate: 'True'
     verbose: 'False'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1976, 376.0]
+    coordinate: [1976, 368.0]
     rotation: 0
     state: enabled
 - name: digital_correlate_access_code_xx_ts_0
@@ -632,7 +632,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     tagname: packet_len
-    threshold: '0'
+    threshold: '3'
     type: byte
   states:
     bus_sink: false
@@ -657,42 +657,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [1624, 880.0]
-    rotation: 0
-    state: enabled
-- name: digital_crc32_bb_0
-  id: digital_crc32_bb
-  parameters:
-    affinity: ''
-    alias: ''
-    check: 'False'
-    comment: ''
-    lengthtagname: '"packet_len"'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    packed: 'True'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [456, 400.0]
-    rotation: 0
-    state: enabled
-- name: digital_crc32_bb_1
-  id: digital_crc32_bb
-  parameters:
-    affinity: ''
-    alias: ''
-    check: 'True'
-    comment: ''
-    lengthtagname: '"packet_len"'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    packed: 'True'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [4120, 856.0]
     rotation: 0
     state: enabled
 - name: digital_diff_decoder_bb_0_0
@@ -728,23 +692,6 @@ blocks:
     coordinate: [2568, 872.0]
     rotation: 0
     state: enabled
-- name: digital_packet_headergenerator_bb_0
-  id: digital_packet_headergenerator_bb
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    header_formatter: ''
-    len_tag_key: '"packet_len"'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1648, 544.0]
-    rotation: 0
-    state: enabled
 - name: digital_protocol_formatter_bb_0
   id: digital_protocol_formatter_bb
   parameters:
@@ -759,7 +706,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [744, 352.0]
+    coordinate: [576, 352.0]
     rotation: 0
     state: enabled
 - name: digital_symbol_sync_xx_0
@@ -777,7 +724,7 @@ blocks:
     nfilters: nfilts
     osps: '1'
     pfb_mf_taps: rrc_taps
-    resamp_type: digital.IR_PFB_NO_MF
+    resamp_type: digital.IR_MMSE_8TAP
     sps: sps
     ted_gain: '1.4142'
     ted_type: digital.TED_MOD_MUELLER_AND_MULLER
@@ -824,7 +771,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1552, 384.0]
+    coordinate: [1400, 384.0]
     rotation: 0
     state: enabled
 - name: fft_filter_xxx_0
@@ -1221,7 +1168,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2832, 416.0]
+    coordinate: [3056, 416.0]
     rotation: 0
     state: enabled
 - name: virtual_source_0
@@ -1252,9 +1199,10 @@ connections:
 - [blocks_multiply_xx_0, '0', qtgui_freq_sink_x_0, '0']
 - [blocks_multiply_xx_1, '0', fft_filter_xxx_0, '0']
 - [blocks_multiply_xx_1, '0', qtgui_freq_sink_x_1, '0']
-- [blocks_repack_bits_bb_0_0, '0', digital_crc32_bb_1, '0']
+- [blocks_repack_bits_bb_0_0, '0', blocks_file_sink_0, '0']
 - [blocks_repack_bits_bb_1_0, '0', digital_constellation_modulator_0, '0']
-- [blocks_stream_to_tagged_stream_0, '0', digital_crc32_bb_0, '0']
+- [blocks_stream_to_tagged_stream_0, '0', blocks_tagged_stream_mux_0, '1']
+- [blocks_stream_to_tagged_stream_0, '0', digital_protocol_formatter_bb_0, '0']
 - [blocks_tagged_stream_mux_0, '0', blocks_unpack_k_bits_bb_0, '0']
 - [blocks_throttle2_0, '0', virtual_sink_0, '0']
 - [blocks_uchar_to_float_0_0_0, '0', blocks_multiply_const_xx_1_0_0, '0']
@@ -1266,9 +1214,6 @@ connections:
 - [digital_correlate_access_code_xx_ts_0, '0', blocks_repack_bits_bb_0_0, '0']
 - [digital_costas_loop_cc_0_0, '0', digital_constellation_decoder_cb_0_0_0, '0']
 - [digital_costas_loop_cc_0_0, '0', qtgui_const_sink_x_0, '0']
-- [digital_crc32_bb_0, '0', blocks_tagged_stream_mux_0, '1']
-- [digital_crc32_bb_0, '0', digital_protocol_formatter_bb_0, '0']
-- [digital_crc32_bb_1, '0', blocks_file_sink_0, '0']
 - [digital_diff_decoder_bb_0_0, '0', digital_map_bb_1_0, '0']
 - [digital_map_bb_1_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
 - [digital_protocol_formatter_bb_0, '0', blocks_tagged_stream_mux_0, '0']
