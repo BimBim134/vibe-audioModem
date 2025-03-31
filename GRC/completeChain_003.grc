@@ -89,7 +89,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3440, 644.0]
+    coordinate: [3776, 624.0]
     rotation: 0
     state: enabled
 - name: cc_enc
@@ -210,6 +210,23 @@ blocks:
     coordinate: [2064, 104.0]
     rotation: 0
     state: enabled
+- name: variable_adaptive_algorithm_0
+  id: variable_adaptive_algorithm
+  parameters:
+    comment: ''
+    cons: const_definition
+    delta: '10.0'
+    ffactor: '0.99'
+    modulus: '4'
+    step_size: '.0001'
+    type: cma
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1624, 792.0]
+    rotation: 0
+    state: true
 - name: analog_agc_xx_0
   id: analog_agc_xx
   parameters:
@@ -308,7 +325,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3280, 872.0]
+    coordinate: [3616, 856.0]
     rotation: 0
     state: enabled
 - name: blocks_complex_to_real_0
@@ -342,7 +359,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [4344, 856.0]
+    coordinate: [4680, 840.0]
     rotation: 0
     state: enabled
 - name: blocks_file_source_0
@@ -398,7 +415,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3080, 872.0]
+    coordinate: [3416, 856.0]
     rotation: 0
     state: enabled
 - name: blocks_multiply_xx_0
@@ -454,7 +471,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [4064, 864.0]
+    coordinate: [4400, 848.0]
     rotation: 0
     state: enabled
 - name: blocks_repack_bits_bb_1_0
@@ -549,7 +566,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2896, 880.0]
+    coordinate: [3232, 864.0]
     rotation: 0
     state: enabled
 - name: blocks_unpack_k_bits_bb_0
@@ -581,7 +598,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2728, 872.0]
+    coordinate: [3064, 856.0]
     rotation: 0
     state: enabled
 - name: digital_constellation_decoder_cb_0_0_0
@@ -597,7 +614,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2120, 872.0]
+    coordinate: [2456, 856.0]
     rotation: 0
     state: enabled
 - name: digital_constellation_modulator_0
@@ -638,7 +655,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3672, 856.0]
+    coordinate: [4008, 840.0]
     rotation: 0
     state: enabled
 - name: digital_costas_loop_cc_0_0
@@ -656,7 +673,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1624, 880.0]
+    coordinate: [1960, 864.0]
     rotation: 0
     state: enabled
 - name: digital_diff_decoder_bb_0_0
@@ -673,7 +690,28 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2368, 864.0]
+    coordinate: [2704, 848.0]
+    rotation: 0
+    state: enabled
+- name: digital_linear_equalizer_0
+  id: digital_linear_equalizer
+  parameters:
+    adapt_after_training: 'True'
+    affinity: ''
+    alg: variable_adaptive_algorithm_0
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_taps: '15'
+    sps: '2'
+    training_sequence: '[ ]'
+    training_start_tag: corr_est
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1624, 896.0]
     rotation: 0
     state: enabled
 - name: digital_map_bb_1_0
@@ -689,7 +727,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2568, 872.0]
+    coordinate: [2904, 856.0]
     rotation: 0
     state: enabled
 - name: digital_protocol_formatter_bb_0
@@ -753,7 +791,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3440, 848.0]
+    coordinate: [3776, 832.0]
     rotation: 0
     state: enabled
 - name: fec_extended_encoder_0
@@ -896,7 +934,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1896, 784.0]
+    coordinate: [2232, 768.0]
     rotation: 0
     state: enabled
 - name: qtgui_freq_sink_x_0
@@ -1215,9 +1253,10 @@ connections:
 - [digital_costas_loop_cc_0_0, '0', digital_constellation_decoder_cb_0_0_0, '0']
 - [digital_costas_loop_cc_0_0, '0', qtgui_const_sink_x_0, '0']
 - [digital_diff_decoder_bb_0_0, '0', digital_map_bb_1_0, '0']
+- [digital_linear_equalizer_0, '0', digital_costas_loop_cc_0_0, '0']
 - [digital_map_bb_1_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
 - [digital_protocol_formatter_bb_0, '0', blocks_tagged_stream_mux_0, '0']
-- [digital_symbol_sync_xx_0, '0', digital_costas_loop_cc_0_0, '0']
+- [digital_symbol_sync_xx_0, '0', digital_linear_equalizer_0, '0']
 - [fec_extended_decoder_0, '0', digital_correlate_access_code_xx_ts_0, '0']
 - [fec_extended_encoder_0, '0', blocks_repack_bits_bb_1_0, '0']
 - [fft_filter_xxx_0, '0', digital_symbol_sync_xx_0, '0']
