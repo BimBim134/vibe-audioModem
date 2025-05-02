@@ -149,24 +149,12 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: -0.111344*np.log(baudrate) + 1.045302
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1240, 1048.0]
-    rotation: 0
-    state: disabled
-- name: loop_bandwidth
-  id: variable
-  parameters:
-    comment: ''
     value: 2*np.pi*0.04
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1232, 976.0]
+    coordinate: [1216, 1048.0]
     rotation: 0
     state: enabled
 - name: nfilts
@@ -628,14 +616,14 @@ blocks:
     freq_offset: '0.0'
     maxoutbuf: '0'
     minoutbuf: '0'
-    noise_voltage: '0.001'
+    noise_voltage: 1e-2
     seed: '0'
     taps: '1.0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [400, 752.0]
+    coordinate: [400, 744.0]
     rotation: 0
     state: enabled
 - name: digital_constellation_decoder_cb_0_0_0
@@ -744,24 +732,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [2560, 1112.0]
-    rotation: 0
-    state: enabled
-- name: digital_probe_mpsk_snr_est_c_0
-  id: digital_probe_mpsk_snr_est_c
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha: '0.001'
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    msg_nsamples: '10000'
-    type: '3'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [888, 1416.0]
     rotation: 0
     state: enabled
 - name: digital_protocol_formatter_bb_0
@@ -899,9 +869,10 @@ blocks:
     postamble_size: '6'
     preamble_size: '3'
   states:
-    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'\\xac:\\xe2\\x9b|\\xf1dDF6\\x93\\x08\\xaa\\xd1\\x97\\x15\\x8c\\xb3\\x8c\\xdeF7\\x99\\x07\\x8d\\xdfF\\xb8\\x91\\x05\\x1e6s\\xe9\\xb8\\xbf\\xe1\\xdb\\x83\\xb6:\\x80\\xb5\\xafc\\x95J\\xcf(c\\xed\\xf0\\xe9M4\\xe4O\\xc2\\xf4\\xb9\\xedC\\x8cT\\x0b\\x1eM\\\\r\\xb6\\xba\\x8c\\x1f>m{\\xa4\\xc6[=\\xa0\\n\\x8f\\xd8][\\xc7\\x06\\xebk\\x0b\\r\\xfe\\xa3n\\xea^\\x16\\x12\\x9f\\xbe\\x08\\xc0\\x03c\\xb3$c\\xba\\x9aW\\xd1z\\xbcy<r\\x86\\x06V\\x82\\xc2\\xadH\\xc01lP\\xa8\\xb2\\xb4\\x937\\xf3W7\\x8b\\x8dZ\\x82.\\xf4\\x13\\xf7\\xed\\x0f^\\x8a\\x96\\x06\\xb0\\xae5\\xc5;g\\xb5\\xee\\x8fI\\x05c\\xc4;\\x10\\xbfO\\x9f\\x9e\\x87\\x8d\\x8a\\xd0\\xb95S\\xc8&\\xa30\\x91\\xa8\\xde\\xfcQ*\\r\\xd9\\xc4\\xd1\\\'W\\x19\\xf4\\xc5\\xb5)\\x93\\xca\\x85\\xd7\\xe7\\xc5{~JcC\\xce\\x99\\xba\\xf7<\\x9d\\x1c\\x17\\x84\\x8f,)\\xe0\\xe9\\x0c\\x91\\x7f1\\xa5\\xb0\\x1e\\x18\\x18\\xaf)eN$\\xb78V\\x7f\\xeeI\\xcd\\xca\\x84\\xf7\\xa2\\xec\\xdd\\x9e\\xbc\\xaba\\xe8\\xe7\\x8bY\\x16\\xc8\\x97\\xaf\\xe0\\xdf\\\\\\xc7\\xe2\\x91,l\\xb2\\xc8\\xb3E\\xaau\\xa2\\x18\\x80\\xdf]\\xca\\x08\\x88N\\xa6\\x9d\\x07\\x0cU\\xb4\\x1b\\xa1\\x10\\xe8:\\xbb8\\x81\\x13\\xf1[o}K\\x06\\xa37\\xbc\\x98\\xaf\\xa1\\xd7\\x9a\\xabH\\xbd\\xc2\\xe0\\xe2\\xa3\\xc3v:\\x87\\x80\\x9ah\\x8c\\xf9\\xa1\\xa0,\\xa6\\xa0\\xd4"\\xdd\\xd8Y\\xe6\\xcd\\x04\\x9a\\x8a\\x19f\\xc3`\\x92\\x93\\xee\\x004\\x1b\\xc8sxC\\x1c[\\xcd\\xfe\\x84\\xd7\\xf0/\\xba\\x9a\\x17\\xa6]\\r\\xe6%\\xfb^(S\\xef}\\x1f\\xf2\\x14\\x10\\xad\\xfd\\xfa\\x16q\\\'M8\\xbay#\\x8fx\\xc3R\\x12(rd|SoS-\\xef\\x95\\xea\\x90\\xd2\\xaf\\xe0\\x95\\xa5\\xff\\xf3\\xc6^5\\x93\\x9bj\\x1ch[\\x91s\\xefI\\xbeT\\xb6\\xd3\\x9b\\xc6\\xeaa\\xc44n9\\x97\\x12r$\\x94a\\x15S+\\x9d\\xe77\\x15-\\xf6\\x85\\xde\\x9cN\\xe6|"\\xf7\\xb82\\xcd~\\xb4\\x1d\\xb0\\xd50mId\\x82\\x9a\\xc2o]\\x80\\xc7d\\xcb\\xbfB\\xa2\\xd0\\x12\\xc7gR\\xb7xY\\xc4\\xe0\\x1b\\xc7\\\'\\xc6\\xb2\\xdb\\\'\\xb8F\\xa4\\x93,91$"\\xd0\\xc3\\xb3b\\x7f\\x08:Rb\\x13]\\xf4\\xb0\\x99\\xb0J\\xe1\\x97\\x82(\\xa2\\xe9H\\x15\\xbdh\\x89\\xc2\\x95G\\xd8\\xe7.\\xa1\\x87\\x07\\x16\\xb8\\xefHj\\xae\\x16\\xeaz\\xf7\\xcbs2:\\xbb\\x83\\xd4\\xa0\\x95\\x9b\\xb5\\xb7\\x19,\\x01H\\xf9\\xbc\\xe7d\\xa4U\\x96\\x12=\\xf9Y\\xd2\\x868c\\xf1\\xaekM\\xf4\\n\\x8b+}\\n9\\x10\\xef\\xa2\\xb0\\xa7\\xd9^\\xae\\x0b\\xfcN0\\x12cO\\x94\\xd7\\x98\\xbc\\x8f\\xd6\\xda\\x94>\\xd7\\x97M\\xb2\\x97\\t\\xa7\\xeb\\x8d^\\x9f\\x00\\xc6\\x91\\xb1\\xd1V\\xd0\\x13\\xb3\\xb4\\xd0\\xa4\\x05U\\x83\\x889\\x90\\xd9\\xef4R$\\x92\\x9bh\\x13"\\x19}\\x88\\x08Ky\\x05
-      \\x91\\xf2h\\xff\\xb3\\xe0\\xff\\x82V.d\\xf34\\x19\\x1b0\\rM/\\x0b\\xa9\\x9c\\x07O+o&\\x82@H\\xb5\\x99kD\\xaa$r\\x16c\\x9c\\xb1V\\xe2\\xd4f\\x8fz\\xd9\\xff!I\\x91R=`#^\\x96\\x83\\xa4\\xc4\\x05urv"\\xe8\\xa4Y\\xf9\\xc1_^\\xd1\\x80\\xc3\\xf4NFd\\xd0\\xca?b\\x0eI\\x04\\x08\\nx\\xdc\\x96\\x88\\xbda\\xba\\xfd\\xdd\\xf3}\\xfan\\xf4\\xab\\x1b\\x8e\\xd3v\\xe4r\\xb3\\xc1\\xa8\\xb7\\xafNh\\x84%rH\\x13\\xbf\\xa8LK\\x7f\\x1eY\\xc8\\x8a\\x92\\x7f}^\\x1f\\xc3\\x97xC>IO\\xad\\xbb\\x91\\x9e~\\xa8\\xd7\\t{\\x1aq~\\x1a\\x84\\x1b\\xf8r\\np\\xf7\\tYm\\x08\\xcfx\\xb7\\x95+r\\xb0\\x8e\\xd3\\x84\\xb8\\x92\\x07\\xd4\\xfbM\\xfb\\xf9)\\xef\\x04\\xb8\\x89\\xdb\\x83\\x80\\xfc\\xcb\\xc0\\xa4&\\x97,\\xdc<\\x85K#\\xd6\\xfa#:\\x85~\\xd5\\xfd\\xbc\\\'\\x16U\\xdb\\xf8(f\\xc7\\r\\xb4\\xa8\\x9f\\xdb\\xfe\\xc6\\xbca\\xf4l\\xf6\\xcf\\xfcx\\xb8\\x97\\xc9\\x8c\\xda\\xbc[}Dw\\x9b\\xd2\\xbc\\xad\\x04_\\xc1\\xb7E\\xa6\\x94\\xb1\\xd94\\n\\xe4p\\xba\\x1e\\xa1s]\\xd9\\xb7\\x19\\x88\\x95
-      \\x0fm&\\xb6\\x7f\\xd2T\\xa8\\xc4\\xdah\\xd8U\\xac\\x8a\\xa4O\\x9e\\x14|\\xca&\\n\\xd9|-\\x94l\\xfdlT\\xa7qz\\x98n\\x1a\\xf5\\xe5\\x13A\\xab!y\\xe19\\xc6\\x85,\''),
+    _io_cache: ('Binary to Packet', 'blk', [('input_binary', 'b\'=\\xcf\\xe4\\xc3f\\xc9i6HwM\\xc7\\x1b\\xfb|\\x05\\xd20\\x96\\xb65\\xe1\\xe7l\\x7fH\\xc9\\x18@}\\xc2\\x95\\x8b5\\xe5P6!g\\xdd\\xab\\xbd\\xdcM"\\x18\\n7\\xc6\\xa7\\xb1\\xe2\\xc4\\x0f,\\xcf\\x91\\x17
+      C\\xfe\\xef\\xec\\x7f\\xee\\xd9\\x86.\\xbe\\xf0\\xc3\\x1f\\x87\\x1e\\xb6Y\\xf5\\xed\\xc3\\x1a\\xfdq\\xad?\\xd9\\xb93\\xdf\\xcb\\x91&\\xe9\\xf1\\x9fc)\\xb00`tk\\xf0\\x8a\\xb7\\x04\\xec\\x8c\\xcc}\\xfc\\xdc\\xf8%\\x1e\\x8b\\xb7\\xfb4\\xc4\\xfc\\x8fZ\\xf6\\xea\\x8bo\\xd2\\x16y6\\xfc\\xa0\\xf1P\\x87\\xed\\xd8\\x15\\x1b\\x84kn\\xcd\\x80Q\\x08\\x0e\\xech\\xfe\\x1d\\x08\\xe0\\xa7}\\xd5\\xd1e\\xac_\\x16\\x12\\xf7m\\xca\\xb7\\x1f\\x82\\x9d\\xfe\\xaf,\\xe7\\xa2\\x1a\\xe5\\x102\\x8e\\x0fZ\\xd0Ba4A\\xd9\\xed\\xad\\xb5\\xa8\\x9c\\x00\\xbf\\xd5\\xd1S\\xf0{\\x16\\x01(\\xfc\\xa3\\x19$\\xb9\\x10a\\xf1\\xbc\\xee\\x8f\\xc2r2W\\xd5c\\xd5\\xfe\\x17\\x13x\\xe82\\xff\\x9dk\\xf6s\\x83\\x1a\\x12\\xe1\\xad\\xd7L\\xf9\\\'\\xcd.xB\\xbf\\x15\\xb7k\\x07b\\xc9J\\xab\\x80\\xefO\\xfd\\xdf\\xb62\\xbd@{ZL\\x0c^\\x80[oi\\xaa\\xc5b\\xdf\\xbc\\xb9C\\n\\xb2\\xe9oW\\xda\\x7f\\xb2>\\x9a\\xaa\\xc5\\xde(\\xa7#\\xec\\x15\\x1b{\\xc5\\xc6\\xce\\x8b\\x91S0\\xd5y\\x00m\\x14\\x06b\\xdd\\xe3\\xef\\t\\xe8I*\\x13\\xa8\\xef\\x8cW!\\x1aC\\x10\\xa7]\\xc3H8\\x08\\xf6\\xde\\xeb\\x13\\xf0\\n?\\x1bV\\xeaL\\xd7\\xb9G\\x88]\\xb1\\x8c\\xdf\\xf3l~\\x04\\xab.\\x18\\xef\\x1f\\x05\\x16ipB\\x11\\xcf[\\xfcG\\x1a#:h,}\\x05\\x96\\xd1\\x04\\\\\\x99Y\\x82\\x8f\\x80\\xe1\\xd2\\xae\\x92v\\xcf\\xd9\\x94\\xbe\\x80\\xe9v\\xffE\\x17\\xc6\\xb7\\xafr\\xaa\\x91\\xc5[\\xf5\\xdf.\\xd0y\\x9e\\xc8\\xae\\xfc\\x91(\\xdc4\\xa2\\x9bgY<+\\\'\\xb4\\x7f\\\'\\x81\\xe71b\\xb2\\xf2ITgb\\xd8M\\xe8\\xfd\\xb6(=j\\x8d\\x18[\\x9dI\\xe2pj-\\x19\\x84\\xe2\\x9fuh
+      &\\xfd^\\xcb\\x02\\x08)r\\x0f\\xa9\\x99\\\\8\\t\\x9e~\\xa5\\x9b\\xc3D\\x1e\\xad\\xca\\x1f\\xc0n\\x07\\r=O3\\xa4f\\x12<E\\x8387k\\x0b\\x8cY\\xe2\\xd7\\x9e\\xc8\\x01\\xca\\x1b\\x8d\\xa7\\xb4~\\xb9\\x9c\\xd1\\x01\\xad\\x80\\x8a\\xec\\xf6\\xa5\\x00\\xfc\\x11LkS\\xda\\xeea\\xe2\\x961\\xc6\\xdcw\\x0b\\x9ej\\xe8\\x89\\x16\\xc5Q\\\\\\x86\\x0b\\xdcn\\xf9\\x17\\xddb\\xec\\xf6u\\x9d\\xb0#&\\xc3\\xe9\\xb9\\xc6\\x93\\xdb\\xbc\\xfe\\xe2\\xc1|\\xa8F|*\\xaf\\x9a[`\\xc4\\xd3|\\x08f\\xbc\\x93\\x81\\x8c\\x1b\\x14X\\x87xxt\\x0c\\x1d\\xd0\\xcf\\x86\\xcd\\x02\\xacF^6f\\x1b\\xad\\x9c\\xc0N\\t\\xce\\xabM\\xd8N\\xcc\\xfe6\\xdbB&U\\xf5\\xd9wH\\x9f\\x10\\x12\\x04\\xfd\\xdcC\\xe9\\xb0\\x06\\x13)\\xf5\\x1cB}Z\\x19\\x9d\\xdeZ\\xeb\\x89+\\xf22?\\xac\\xe7d\\t\\xb9\\xfah\\xbf\\xfe\\xca.i\\xa5\\xfe\\x82\\\'\\x1a\\xeb\\x07p\\xa0\\xd6\\xd4w\\xac\\x12\\xc8\\x86\\x11R\\xbb\\xed\\xe2\\xc8X\\x1b\\xed\\xe4[L\\xcf@\\xac\\xd8\\xbc\\xdf\\xc0\\x81}@O\\xf8\\xe0\\xcf\\xef\\xdbF\\x87\\xd1\\xe7\\x1b\\x8f@\\xe4\\xc7(\\xa0R\\xe1H\\x1a\\xe9w\\xcePfH\\x935\\xf4U\\xa9:\\x04f\\xbdu\\xc8b\\xb4W\\xabY\\x90\\xad\\xf6\\xa6\\xf2\\xbb\\x9a\\xae\\x8fT\\x1c\\xa8P\\xf5\\x8a\\x12k\\x97\\t\\xa0\\x92\\x97\\xc1\\x92\\xach7|\\x85Y\\x08\\xf5H\\xf8G\\x10\\xca^\\xb3y\\x958\\xa7\\x96\\x9d\\x16\\xb8:\\x16"!\\\'\\xccQ\\xe3Q\\xd7PXZ\\xff\\xd7\\x05\\xa8\\xa3!\\xea\\xa0"\\xcc}q\\xd4NR\\xf1\\xa2w\\x1bl^\\xb6\\x9d\\x815\\xf89\\xcf\\x80\\x17\\x86Z\\x17\\xd0\\x8b\\xf8\\xa8#\\xa1Y\\xbe\\x9a\\xf8t\\xa6\\xa3\\x9a\\x07c\\t\\xe3\\xb2\\xdd\\x0f\\xcdn\\xdb\\xc2\\xa7._\\x9c\\x94\\x1f\\xb0
+      D\\x15\\xb7gL7\\xcf\\xe5V\\xc6\\x91\\xe6\\xc3\\x98\\xa650K?1\\x17\\xafS\\xe3\\xf6\\x9b\\xa0\\xe3\\xdb\\xed*2c\\xe8\\xf2\\xc5>\\xc8\\xc7\\xc4GR\\x13+i\\xc8\\x1e3\\xbe\\xbe\\xd7\\xd4E\\x8c6$V\\x85e\\xaa)<\\xda%\\x95\\xfa\\xb5\\x8al\\x9f\\xef\\x98\\x87pw\\x86\\xe0\\x07\\xbf\\xda\\xee\\xc8\\xc9W\\x15|\\xde\\xb2\\xe9\\xc2\\xdc\\xc4\\xc4\\x1c\\xf1Ya\\xa0ZfS*\\xe3/\\xf8\\xb2<\\x19\\xf7\\n2\\x9a^\\xda\''),
       ('packet_size', '64'), ('preamble_size', '3'), ('postamble_size', '3'), ('ecc_size',
       '6'), ('id_len', '2'), ('data_len', '1')], [], [('0', 'byte', 1)], '', ['id_len',
       'packet_size', 'postamble_size', 'preamble_size'])
@@ -1074,357 +1045,6 @@ blocks:
     coordinate: [176, 8.0]
     rotation: 0
     state: enabled
-- name: qtgui_const_sink_x_0
-  id: qtgui_const_sink_x
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha1: '1.0'
-    alpha10: '1.0'
-    alpha2: '1.0'
-    alpha3: '1.0'
-    alpha4: '1.0'
-    alpha5: '1.0'
-    alpha6: '1.0'
-    alpha7: '1.0'
-    alpha8: '1.0'
-    alpha9: '1.0'
-    autoscale: 'False'
-    axislabels: 'True'
-    color1: '"blue"'
-    color10: '"dark blue"'
-    color2: '"red"'
-    color3: '"green"'
-    color4: '"black"'
-    color5: '"cyan"'
-    color6: '"magenta"'
-    color7: '"yellow"'
-    color8: '"dark red"'
-    color9: '"dark green"'
-    comment: ''
-    grid: 'False'
-    gui_hint: '[1,1,1,1]'
-    label1: symbol sync
-    label10: ''
-    label2: costas loop
-    label3: ''
-    label4: ''
-    label5: ''
-    label6: ''
-    label7: ''
-    label8: ''
-    label9: ''
-    legend: 'True'
-    marker1: '0'
-    marker10: '0'
-    marker2: '0'
-    marker3: '0'
-    marker4: '0'
-    marker5: '0'
-    marker6: '0'
-    marker7: '0'
-    marker8: '0'
-    marker9: '0'
-    name: '""'
-    nconnections: '2'
-    size: '128'
-    style1: '0'
-    style10: '0'
-    style2: '0'
-    style3: '0'
-    style4: '0'
-    style5: '0'
-    style6: '0'
-    style7: '0'
-    style8: '0'
-    style9: '0'
-    tr_chan: '0'
-    tr_level: '0.0'
-    tr_mode: qtgui.TRIG_MODE_FREE
-    tr_slope: qtgui.TRIG_SLOPE_POS
-    tr_tag: '""'
-    type: complex
-    update_time: '0.10'
-    width1: '1'
-    width10: '1'
-    width2: '1'
-    width3: '1'
-    width4: '1'
-    width5: '1'
-    width6: '1'
-    width7: '1'
-    width8: '1'
-    width9: '1'
-    xmax: '2'
-    xmin: '-2'
-    ymax: '2'
-    ymin: '-2'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1872, 1032.0]
-    rotation: 0
-    state: enabled
-- name: qtgui_freq_sink_x_0
-  id: qtgui_freq_sink_x
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha1: '1.0'
-    alpha10: '1.0'
-    alpha2: '1.0'
-    alpha3: '1.0'
-    alpha4: '1.0'
-    alpha5: '1.0'
-    alpha6: '1.0'
-    alpha7: '1.0'
-    alpha8: '1.0'
-    alpha9: '1.0'
-    autoscale: 'False'
-    average: '1.0'
-    axislabels: 'True'
-    bw: samp_rate
-    color1: '"blue"'
-    color10: '"dark blue"'
-    color2: '"red"'
-    color3: '"green"'
-    color4: '"black"'
-    color5: '"cyan"'
-    color6: '"magenta"'
-    color7: '"yellow"'
-    color8: '"dark red"'
-    color9: '"dark green"'
-    comment: ''
-    ctrlpanel: 'False'
-    fc: '0'
-    fftsize: '128'
-    freqhalf: 'True'
-    grid: 'False'
-    gui_hint: '[0,1,1,1]'
-    label: Relative Gain
-    label1: ''
-    label10: ''''''
-    label2: ''''''
-    label3: ''''''
-    label4: ''''''
-    label5: ''''''
-    label6: ''''''
-    label7: ''''''
-    label8: ''''''
-    label9: ''''''
-    legend: 'True'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    name: '""'
-    nconnections: '1'
-    norm_window: 'False'
-    showports: 'False'
-    tr_chan: '0'
-    tr_level: '0.0'
-    tr_mode: qtgui.TRIG_MODE_FREE
-    tr_tag: '""'
-    type: complex
-    units: dB
-    update_time: '0.10'
-    width1: '1'
-    width10: '1'
-    width2: '1'
-    width3: '1'
-    width4: '1'
-    width5: '1'
-    width6: '1'
-    width7: '1'
-    width8: '1'
-    width9: '1'
-    wintype: window.WIN_BLACKMAN_hARRIS
-    ymax: '10'
-    ymin: '-140'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [2440, 320.0]
-    rotation: 0
-    state: enabled
-- name: qtgui_freq_sink_x_1
-  id: qtgui_freq_sink_x
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha1: '1.0'
-    alpha10: '1.0'
-    alpha2: '1.0'
-    alpha3: '1.0'
-    alpha4: '1.0'
-    alpha5: '1.0'
-    alpha6: '1.0'
-    alpha7: '1.0'
-    alpha8: '1.0'
-    alpha9: '1.0'
-    autoscale: 'False'
-    average: '1.0'
-    axislabels: 'True'
-    bw: samp_rate
-    color1: '"blue"'
-    color10: '"dark blue"'
-    color2: '"red"'
-    color3: '"green"'
-    color4: '"black"'
-    color5: '"cyan"'
-    color6: '"magenta"'
-    color7: '"yellow"'
-    color8: '"dark red"'
-    color9: '"dark green"'
-    comment: ''
-    ctrlpanel: 'False'
-    fc: '0'
-    fftsize: '128'
-    freqhalf: 'True'
-    grid: 'False'
-    gui_hint: '[1,0,1,1]'
-    label: Relative Gain
-    label1: '"raw"'
-    label10: ''''''
-    label2: '"filtered"'
-    label3: ''''''
-    label4: ''''''
-    label5: ''''''
-    label6: ''''''
-    label7: ''''''
-    label8: ''''''
-    label9: ''''''
-    legend: 'True'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    name: '""'
-    nconnections: '2'
-    norm_window: 'False'
-    showports: 'False'
-    tr_chan: '0'
-    tr_level: '0.0'
-    tr_mode: qtgui.TRIG_MODE_FREE
-    tr_tag: '""'
-    type: complex
-    units: dB
-    update_time: '0.10'
-    width1: '1'
-    width10: '1'
-    width2: '1'
-    width3: '1'
-    width4: '1'
-    width5: '1'
-    width6: '1'
-    width7: '1'
-    width8: '1'
-    width9: '1'
-    wintype: window.WIN_BLACKMAN_hARRIS
-    ymax: '10'
-    ymin: '-140'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1040, 1040.0]
-    rotation: 0
-    state: enabled
-- name: qtgui_time_sink_x_0
-  id: qtgui_time_sink_x
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha1: '1.0'
-    alpha10: '1.0'
-    alpha2: '1.0'
-    alpha3: '1.0'
-    alpha4: '1.0'
-    alpha5: '1.0'
-    alpha6: '1.0'
-    alpha7: '1.0'
-    alpha8: '1.0'
-    alpha9: '1.0'
-    autoscale: 'False'
-    axislabels: 'True'
-    color1: blue
-    color10: dark blue
-    color2: red
-    color3: green
-    color4: black
-    color5: cyan
-    color6: magenta
-    color7: yellow
-    color8: dark red
-    color9: dark green
-    comment: ''
-    ctrlpanel: 'False'
-    entags: 'True'
-    grid: 'False'
-    gui_hint: '[0,0,1,1]'
-    label1: Signal 1
-    label10: Signal 10
-    label2: Signal 2
-    label3: Signal 3
-    label4: Signal 4
-    label5: Signal 5
-    label6: Signal 6
-    label7: Signal 7
-    label8: Signal 8
-    label9: Signal 9
-    legend: 'True'
-    marker1: '-1'
-    marker10: '-1'
-    marker2: '-1'
-    marker3: '-1'
-    marker4: '-1'
-    marker5: '-1'
-    marker6: '-1'
-    marker7: '-1'
-    marker8: '-1'
-    marker9: '-1'
-    name: '""'
-    nconnections: '1'
-    size: '256'
-    srate: samp_rate
-    stemplot: 'False'
-    style1: '1'
-    style10: '1'
-    style2: '1'
-    style3: '1'
-    style4: '1'
-    style5: '1'
-    style6: '1'
-    style7: '1'
-    style8: '1'
-    style9: '1'
-    tr_chan: '0'
-    tr_delay: '0'
-    tr_level: '0.0'
-    tr_mode: qtgui.TRIG_MODE_FREE
-    tr_slope: qtgui.TRIG_SLOPE_POS
-    tr_tag: '""'
-    type: complex
-    update_time: '0.1'
-    width1: '1'
-    width10: '1'
-    width2: '1'
-    width3: '1'
-    width4: '1'
-    width5: '1'
-    width6: '1'
-    width7: '1'
-    width8: '1'
-    width9: '1'
-    ylabel: Amplitude
-    ymax: '2'
-    ymin: '-2'
-    yunit: '""'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [2248, 264.0]
-    rotation: 0
-    state: enabled
 - name: virtual_sink_0
   id: virtual_sink
   parameters:
@@ -1491,10 +1111,7 @@ connections:
 - [blocks_float_to_complex_0_0, '0', channels_channel_model_0, '0']
 - [blocks_multiply_const_xx_1_0_0, '0', blocks_add_const_vxx_0_0_0, '0']
 - [blocks_multiply_xx_0, '0', blocks_complex_to_real_0, '0']
-- [blocks_multiply_xx_0, '0', qtgui_freq_sink_x_0, '0']
-- [blocks_multiply_xx_1, '0', digital_probe_mpsk_snr_est_c_0, '0']
 - [blocks_multiply_xx_1, '0', fft_filter_xxx_0, '0']
-- [blocks_multiply_xx_1, '0', qtgui_freq_sink_x_1, '0']
 - [blocks_repack_bits_bb_0_0, '0', epy_block_1, '0']
 - [blocks_repack_bits_bb_1_0, '0', digital_constellation_modulator_0, '0']
 - [blocks_stream_to_tagged_stream_0, '0', blocks_tagged_stream_mux_0, '1']
@@ -1507,21 +1124,16 @@ connections:
 - [channels_channel_model_0, '0', blocks_complex_to_real_1, '0']
 - [digital_constellation_decoder_cb_0_0_0, '0', digital_diff_decoder_bb_0_0, '0']
 - [digital_constellation_modulator_0, '0', blocks_multiply_xx_0, '0']
-- [digital_constellation_modulator_0, '0', qtgui_time_sink_x_0, '0']
 - [digital_correlate_access_code_xx_ts_0, '0', blocks_repack_bits_bb_0_0, '0']
 - [digital_costas_loop_cc_0_0, '0', digital_constellation_decoder_cb_0_0_0, '0']
-- [digital_costas_loop_cc_0_0, '0', qtgui_const_sink_x_0, '1']
 - [digital_diff_decoder_bb_0_0, '0', digital_map_bb_1_0, '0']
 - [digital_map_bb_1_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
-- [digital_probe_mpsk_snr_est_c_0, noise, digital_costas_loop_cc_0_0, noise]
 - [digital_protocol_formatter_bb_0, '0', blocks_tagged_stream_mux_0, '0']
 - [digital_symbol_sync_xx_0, '0', digital_costas_loop_cc_0_0, '0']
-- [digital_symbol_sync_xx_0, '0', qtgui_const_sink_x_0, '0']
 - [epy_block_0, '0', blocks_stream_to_tagged_stream_0, '0']
 - [fec_extended_decoder_0, '0', digital_correlate_access_code_xx_ts_0, '0']
 - [fec_extended_encoder_0, '0', blocks_repack_bits_bb_1_0, '0']
 - [fft_filter_xxx_0, '0', digital_symbol_sync_xx_0, '0']
-- [fft_filter_xxx_0, '0', qtgui_freq_sink_x_1, '1']
 - [virtual_source_0, '0', blocks_float_to_complex_0_0, '0']
 - [virtual_source_0_0, '0', blocks_float_to_complex_0, '0']
 
