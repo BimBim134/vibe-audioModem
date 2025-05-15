@@ -20,9 +20,39 @@ import signal
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
-import peak_detector_epy_block_0 as epy_block_0  # embedded python block
 
+import numpy as np
+from scipy.signal import find_peaks
 
+class peak_frequency_detector(gr.sync_block):
+    """Peak Frequency Detector"""
+
+    def __init__(self, sample_rate=48000, fft_size=1024, threshold=10):
+        gr.sync_block.__init__(
+            self,
+            name='Peak Frequency Detector',
+            in_sig=[(np.float32, fft_size)],  # Accepts vector of fft_size elements
+            out_sig=None
+        )
+        self.sample_rate = sample_rate
+        self.fft_size = fft_size
+        self.threshold = threshold
+
+    def work(self, input_items, output_items):
+        for spectrum in input_items[0]:  # Iterate over vector batches
+            freqs = np.fft.rfftfreq(self.fft_size, 1.0 / self.sample_rate)
+
+            # Find all local peaks above threshold
+            peaks, props = find_peaks(spectrum, height=self.threshold)
+
+            if peaks.size > 0:
+                max_peak_idx = peaks[np.argmax(props['peak_heights'])]
+                peak_freq = freqs[max_peak_idx]
+                print(f"Detected Peak Frequency: {peak_freq:.2f} Hz")
+            else:
+                print("No peak detected above threshold.")
+        
+        return len(input_items[0])
 
 
 class peak_detector(gr.top_block):
@@ -39,8 +69,8 @@ class peak_detector(gr.top_block):
         # Blocks
         ##################################################
 
-        self.fft_vxx_0 = fft.fft_vfc(1024, True, window.blackmanharris(1024), True, 1)
-        self.epy_block_0 = epy_block_0.blk(sample_rate=samp_rate, fft_size=1024, threshold=10)
+        self.fft_vxx_0 = fft.fft_vfc(1024, True, window.blackmanharris(1024), False, 1)
+        self.epy_block_0 = peak_frequency_detector(sample_rate=samp_rate, fft_size=1024, threshold=10)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_float*1, 1024)
         self.blocks_complex_to_mag_0 = blocks.complex_to_mag(1024)
         self.audio_source_0_0 = audio.source(samp_rate, 'plughw:0,0', True)
