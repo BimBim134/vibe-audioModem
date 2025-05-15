@@ -124,7 +124,7 @@ blocks:
     fft_size: '1024'
     maxoutbuf: '0'
     minoutbuf: '0'
-    sample_rate: '48000'
+    sample_rate: samp_rate
     threshold: '10'
   states:
     _io_cache: ('Peak Frequency Detector', 'blk', [('sample_rate', '48000'), ('fft_size',
