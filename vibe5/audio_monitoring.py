@@ -46,7 +46,7 @@ class WaterfallWidget(pg.GraphicsLayoutWidget):
         self.img = pg.ImageItem()
         self.view.addItem(self.img)
         # Set a matplotlib colormap (e.g., 'plasma')
-        cmap = pg.colormap.get('plasma', source='matplotlib')
+        cmap = pg.colormap.get('Greys_r', source='matplotlib')
         self.img.setLookupTable(cmap.getLookupTable(0.0, 1.0, 256))
         self.img.setImage(self.data.T, autoLevels=False, levels=(0, 1))
         # Remove internal padding
@@ -55,10 +55,10 @@ class WaterfallWidget(pg.GraphicsLayoutWidget):
 
     def add_spectrum(self, spectrum: np.ndarray):
         """
-        Add a new spectrum line to the waterfall.
+        Add a new spectrum line to the top of the waterfall (top-to-bottom flow).
         """
-        self.data[:-1] = self.data[1:]
-        self.data[-1] = spectrum[::-1]
+        self.data[1:] = self.data[:-1]         # Shift all rows down
+        self.data[0] = spectrum[::-1]          # Insert new spectrum at the top
         self.img.setImage(np.fliplr(self.data.T), autoLevels=False, levels=(0, 1))
         self.view.setRange(xRange=(0, self.data.shape[1]), yRange=(0, self.data.shape[0]), padding=0)
 
@@ -110,10 +110,6 @@ class AudioMonitoring(gr.top_block, Qt.QWidget):
         self.top_grid_layout.setContentsMargins(0, 0, 0, 0)
         self.top_grid_layout.setSpacing(0)
         self.top_layout.addLayout(self.top_grid_layout)
-        # Waterfall
-        self.pg_waterfall = WaterfallWidget(n_rows=self.fft_size, n_cols=self.fft_size // 2)
-        self.pg_waterfall.setSizePolicy(Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Expanding)
-        self.top_grid_layout.addWidget(self.pg_waterfall, 0, 0, 1, 1)
         # Spectrum plot
         self.pg_spectrum = pg.PlotWidget()
         self.pg_spectrum.showGrid(x=True, y=True)
@@ -123,9 +119,16 @@ class AudioMonitoring(gr.top_block, Qt.QWidget):
         self.pg_spectrum.hideAxis('bottom')  # Optional: hide x-axis
         self.pg_spectrum.hideAxis('left')    # Optional: hide y-axis
         self.spectrum_curve = self.pg_spectrum.plot(pen=pg.mkPen('#88c0d0', width=1))
-        self.top_grid_layout.addWidget(self.pg_spectrum, 1, 0, 1, 1)
-        self.top_grid_layout.setRowStretch(0, 3)
-        self.top_grid_layout.setRowStretch(1, 1)
+        # Add a fill below the spectrum curve
+        self.spectrum_fill = pg.FillBetweenItem(self.spectrum_curve, pg.PlotCurveItem(), brush=pg.mkBrush('#e0f7fa80'))
+        self.pg_spectrum.addItem(self.spectrum_fill)
+        self.top_grid_layout.addWidget(self.pg_spectrum, 0, 0, 1, 1)
+        # Waterfall (now below)
+        self.pg_waterfall = WaterfallWidget(n_rows=self.fft_size, n_cols=self.fft_size // 2)
+        self.pg_waterfall.setSizePolicy(Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Expanding)
+        self.top_grid_layout.addWidget(self.pg_waterfall, 1, 0, 1, 1)
+        self.top_grid_layout.setRowStretch(0, 1)
+        self.top_grid_layout.setRowStretch(1, 3)
         self.top_grid_layout.setColumnStretch(0, 1)
 
     # --- GNU RADIO BLOCKS SETUP ---
@@ -182,6 +185,8 @@ class AudioMonitoring(gr.top_block, Qt.QWidget):
                 # Plot spectrum in dB scale
                 db_flipped = 10 * np.log10(norm_frame[::-1] + 1e-12)
                 self.spectrum_curve.setData(db_flipped)
+                # Update the fill below the curve
+                self.spectrum_fill.setCurves(self.spectrum_curve, pg.PlotCurveItem(x=np.arange(len(db_flipped)), y=np.full_like(db_flipped, -80)))
                 self.pg_spectrum.setYRange(-80, 0)
                 self.pg_spectrum.setXRange(0, len(db_flipped)-1, padding=0)
             self.fft_sink.reset()
