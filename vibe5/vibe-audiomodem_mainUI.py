@@ -1,40 +1,30 @@
 import sys
-import sip
-
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
-
-from main_interface import Ui_MainWindow  # generated from your .ui file
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout
+from main_interface import Ui_MainWindow
 from audio_monitoring import audio_monitoring
 
-
 class MainWindow(QMainWindow):
-    def __init__(self, top_block):
+    def __init__(self):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.audio_monitor_widget = audio_monitoring()
+        self.audio_monitor_widget.setParent(self.ui.monitoring_QFrame)
+        layout = QVBoxLayout(self.ui.monitoring_QFrame)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.audio_monitor_widget)
+        self.audio_monitor_widget.start()
 
-        # Wrap and embed the Waterfall (Spectrogram) widget
-        audio_monitoring_widget = sip.wrapinstance(audio_monitoring.pyqwidget(), QWidget)
-        layout_spectro = QVBoxLayout(self.ui.spectrogram_QFrame)
-        layout_spectro.setContentsMargins(0, 0, 0, 0)
-        layout_spectro.addWidget(audio_monitoring_widget)
-
+    def closeEvent(self, event):
+        self.audio_monitor_widget.stop()
+        self.audio_monitor_widget.wait()
+        event.accept()
 
 def main():
     app = QApplication(sys.argv)
-
-    tb = TopBlock()
-    tb.start()
-
-    win = MainWindow(tb)
+    win = MainWindow()
     win.show()
-
-    ret = app.exec()
-
-    tb.stop()
-    tb.wait()
-    sys.exit(ret)
-
+    sys.exit(app.exec_())
 
 if __name__ == "__main__":
     main()
