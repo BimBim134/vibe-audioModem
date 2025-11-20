@@ -40,10 +40,7 @@ class Transmitter(gr.top_block):
 
         # Variables
         ## signal related variables
-        self.samp_rate = sig.samp_rate
-        self.baudrate = sig.baudrate
-        self.carrier_freq = sig.carrier_freq
-        self.sps = sig.sps
+        self.sig = sig
         self.const_definition = digital.constellation_calcdist(
             [-1 - 1j, -1 + 1j, 1 + 1j, 1 - 1j],
             [0, 1, 3, 2],
@@ -55,7 +52,7 @@ class Transmitter(gr.top_block):
         self.const_definition.gen_soft_dec_lut(8)
 
         ## digital communication variables
-        self.packet_size = pkt.total_packets_len
+        self.pkt = pkt
         self.input_file = prepare_data(input_data, pkt)
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
@@ -73,7 +70,7 @@ class Transmitter(gr.top_block):
         self.digital_constellation_modulator_0 = digital.generic_mod(
             constellation=self.const_definition,
             differential=True,
-            samples_per_symbol=self.sps,
+            samples_per_symbol=self.sig.sps,
             pre_diff_code=True,
             excess_bw=0.35,
             verbose=False,
@@ -86,13 +83,17 @@ class Transmitter(gr.top_block):
         self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
         self.blocks_throttle2_0 = blocks.throttle(
             gr.sizeof_float * 1,
-            self.samp_rate,
+            self.sig.samp_rate,
             True,
             (
                 0
                 if "auto" == "auto"
                 else max(
-                    int(float(0.1) * self.samp_rate) if "auto" == "time" else int(0.1),
+                    (
+                        int(float(0.1) * self.sig.samp_rate)
+                        if "auto" == "time"
+                        else int(0.1)
+                    ),
                     1,
                 )
             ),
@@ -101,71 +102,61 @@ class Transmitter(gr.top_block):
             gr.sizeof_char * 1, "packet_len", 0
         )
         self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(
-            gr.sizeof_char, 1, self.packet_size, "packet_len"
+            gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len"
         )
         self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(
             1, 8, "", False, gr.GR_MSB_FIRST
         )
         self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
-        self.audio_sink_0 = audio.sink(self.samp_rate, "", True)
+        self.audio_sink_0 = audio.sink(self.sig.samp_rate, "", True)
         self.analog_sig_source_x_0 = analog.sig_source_c(
-            self.samp_rate, analog.GR_SIN_WAVE, self.carrier_freq, 0.5, 0, 0
+            self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.5, 0, 0
         )
 
         # Connections
-        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
-        self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_throttle2_0, 0))
-        self.connect((self.blocks_multiply_xx_0, 0), (self.blocks_complex_to_real_0, 0))
-        self.connect(
-            (self.blocks_repack_bits_bb_1_0, 0),
-            (self.digital_constellation_modulator_0, 0),
-        )
-        self.connect(
-            (self.blocks_stream_to_tagged_stream_0, 0),
-            (self.blocks_tagged_stream_mux_0, 1),
-        )
-        self.connect(
-            (self.blocks_stream_to_tagged_stream_0, 0),
-            (self.digital_protocol_formatter_bb_0, 0),
-        )
-        self.connect(
-            (self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0)
-        )
-        self.connect((self.blocks_throttle2_0, 0), (self.audio_sink_0, 0))
-        self.connect(
-            (self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0)
-        )
-        self.connect(
-            (self.blocks_vector_source_x_0, 0),
-            (self.blocks_stream_to_tagged_stream_0, 0),
-        )
-        self.connect(
-            (self.digital_constellation_modulator_0, 0), (self.blocks_multiply_xx_0, 0)
-        )
-        self.connect(
-            (self.digital_protocol_formatter_bb_0, 0),
-            (self.blocks_tagged_stream_mux_0, 0),
-        )
-        self.connect(
-            (self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0)
-        )
+        self.connect((self.analog_sig_source_x_0, 0),
+                     (self.blocks_multiply_xx_0, 1))
+        self.connect((self.blocks_complex_to_real_0, 0),
+                     (self.blocks_throttle2_0, 0))
+        self.connect((self.blocks_multiply_xx_0, 0),
+                     (self.blocks_complex_to_real_0, 0))
+        self.connect((self.blocks_repack_bits_bb_1_0, 0),
+                     (self.digital_constellation_modulator_0, 0))
+        self.connect((self.blocks_stream_to_tagged_stream_0, 0),
+                     (self.blocks_tagged_stream_mux_0, 1))
+        self.connect((self.blocks_stream_to_tagged_stream_0, 0),
+                     (self.digital_protocol_formatter_bb_0, 0))
+        self.connect((self.blocks_tagged_stream_mux_0, 0), 
+                     (self.blocks_unpack_k_bits_bb_0, 0))
+        self.connect((self.blocks_throttle2_0, 0),
+                     (self.audio_sink_0, 0))
+        self.connect((self.blocks_unpack_k_bits_bb_0, 0),
+                     (self.fec_extended_encoder_0, 0))
+        self.connect((self.blocks_vector_source_x_0, 0),
+                     (self.blocks_stream_to_tagged_stream_0, 0))
+        self.connect((self.digital_constellation_modulator_0, 0),
+                     (self.blocks_multiply_xx_0, 0))
+        self.connect((self.digital_protocol_formatter_bb_0, 0),
+                     (self.blocks_tagged_stream_mux_0, 0))
+        self.connect((self.fec_extended_encoder_0, 0),
+                     (self.blocks_repack_bits_bb_1_0, 0))
 
     def get_samp_rate(self):
-        return self.samp_rate
+        return self.sig.samp_rate
 
     def set_samp_rate(self, samp_rate):
-        self.samp_rate = samp_rate
-        self.set_sps(int(self.samp_rate / self.baudrate))
-        self.analog_sig_source_x_0.set_sampling_freq(self.samp_rate)
-        self.blocks_throttle2_0.set_sample_rate(self.samp_rate)
+        self.sig.samp_rate = samp_rate
+        self.set_sps(int(self.sig.samp_rate / self.sig.baudrate))
+        self.analog_sig_source_x_0.set_sampling_freq(self.sig.samp_rate)
+        self.blocks_throttle2_0.set_sample_rate(self.sig.samp_rate)
 
     def get_baudrate(self):
-        return self.baudrate
+        return self.sig.baudrate
 
     def set_baudrate(self, baudrate):
-        self.baudrate = baudrate
-        self.set_sps(int(self.samp_rate / self.baudrate))
+        self.sig.baudrate = baudrate
+        self.set_sps(int(self.sig.samp_rate / self.sig.baudrate))
 
     def get_access_key(self):
         return self.access_key
@@ -175,24 +166,20 @@ class Transmitter(gr.top_block):
         self.set_hdr_format(digital.header_format_default(self.access_key, 0))
 
     def get_sps(self):
-        return self.sps
+        return self.sig.sps
 
     def set_sps(self, sps):
-        self.sps = sps
+        self.sig.sps = sps
 
     def get_packet_size(self):
-        return self.packet_size
+        return self.pkt.total_packets_len
 
     def set_packet_size(self, packet_size):
-        self.packet_size = packet_size
-        self.blocks_stream_to_tagged_stream_0.set_packet_len(self.packet_size)
-        self.blocks_stream_to_tagged_stream_0.set_packet_len_pmt(self.packet_size)
-
-    def get_output_file_path(self):
-        return self.output_file_path
-
-    def set_output_file_path(self, output_file_path):
-        self.output_file_path = output_file_path
+        self.pkt.total_packets_len = packet_size
+        self.blocks_stream_to_tagged_stream_0.set_packet_len(self.pkt.total_packets_len)
+        self.blocks_stream_to_tagged_stream_0.set_packet_len_pmt(
+            self.pkt.total_packets_len
+        )
 
     def get_hdr_format(self):
         return self.hdr_format
@@ -214,11 +201,11 @@ class Transmitter(gr.top_block):
         self.cc_enc = cc_enc
 
     def get_carrier_freq(self):
-        return self.carrier_freq
+        return self.sig.carrier_freq
 
     def set_carrier_freq(self, carrier_freq):
-        self.carrier_freq = carrier_freq
-        self.analog_sig_source_x_0.set_frequency(self.carrier_freq)
+        self.sig.carrier_freq = carrier_freq
+        self.analog_sig_source_x_0.set_frequency(self.sig.carrier_freq)
 
 
 def transmit(
