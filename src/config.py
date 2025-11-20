@@ -16,19 +16,19 @@ class PacketConfig:
 
     @property
     def data_chunck_len(self) -> int:
-        """amount of data in each packet
+        """amount of data in each packet. 1 bytes is put aside for packet_len
 
         Returns:
             int: len of usefull data in each packet
         """
-        return self.total_packets_len - self.error_correction_len
+        return self.total_packets_len - self.error_correction_len - 1
 
 
 DEFAULT_PACKET_CONFIG = PacketConfig(
-    total_packets_len=64,
+    total_packets_len=128,
     preamble_packets=3,
     postamble_packets=0,
-    error_correction_len=6,
+    error_correction_len=12,
 )
 
 

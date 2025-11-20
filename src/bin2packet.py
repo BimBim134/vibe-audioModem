@@ -16,7 +16,7 @@ import numpy as np
 import config
 
 
-def split_payload_into_packet(payload: bytes, packets_len: int) -> Iterator[bytes]:
+def split_payload_into_packet(payload: bytes, pkt: config.PacketConfig) -> Iterator[bytes]:
     """split payload into packets
 
     Args:
@@ -27,22 +27,14 @@ def split_payload_into_packet(payload: bytes, packets_len: int) -> Iterator[byte
         Iterator[bytes]: output packets
     """
     # add some random bytes after the payload so that its length is a multiple of packet_len
-    len_filler = ceil(len(payload) / packets_len) * packets_len - len(payload)
+    len_filler = ceil(len(payload) / pkt.data_chunck_len + 1) * (pkt.data_chunck_len + 1) - len(payload)
     payload += randbytes(len_filler)
     for i in range(0, len(payload), packets_len):
+        packet
         yield payload[i : i + packets_len]
 
 
 def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> tuple:
-    """_summary_
-
-    Args:
-        payload (bytes): _description_
-        pkt (config.PacketConfig): _description_
-
-    Returns:
-        bytes: _description_
-    """
     # initialize encoder
     ecc = RSCodec(pkt.error_correction_len)
     data_chunck_len = pkt.data_chunck_len
@@ -50,7 +42,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> tuple
     # encode packet
     packets = [
         ecc.encode(data_chunck)
-        for data_chunck in split_payload_into_packet(payload, data_chunck_len)
+        for data_chunck in split_payload_into_packet(payload, pkt)
     ]
 
     # add preamble and postamble
