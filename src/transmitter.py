@@ -12,8 +12,9 @@
 import sys
 import signal
 from typing import Any
+import threading
 
-from gnuradio import analog, blocks, digital, fec, gr
+from gnuradio import analog, blocks, digital, fec, gr, audio
 
 from bin2packet import prepare_data
 from config import PacketConfig, SignalConfig
@@ -21,14 +22,21 @@ from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG
 
 
 class Transmitter(gr.top_block):
-
     def __init__(
         self,
         input_data: Any,
-        sig: SignalConfig,
         pkt: PacketConfig,
+        sig: SignalConfig,
     ):
-        gr.top_block.__init__(self, "transmitter", catch_exceptions=True)
+        """main transmitter class (heavily based on GRC companion output)
+
+        Args:
+            input_data (Any): input data
+            pkt (PacketConfig): packet description
+            sig (SignalConfig): signal description
+        """
+        gr.top_block.__init__(self, "Transmitter", catch_exceptions=True)
+        self.flowgraph_started = threading.Event()
 
         # Variables
         ## signal related variables
@@ -93,16 +101,16 @@ class Transmitter(gr.top_block):
             gr.sizeof_char * 1, "packet_len", 0
         )
         self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(
-            gr.sizeof_char, 1, packet_size, "packet_len"
+            gr.sizeof_char, 1, self.packet_size, "packet_len"
         )
         self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(
             1, 8, "", False, gr.GR_MSB_FIRST
         )
         self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
-        self.audio_sink_0 = audio.sink(samp_rate, "", True)
+        self.audio_sink_0 = audio.sink(self.samp_rate, "", True)
         self.analog_sig_source_x_0 = analog.sig_source_c(
-            self.samp_rate, analog.GR_SIN_WAVE, carrier_freq, 0.5, 0, 0
+            self.samp_rate, analog.GR_SIN_WAVE, self.carrier_freq, 0.5, 0, 0
         )
 
         # Connections
@@ -225,7 +233,7 @@ def transmit(
         pkt_conf (PacketConfig, optional): packet description. Defaults to DEFAULT_PACKET_CONFIG.
         signal_conf (SignalConfig, optional): signal description. Defaults to DEFAULT_SIGNAL_CONFIG.
     """
-    tb = Transmitter(input_data=input_file, sig=signal_conf, pkt=pkt_conf)
+    tb = Transmitter(input_data=input_file, pkt=pkt_conf, sig=signal_conf)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
