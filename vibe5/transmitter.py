@@ -9,117 +9,155 @@
 # Author: bimbim
 # GNU Radio version: 3.10.10.0
 
-from gnuradio import analog
-from gnuradio import blocks
-from gnuradio import digital
-from gnuradio import fec
-from gnuradio import gr
-from gnuradio.filter import firdes
-from gnuradio.fft import window
 import sys
 import signal
-from argparse import ArgumentParser
-from gnuradio.eng_arg import eng_float, intx
-from gnuradio import eng_notation
-import numpy as np
-import bin2packet_block as epy_bin2packet_block  # embedded python block
+from typing import Any
+
+from gnuradio import analog, blocks, digital, fec, gr
+
+from bin2packet import prepare_data
+from config import PacketConfig, SignalConfig
+from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG
 
 
+class Transmitter(gr.top_block):
 
-
-class transmitter(gr.top_block):
-
-    def __init__(self):
+    def __init__(
+        self,
+        input_data: Any,
+        sig: SignalConfig,
+        pkt: PacketConfig,
+    ):
         gr.top_block.__init__(self, "transmitter", catch_exceptions=True)
 
-        ##################################################
         # Variables
-        ##################################################
-        self.samp_rate = samp_rate = 44100
-        self.baudrate = baudrate = 2500
-        self.access_key = access_key = '11100001010110101110100010010011'
-        self.sps = sps = int(samp_rate/baudrate)
-        self.samp_rate_0 = samp_rate_0 = 44100
-        self.packet_size = packet_size = 128
-        self.input_file_path = input_file_path = "/home/bimbim/Codes/vibe-audioModem/sampleFileLong.txt"
-        self.hdr_format = hdr_format = digital.header_format_default(access_key, 0)
-        self.const_definition = const_definition = digital.constellation_calcdist([-1-1j, -1+1j, 1+1j, 1-1j], [0, 1, 3, 2],
-        4, 1, digital.constellation.AMPLITUDE_NORMALIZATION).base()
+        ## signal related variables
+        self.samp_rate = sig.samp_rate
+        self.baudrate = sig.baudrate
+        self.carrier_freq = sig.carrier_freq
+        self.sps = sig.sps
+        self.const_definition = digital.constellation_calcdist(
+            [-1 - 1j, -1 + 1j, 1 + 1j, 1 - 1j],
+            [0, 1, 3, 2],
+            4,
+            1,
+            digital.constellation.AMPLITUDE_NORMALIZATION,
+        ).base()
         self.const_definition.set_npwr(0)
         self.const_definition.gen_soft_dec_lut(8)
-        self.cc_enc = cc_enc = fec.cc_encoder_make(128,7, 2, [79,109], 0, fec.CC_STREAMING, True)
-        self.carrier_freq = carrier_freq = 7500
 
-        ##################################################
+        ## digital communication variables
+        self.packet_size = pkt.total_packets_len
+        self.input_file = prepare_data(input_data, pkt)
+        self.access_key = "11100001010110101110100010010011"
+        self.hdr_format = digital.header_format_default(self.access_key, 0)
+        self.cc_enc = fec.cc_encoder_make(
+            128, 7, 2, [79, 109], 0, fec.CC_STREAMING, True
+        )
+
         # Blocks
-        ##################################################
-
-        self.fec_extended_encoder_0 = fec.extended_encoder(encoder_obj_list=cc_enc, threading= None, puncpat='11')
-        self.epy_block_0 = epy_block_0.blk(input_binary=input_file_path, packet_size=packet_size, preamble_size=3, postamble_size=7, ecc_size=int(packet_size/5), id_len=2, data_len=1)
-        self.digital_protocol_formatter_bb_0 = digital.protocol_formatter_bb(hdr_format, "packet_len")
+        self.fec_extended_encoder_0 = fec.extended_encoder(
+            encoder_obj_list=self.cc_enc, threading=None, puncpat="11"
+        )
+        self.digital_protocol_formatter_bb_0 = digital.protocol_formatter_bb(
+            self.hdr_format, "packet_len"
+        )
         self.digital_constellation_modulator_0 = digital.generic_mod(
-            constellation=const_definition,
+            constellation=self.const_definition,
             differential=True,
-            samples_per_symbol=sps,
+            samples_per_symbol=self.sps,
             pre_diff_code=True,
             excess_bw=0.35,
             verbose=False,
             log=False,
-            truncate=True)
+            truncate=True,
+        )
+        self.blocks_vector_source_x_0 = blocks.vector_source_b(
+            self.input_file, False, 1, []
+        )
         self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
-        self.blocks_tagged_stream_mux_0 = blocks.tagged_stream_mux(gr.sizeof_char*1, 'packet_len', 0)
-        self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(gr.sizeof_char, 1, packet_size, "packet_len")
-        self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(1, 8, "", False, gr.GR_MSB_FIRST)
+        self.blocks_throttle2_0 = blocks.throttle(
+            gr.sizeof_float * 1,
+            self.samp_rate,
+            True,
+            (
+                0
+                if "auto" == "auto"
+                else max(
+                    int(float(0.1) * self.samp_rate) if "auto" == "time" else int(0.1),
+                    1,
+                )
+            ),
+        )
+        self.blocks_tagged_stream_mux_0 = blocks.tagged_stream_mux(
+            gr.sizeof_char * 1, "packet_len", 0
+        )
+        self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(
+            gr.sizeof_char, 1, packet_size, "packet_len"
+        )
+        self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(
+            1, 8, "", False, gr.GR_MSB_FIRST
+        )
         self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
-        self.band_pass_filter_0 = filter.fir_filter_fff(
-            1,
-            firdes.band_pass(
-                0.5,
-                samp_rate,
-                (carrier_freq-baudrate),
-                (carrier_freq+baudrate),
-                1,
-                window.WIN_KAISER,
-                6.76))
-        self.audio_sink_0 = audio.sink(samp_rate, '', True)
-        self.analog_sig_source_x_0 = analog.sig_source_c(samp_rate, analog.GR_SIN_WAVE, carrier_freq, 0.5, 0, 0)
+        self.audio_sink_0 = audio.sink(samp_rate, "", True)
+        self.analog_sig_source_x_0 = analog.sig_source_c(
+            self.samp_rate, analog.GR_SIN_WAVE, carrier_freq, 0.5, 0, 0
+        )
 
-
-        ##################################################
         # Connections
-        ##################################################
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
-        self.connect((self.band_pass_filter_0, 0), (self.audio_sink_0, 0))
-        self.connect((self.blocks_complex_to_real_0, 0), (self.band_pass_filter_0, 0))
+        self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_throttle2_0, 0))
         self.connect((self.blocks_multiply_xx_0, 0), (self.blocks_complex_to_real_0, 0))
-        self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
-        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.blocks_tagged_stream_mux_0, 1))
-        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.digital_protocol_formatter_bb_0, 0))
-        self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
-        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_multiply_xx_0, 0))
-        self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
-        self.connect((self.epy_block_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
-        self.connect((self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0))
-
+        self.connect(
+            (self.blocks_repack_bits_bb_1_0, 0),
+            (self.digital_constellation_modulator_0, 0),
+        )
+        self.connect(
+            (self.blocks_stream_to_tagged_stream_0, 0),
+            (self.blocks_tagged_stream_mux_0, 1),
+        )
+        self.connect(
+            (self.blocks_stream_to_tagged_stream_0, 0),
+            (self.digital_protocol_formatter_bb_0, 0),
+        )
+        self.connect(
+            (self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0)
+        )
+        self.connect((self.blocks_throttle2_0, 0), (self.audio_sink_0, 0))
+        self.connect(
+            (self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0)
+        )
+        self.connect(
+            (self.blocks_vector_source_x_0, 0),
+            (self.blocks_stream_to_tagged_stream_0, 0),
+        )
+        self.connect(
+            (self.digital_constellation_modulator_0, 0), (self.blocks_multiply_xx_0, 0)
+        )
+        self.connect(
+            (self.digital_protocol_formatter_bb_0, 0),
+            (self.blocks_tagged_stream_mux_0, 0),
+        )
+        self.connect(
+            (self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0)
+        )
 
     def get_samp_rate(self):
         return self.samp_rate
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
-        self.set_sps(int(self.samp_rate/self.baudrate))
+        self.set_sps(int(self.samp_rate / self.baudrate))
         self.analog_sig_source_x_0.set_sampling_freq(self.samp_rate)
-        self.band_pass_filter_0.set_taps(firdes.band_pass(0.5, self.samp_rate, (self.carrier_freq-self.baudrate), (self.carrier_freq+self.baudrate), 1, window.WIN_KAISER, 6.76))
+        self.blocks_throttle2_0.set_sample_rate(self.samp_rate)
 
     def get_baudrate(self):
         return self.baudrate
 
     def set_baudrate(self, baudrate):
         self.baudrate = baudrate
-        self.set_sps(int(self.samp_rate/self.baudrate))
-        self.band_pass_filter_0.set_taps(firdes.band_pass(0.5, self.samp_rate, (self.carrier_freq-self.baudrate), (self.carrier_freq+self.baudrate), 1, window.WIN_KAISER, 6.76))
+        self.set_sps(int(self.samp_rate / self.baudrate))
 
     def get_access_key(self):
         return self.access_key
@@ -134,12 +172,6 @@ class transmitter(gr.top_block):
     def set_sps(self, sps):
         self.sps = sps
 
-    def get_samp_rate_0(self):
-        return self.samp_rate_0
-
-    def set_samp_rate_0(self, samp_rate_0):
-        self.samp_rate_0 = samp_rate_0
-
     def get_packet_size(self):
         return self.packet_size
 
@@ -147,13 +179,12 @@ class transmitter(gr.top_block):
         self.packet_size = packet_size
         self.blocks_stream_to_tagged_stream_0.set_packet_len(self.packet_size)
         self.blocks_stream_to_tagged_stream_0.set_packet_len_pmt(self.packet_size)
-        self.epy_block_0.packet_size = self.packet_size
 
-    def get_input_file_path(self):
-        return self.input_file_path
+    def get_output_file_path(self):
+        return self.output_file_path
 
-    def set_input_file_path(self, input_file_path):
-        self.input_file_path = input_file_path
+    def set_output_file_path(self, output_file_path):
+        self.output_file_path = output_file_path
 
     def get_hdr_format(self):
         return self.hdr_format
@@ -180,17 +211,21 @@ class transmitter(gr.top_block):
     def set_carrier_freq(self, carrier_freq):
         self.carrier_freq = carrier_freq
         self.analog_sig_source_x_0.set_frequency(self.carrier_freq)
-        self.band_pass_filter_0.set_taps(firdes.band_pass(0.5, self.samp_rate, (self.carrier_freq-self.baudrate), (self.carrier_freq+self.baudrate), 1, window.WIN_KAISER, 6.76))
 
 
-def transmit(input_file_path, output_file_path, baudrate=250, carrier_freq=2500, top_block_cls=transmitter, options=None):
-    tb = top_block_cls()
+def transmit(
+    input_file: Any,
+    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
+    signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+) -> None:
+    """transmit a file over sound !
 
-    tb.set_baudrate(baudrate)
-    tb.set_carrier_freq(carrier_freq)
-    
-    tb.set_input_file_path(input_file_path)
-    tb.set_output_file_path(output_file_path)
+    Args:
+        input_file (Any): input file
+        pkt_conf (PacketConfig, optional): packet description. Defaults to DEFAULT_PACKET_CONFIG.
+        signal_conf (SignalConfig, optional): signal description. Defaults to DEFAULT_SIGNAL_CONFIG.
+    """
+    tb = Transmitter(input_data=input_file, sig=signal_conf, pkt=pkt_conf)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
@@ -202,9 +237,10 @@ def transmit(input_file_path, output_file_path, baudrate=250, carrier_freq=2500,
     signal.signal(signal.SIGTERM, sig_handler)
 
     tb.start()
+    tb.flowgraph_started.set()
 
     tb.wait()
 
 
-if __name__ == '__main__':
-    transmit()
+if __name__ == "__main__":
+    transmit(b"hello world ! this is a message transmitted using vibe-audio-modem :)")
