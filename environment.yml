@@ -1,13 +1,13 @@
-name: vibe-audiomodem-pyqt5
+name: vibe-audiomodem
 channels:
   - conda-forge
 dependencies:
-  - python=3.10
-  - pyqt=5
+  - python=3.12
   - gnuradio
   - numpy
   - scipy
   - matplotlib
+  - reedsolo
   - pip
   - pip:
       - sip
