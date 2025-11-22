@@ -122,7 +122,7 @@ def import_file_from_path(filepath: Path) -> bytes:
 
 
 @singledispatch
-def prepare_data(input_data, pkt: config.PacketConfig) -> bytes:
+def prepare_data(input_data, pkt: config.PacketConfig) -> tuple:
     """generic function to prepare bytes from input data"""
     raise NotImplementedError
 
@@ -138,7 +138,7 @@ def _(input_data: Path, pkt: config.PacketConfig) -> tuple:
     Returns:
         bytes: packetized and error encoded file
     """
-    file = import_file_from_path(filepath)
+    file = import_file_from_path(input_data)
     return payload_to_encoded_packet(file, pkt)
 
 @prepare_data.register
