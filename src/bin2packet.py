@@ -22,7 +22,7 @@ def split_payload_into_packet(
 ) -> Iterator[bytes]:
     """split data into packet such as :
     packet = [[data_len], [data], [filler]].
-    
+
     Args:
         payload (bytes): payload data
         pkt (config.PacketConfig): packet configuration
@@ -61,7 +61,7 @@ def split_payload_into_packet(
         yield data_chunck
 
 
-def generate_dummy_packet(pkt: config.PacketConfig)->bytes:
+def generate_dummy_packet(pkt: config.PacketConfig) -> bytes:
     """generate a dummy packet. the data_len flag is set to 0.
 
     Args:
@@ -86,17 +86,21 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> tuple
         tuple: _description_
     """
     # initialize encoder
-    ecc = RSCodec(pkt.error_correction_len)
+    rsc = RSCodec(pkt.error_correction_len)
 
     # encode packet
     packets = [
-        ecc.encode(data_chunck)
+        rsc.encode(data_chunck)
         for data_chunck in split_payload_into_packet(payload, pkt)
     ]
 
     # add preamble and postamble
-    preamble = [ecc.encode(generate_dummy_packet(pkt)) * pkt.preamble_packets]
-    postamble = [ecc.encode(generate_dummy_packet(pkt)) * pkt.postamble_packets]
+    preamble = [
+        rsc.encode(generate_dummy_packet(pkt)) for _ in range(pkt.preamble_packets)
+    ]
+    postamble = [
+        rsc.encode(generate_dummy_packet(pkt)) for _ in range(pkt.postamble_packets)
+    ]
 
     # chain everything together
     flattened = b"".join(chain(preamble, packets, postamble))
@@ -141,8 +145,9 @@ def _(input_data: Path, pkt: config.PacketConfig) -> tuple:
     file = import_file_from_path(input_data)
     return payload_to_encoded_packet(file, pkt)
 
+
 @prepare_data.register
-def _(input_data:bytes, pkt: config.PacketConfig) -> tuple:
+def _(input_data: bytes, pkt: config.PacketConfig) -> tuple:
     """prepare data from bytes
 
     Args:
@@ -154,5 +159,10 @@ def _(input_data:bytes, pkt: config.PacketConfig) -> tuple:
     """
     return payload_to_encoded_packet(input_data, pkt)
 
+
 if __name__ == "__main__":
+    test_payload = (
+        b"hello world ! this is a message transmitted using vibe-audio-modem :)"
+    )
+    packets = prepare_data(test_payload, config.DEFAULT_PACKET_CONFIG)
     pass
