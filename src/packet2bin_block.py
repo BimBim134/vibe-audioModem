@@ -14,36 +14,20 @@ from gnuradio import gr
 from reedsolo import RSCodec, ReedSolomonError
 import pmt
 
-def decode_single_packet(packet,
-                         ecc,
-                         id_len,
-                         data_len):
-    """takes a single packet and decode it.
+from config import PacketConfig
 
-    Args:
-        packet (bytes): input packet
-        ecc (RSCodec): Reed Solomon Encoder
-        id_len (int): id descriptor length
-        data_len (int): data length descriptor length
+def decode_single_packet(packet:np.uint8,
+                         pkt:PacketConfig):
 
-    Returns:
-        id, data (int, bytes): packet id, packet data
-    """
     try:
         decoded_packet = ecc.decode(packet)[0]
-        id = int.from_bytes(decoded_packet[:id_len], 'big') - 1
-        d_len = int.from_bytes(decoded_packet[id_len:id_len + data_len], 'big')
-        if id == -1: # filter out the preamble and postamble
-            if b'eof' in decoded_packet:
-                return (-1, b'eof')
-            else:
-                return (-1, decoded_packet[id_len + data_len:id_len + data_len + d_len])
-        else:
-            return (id, decoded_packet[id_len + data_len:id_len + data_len + d_len])
+        data_len = int.from_bytes(decoded_packet[0])
+        return decoded_packet[1:data_len]
+
     except ReedSolomonError as e:
         warnings.warn("packet is corrupted beyond repair !")
         print(e)
-        return (-1, packet)
+        return b''
 
 class blk(gr.basic_block):  # other base classes are basic_block, decim_block, interp_block
     def __init__(self,
@@ -61,8 +45,8 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
         )
         self.out_filename = out_filename
         self.packet_size = packet_size
-        self.ecc = RSCodec(ecc_size)
-        self.ecc.maxerrata(verbose=verbose)
+        self.rsc = RSCodec(ecc_size)
+        self.rsc.maxerrata(verbose=verbose)
         self.id_len = id_len
         self.data_len = data_len
 
@@ -101,7 +85,7 @@ class blk(gr.basic_block):  # other base classes are basic_block, decim_block, i
                         raw_packet = in0[packet_start:packet_end]
 
                         id, packet_data = decode_single_packet(raw_packet,
-                                                            self.ecc,
+                                                            self.rsc,
                                                             self.id_len,
                                                             self.data_len)
                         if len(packet_data) > 0:
