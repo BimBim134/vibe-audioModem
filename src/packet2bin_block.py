@@ -13,10 +13,17 @@ from gnuradio import gr
 from reedsolo import RSCodec, ReedSolomonError
 import pmt
 
-from config import PacketConfig
+from config import PacketConfig, DEFAULT_PACKET_CONFIG
 
 def decode_single_packet(packet:np.ndarray,
-                         rsc: RSCodec):
+                            rsc: RSCodec) -> np.ndarray:
+    """Decode a single Reed-Solomon encoded packet into its binary data.
+    Args:
+        packet (np.ndarray): The encoded packet as numpy array of 8-bit integers.
+        rsc (RSCodec): An instance of the RSCodec to use for decoding.
+    Returns:
+        np.ndarray: The decoded packet as numpy array of 8-bit integers.
+    """
 
     try:
         decoded_packet = rsc.decode(packet)[0]
@@ -43,38 +50,55 @@ class Packet2Bin(gr.basic_block):
         self.output_data = b''
         self.state = 'preamble'
 
+        # Register message output port
+        self.message_port_register_out(pmt.intern("bin_out"))
+
     def work(self, input_items, output_items):
         in0 = input_items[0]
-        # check if not allready eof
+        consumed = 0
+
         if not self.eof:
-            # get bytes
             tags = self.get_tags_in_window(0, 0, len(in0))
 
-            pointer = 0
+            # Sort tags by offset to ensure proper ordering
+            tags = sorted(tags, key=lambda t: t.offset)
+
             for tag in tags:
                 if tag.key == pmt.string_to_symbol("packet_len"):
                     packet_len = pmt.to_long(tag.value)
-                    current_packet_end = pointer + packet_len
 
-                    # check if there is enough input data to work with
-                    if current_packet_end <= len(in0):
-                        # read and decode data
-                        raw_packet = in0[pointer:current_packet_end]
-                        extracted_data = decode_single_packet(self.rsc, raw_packet)
+                    # Compute relative offset of tag inside current buffer
+                    tag_offset = tag.offset - self.nitems_read(0)
+                    packet_end = tag_offset + packet_len
 
-                        # saving data and updating pointer
-                        self.output_data += extracted_data
-                        pointer = current_packet_end
-                        
-                        # updating state
-                        if len(extracted_data) > 0 and self.state == 'preamble':
-                            self.state = 'data'
-                        elif len(extracted_data) == 0 and self.state == 'data':
-                            self.state = 'preamble'
-                            self.eof = True
+                    # Not enough data yet → don't consume anything
+                    if packet_end > len(in0):
+                        break
 
-        return len(in0)
-                        
+                    # Extract and decode packet
+                    raw_packet = in0[tag_offset:packet_end]
+                    extracted = decode_single_packet(raw_packet, self.rsc)
+
+                    # Save result
+                    self.output_data += extracted
+
+                    # Update state machine
+                    if len(extracted) > 0 and self.state == 'preamble':
+                        self.state = 'data'
+                    elif len(extracted) == 0 and self.state == 'data':
+                        self.state = 'preamble'
+                        self.eof = True
+
+                    # We have processed up to packet_end
+                    consumed = packet_end
+
+                # If EOF reached → publish output_data once
+        if self.eof and len(self.output_data) > 0:
+            msg = pmt.init_u8vector(len(self.output_data), self.output_data)
+            self.message_port_pub(pmt.intern("bin_out"), msg)
+            self.output_data = b''  # Reset buffer after sending
+
+        return consumed
 
 if __name__ == "__main__":
-    test = blk()
+    test = Packet2Bin(pkt=DEFAULT_PACKET_CONFIG)
