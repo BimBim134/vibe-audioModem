@@ -8,6 +8,7 @@ from typing import Iterator
 from math import ceil
 from itertools import chain
 from functools import singledispatch
+from secrets import token_bytes
 
 import pmt
 from reedsolo import RSCodec
@@ -16,28 +17,76 @@ import numpy as np
 import config
 
 
-def split_payload_into_packet(payload: bytes, pkt: config.PacketConfig) -> Iterator[bytes]:
-    """split payload into packets
-
+def split_payload_into_packet(
+    payload: bytes, pkt: config.PacketConfig
+) -> Iterator[bytes]:
+    """split data into packet such as :
+    packet = [[data_len], [data], [filler]].
+    
     Args:
-        payload (bytes): input payload
-        packets_len (int): packet length
+        payload (bytes): payload data
+        pkt (config.PacketConfig): packet configuration
 
     Yields:
-        Iterator[bytes]: output packets
+        Iterator[bytes]: packet
     """
-    # add some random bytes after the payload so that its length is a multiple of packet_len
-    len_filler = ceil(len(payload) / pkt.data_chunck_len + 1) * (pkt.data_chunck_len + 1) - len(payload)
-    payload += randbytes(len_filler)
-    for i in range(0, len(payload), packets_len):
-        packet
-        yield payload[i : i + packets_len]
+    mv = memoryview(payload)
+    pointer = 0
+
+    # first packets
+    while pointer + pkt.data_chunck_len < len(mv):
+        # construct packet
+        data = mv[pointer : pointer + pkt.data_chunck_len]
+        data_len_flag = pkt.data_chunck_len.to_bytes()
+
+        # assemble packet
+        data_chunck = data_len_flag + data
+
+        # "move" pointer to next data chunck
+        pointer += pkt.data_chunck_len
+
+        # yield data chunck
+        yield data_chunck
+
+    else:
+        # last packet with filler
+        data = mv[pointer:]
+        filler = token_bytes(pkt.data_chunck_len - len(data))
+        data_len_flag = len(data).to_bytes()
+
+        # assemble packet
+        data_chunck = data_len_flag + data + filler
+
+        # yield data chunck
+        yield data_chunck
+
+
+def generate_dummy_packet(pkt: config.PacketConfig)->bytes:
+    """generate a dummy packet. the data_len flag is set to 0.
+
+    Args:
+        pkt (config.PacketConfig): packet description
+
+    Returns:
+        bytes: dummy packet
+    """
+    data = token_bytes(pkt.data_chunck_len)
+    data_len_flag = (0).to_bytes()
+    return data_len_flag + data
 
 
 def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> tuple:
+    """packetize payload with preamble, data, postamble.
+
+    Args:
+        payload (bytes): _description_
+        pkt (config.PacketConfig): _description_
+
+    Returns:
+        tuple: _description_
+    """
     # initialize encoder
     ecc = RSCodec(pkt.error_correction_len)
-    data_chunck_len = pkt.data_chunck_len
 
     # encode packet
     packets = [
@@ -46,8 +95,8 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> tuple
     ]
 
     # add preamble and postamble
-    preamble = [ecc.encode(randbytes(data_chunck_len))] * pkt.preamble_packets
-    postamble = [ecc.encode(randbytes(data_chunck_len))] * pkt.postamble_packets
+    preamble = [ecc.encode(generate_dummy_packet(pkt)) * pkt.preamble_packets]
+    postamble = [ecc.encode(generate_dummy_packet(pkt)) * pkt.postamble_packets]
 
     # chain everything together
     flattened = b"".join(chain(preamble, packets, postamble))
