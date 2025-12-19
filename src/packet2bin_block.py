@@ -7,20 +7,26 @@ be the parameters. All of them are required to have default values!
 """
 
 import warnings
-import base64
 
 import numpy as np
 from gnuradio import gr
 from reedsolo import RSCodec, ReedSolomonError
 import pmt
 
-from config import PacketConfig
+from config import PacketConfig, DEFAULT_PACKET_CONFIG
 
-def decode_single_packet(packet:np.uint8,
-                         pkt:PacketConfig):
+def decode_single_packet(packet:np.ndarray,
+                            rsc: RSCodec) -> np.ndarray:
+    """Decode a single Reed-Solomon encoded packet into its binary data.
+    Args:
+        packet (np.ndarray): The encoded packet as numpy array of 8-bit integers.
+        rsc (RSCodec): An instance of the RSCodec to use for decoding.
+    Returns:
+        np.ndarray: The decoded packet as numpy array of 8-bit integers.
+    """
 
     try:
-        decoded_packet = ecc.decode(packet)[0]
+        decoded_packet = rsc.decode(packet)[0]
         data_len = int.from_bytes(decoded_packet[0])
         return decoded_packet[1:data_len]
 
@@ -29,93 +35,70 @@ def decode_single_packet(packet:np.uint8,
         print(e)
         return b''
 
-class blk(gr.basic_block):  # other base classes are basic_block, decim_block, interp_block
+class Packet2Bin(gr.basic_block):
     def __init__(self,
-                 out_filename='',
-                 packet_size=64,
-                 ecc_size=6,
-                 id_len=2,
-                 data_len=1,
-                 verbose=False):
-        gr.sync_block.__init__(
+                 pkt: PacketConfig,
+                 ):
+        gr.basic_block.__init__(
             self,
             name='Packets to Binaries',
             in_sig=[np.uint8],
             out_sig=None
         )
-        self.out_filename = out_filename
-        self.packet_size = packet_size
-        self.rsc = RSCodec(ecc_size)
-        self.rsc.maxerrata(verbose=verbose)
-        self.id_len = id_len
-        self.data_len = data_len
-
-        self.packets = {}
-
-        self.packet_count = 0
+        self.rsc = RSCodec(pkt.error_correction_len)
         self.eof = False
+        self.output_data = b''
+        self.state = 'preamble'
 
-    
-    def save_file(self):
-        data = dict(sorted(self.packets.items()))
-
-        received_ids = set(data.keys())
-        check_id = set(range(len(data)))
-        if received_ids != check_id:
-            warnings.warn("data may be incomplete !", BytesWarning)
-
-        data = list(data.values())
-        output = b''.join(data)
-        output = base64.urlsafe_b64decode(output)
-        with open(self.out_filename, 'wb') as f:
-            f.write(output)
+        # Register message output port
+        self.message_port_register_out(pmt.intern("bin_out"))
 
     def work(self, input_items, output_items):
+        in0 = input_items[0]
+        consumed = 0
+
         if not self.eof:
-            in0 = input_items[0]
             tags = self.get_tags_in_window(0, 0, len(in0))
 
-            packet_start = 0
+            # Sort tags by offset to ensure proper ordering
+            tags = sorted(tags, key=lambda t: t.offset)
+
             for tag in tags:
                 if tag.key == pmt.string_to_symbol("packet_len"):
                     packet_len = pmt.to_long(tag.value)
-                    packet_end = packet_start + packet_len
 
-                    if packet_end <= len(in0):
-                        raw_packet = in0[packet_start:packet_end]
+                    # Compute relative offset of tag inside current buffer
+                    tag_offset = tag.offset - self.nitems_read(0)
+                    packet_end = tag_offset + packet_len
 
-                        id, packet_data = decode_single_packet(raw_packet,
-                                                            self.rsc,
-                                                            self.id_len,
-                                                            self.data_len)
-                        if len(packet_data) > 0:
-                            packet_start = packet_end
-                            self.consume(0, packet_start)
-                            if not id == -1:
-                                # saving data
-                                gr.log_debug.info(f"receiving packet {id:0>6d} : {len(packet_data)}")
-                                self.packets[id] = packet_data
-                                return 0
-                            else:
-                                # checking if it is EOF
-                                gr.log_debug.info(f"receiving packet pre/postamble : {len(packet_data)}")
-                                if b'eof' in packet_data:
-                                    gr.log_debug.info("receving EOF")
-                                    self.eof = True
-                                    self.save_file()
-                                    gr.log_debug.info(f'saving file to {self.out_filename}')
-                                return 0
-                        else:
-                            gr.log_debug.info("no data in packet")
-                            return 0
+                    # Not enough data yet → don't consume anything
+                    if packet_end > len(in0):
+                        break
 
-                    else:
-                        gr.log_debug.info("packet not complete, waiting for more data")
-                        return 0              
-                else:
-                    gr.log_debug.info(f'unknown tag {tag.key}')
-                    return 0
-        return -1 # Return -1 to indicate end of file
+                    # Extract and decode packet
+                    raw_packet = in0[tag_offset:packet_end]
+                    extracted = decode_single_packet(raw_packet, self.rsc)
+
+                    # Save result
+                    self.output_data += extracted
+
+                    # Update state machine
+                    if len(extracted) > 0 and self.state == 'preamble':
+                        self.state = 'data'
+                    elif len(extracted) == 0 and self.state == 'data':
+                        self.state = 'preamble'
+                        self.eof = True
+
+                    # We have processed up to packet_end
+                    consumed = packet_end
+
+                # If EOF reached → publish output_data once
+        if self.eof and len(self.output_data) > 0:
+            msg = pmt.init_u8vector(len(self.output_data), self.output_data)
+            self.message_port_pub(pmt.intern("bin_out"), msg)
+            self.output_data = b''  # Reset buffer after sending
+
+        return consumed
 
 if __name__ == "__main__":
-    test = blk()
+    test = Packet2Bin(pkt=DEFAULT_PACKET_CONFIG)
