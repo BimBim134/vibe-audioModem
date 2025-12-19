@@ -44,4 +44,4 @@ class SignalConfig:
         return int(self.samp_rate / self.baudrate)
 
 
-DEFAULT_SIGNAL_CONFIG = SignalConfig(samp_rate=44100, carrier_freq=2500, baudrate=500)
+DEFAULT_SIGNAL_CONFIG = SignalConfig(samp_rate=48000, carrier_freq=2500, baudrate=500)
