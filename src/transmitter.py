@@ -46,7 +46,7 @@ class Transmitter(gr.top_block):
             [0, 1, 3, 2],
             4,
             1,
-            digital.constellation.AMPLITUDE_NORMALIZATION,
+            digital.constellation.POWER_NORMALIZATION,
         ).base()
         self.const_definition.set_npwr(0)
         self.const_definition.gen_soft_dec_lut(8)
@@ -75,7 +75,7 @@ class Transmitter(gr.top_block):
             excess_bw=0.35,
             verbose=False,
             log=False,
-            truncate=True,
+            truncate=False,
         )
         self.blocks_vector_source_x_0 = blocks.vector_source_b(
             self.input_file, False, 1, []
@@ -115,32 +115,19 @@ class Transmitter(gr.top_block):
         )
 
         # Connections
-        self.connect((self.analog_sig_source_x_0, 0),
-                     (self.blocks_multiply_xx_0, 1))
-        self.connect((self.blocks_complex_to_real_0, 0),
-                     (self.blocks_throttle2_0, 0))
-        self.connect((self.blocks_multiply_xx_0, 0),
-                     (self.blocks_complex_to_real_0, 0))
-        self.connect((self.blocks_repack_bits_bb_1_0, 0),
-                     (self.digital_constellation_modulator_0, 0))
-        self.connect((self.blocks_stream_to_tagged_stream_0, 0),
-                     (self.blocks_tagged_stream_mux_0, 1))
-        self.connect((self.blocks_stream_to_tagged_stream_0, 0),
-                     (self.digital_protocol_formatter_bb_0, 0))
-        self.connect((self.blocks_tagged_stream_mux_0, 0), 
-                     (self.blocks_unpack_k_bits_bb_0, 0))
-        self.connect((self.blocks_throttle2_0, 0),
-                     (self.audio_sink_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0, 0),
-                     (self.fec_extended_encoder_0, 0))
-        self.connect((self.blocks_vector_source_x_0, 0),
-                     (self.blocks_stream_to_tagged_stream_0, 0))
-        self.connect((self.digital_constellation_modulator_0, 0),
-                     (self.blocks_multiply_xx_0, 0))
-        self.connect((self.digital_protocol_formatter_bb_0, 0),
-                     (self.blocks_tagged_stream_mux_0, 0))
-        self.connect((self.fec_extended_encoder_0, 0),
-                     (self.blocks_repack_bits_bb_1_0, 0))
+        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
+        self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_throttle2_0, 0))
+        self.connect((self.blocks_multiply_xx_0, 0), (self.blocks_complex_to_real_0, 0))
+        self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
+        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.blocks_tagged_stream_mux_0, 1))
+        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.digital_protocol_formatter_bb_0, 0))
+        self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
+        self.connect((self.blocks_throttle2_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
+        self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
+        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_multiply_xx_0, 0))
+        self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
+        self.connect((self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0))
 
     def get_samp_rate(self):
         return self.sig.samp_rate
