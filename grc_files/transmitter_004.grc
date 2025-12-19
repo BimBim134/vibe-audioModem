@@ -6,23 +6,23 @@ options:
     cmake_opt: ''
     comment: ''
     copyright: ''
-    description: ''
+    description: head + vector source on repeat
     gen_cmake: 'On'
     gen_linking: dynamic
     generate_options: no_gui
     hier_block_src_path: '.:'
-    id: transmitter_004
+    id: transmitter_005
     max_nouts: '0'
     output_language: python
     placement: (0,0)
     qt_qss_theme: ''
-    realtime_scheduling: ''
+    realtime_scheduling: '1'
     run: 'True'
     run_command: '{python} -u {filename}'
     run_options: run
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: transmitter 4
+    title: transmitter 45
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -238,6 +238,24 @@ blocks:
     coordinate: [2432, 344.0]
     rotation: 0
     state: enabled
+- name: blocks_head_0
+  id: blocks_head
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: '1024'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [784, 592.0]
+    rotation: 0
+    state: enabled
 - name: blocks_multiply_xx_0
   id: blocks_multiply_xx
   parameters:
@@ -360,7 +378,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    repeat: 'False'
+    repeat: 'True'
     tags: '[]'
     type: byte
     vector: (0, 0, 0)
@@ -433,6 +451,7 @@ blocks:
 connections:
 - [analog_sig_source_x_0, '0', blocks_multiply_xx_0, '1']
 - [blocks_complex_to_real_0, '0', blocks_throttle2_0, '0']
+- [blocks_head_0, '0', blocks_stream_to_tagged_stream_0, '0']
 - [blocks_multiply_xx_0, '0', blocks_complex_to_real_0, '0']
 - [blocks_repack_bits_bb_1_0, '0', digital_constellation_modulator_0, '0']
 - [blocks_stream_to_tagged_stream_0, '0', blocks_tagged_stream_mux_0, '1']
@@ -440,7 +459,7 @@ connections:
 - [blocks_tagged_stream_mux_0, '0', blocks_unpack_k_bits_bb_0, '0']
 - [blocks_throttle2_0, '0', audio_sink_0, '0']
 - [blocks_unpack_k_bits_bb_0, '0', fec_extended_encoder_0, '0']
-- [blocks_vector_source_x_0, '0', blocks_stream_to_tagged_stream_0, '0']
+- [blocks_vector_source_x_0, '0', blocks_head_0, '0']
 - [digital_constellation_modulator_0, '0', blocks_multiply_xx_0, '0']
 - [digital_protocol_formatter_bb_0, '0', blocks_tagged_stream_mux_0, '0']
 - [fec_extended_encoder_0, '0', blocks_repack_bits_bb_1_0, '0']
