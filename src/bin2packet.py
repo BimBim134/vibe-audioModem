@@ -75,7 +75,7 @@ def generate_dummy_packet(pkt: config.PacketConfig) -> bytes:
     return data_len_flag + data
 
 
-def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> tuple:
+def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.ndarray:
     """packetize payload with preamble, data, postamble.
 
     Args:
@@ -105,7 +105,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> tuple
     # chain everything together
     flattened = b"".join(chain(preamble, packets, postamble))
 
-    return tuple(flattened)
+    return np.frombuffer(flattened, dtype=np.uint8)
 
 
 def import_file_from_path(filepath: Path) -> bytes:
@@ -126,13 +126,13 @@ def import_file_from_path(filepath: Path) -> bytes:
 
 
 @singledispatch
-def prepare_data(input_data, pkt: config.PacketConfig) -> tuple:
+def prepare_data(input_data, pkt: config.PacketConfig) -> np.ndarray:
     """generic function to prepare bytes from input data"""
     raise NotImplementedError
 
 
 @prepare_data.register
-def _(input_data: Path, pkt: config.PacketConfig) -> tuple:
+def _(input_data: Path, pkt: config.PacketConfig) -> np.ndarray:
     """prepare data from filepath
 
     Args:
@@ -147,7 +147,7 @@ def _(input_data: Path, pkt: config.PacketConfig) -> tuple:
 
 
 @prepare_data.register
-def _(input_data: bytes, pkt: config.PacketConfig) -> tuple:
+def _(input_data: bytes, pkt: config.PacketConfig) -> np.ndarray:
     """prepare data from bytes
 
     Args:
@@ -161,8 +161,16 @@ def _(input_data: bytes, pkt: config.PacketConfig) -> tuple:
 
 
 if __name__ == "__main__":
+    conf = config.DEFAULT_PACKET_CONFIG
     test_payload = (
         b"hello world ! this is a message transmitted using vibe-audio-modem :)"
     )
-    packets = prepare_data(test_payload, config.DEFAULT_PACKET_CONFIG)
+    packets = prepare_data(test_payload, conf)
+    assert len(packets) % conf.total_packets_len == 0
+
+    print(f"payload (length:{len(packets)}):\n", test_payload)
+    print("packets")
+    for p in range(int(len(packets) / conf.total_packets_len)):
+        idx = slice(p * conf.total_packets_len, (p + 1) * conf.total_packets_len)
+        print(p,f'(lenght:{len(packets[idx])})\n', b''.join([b.tobytes() for b in packets[idx]]))
     pass
