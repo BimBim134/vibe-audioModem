@@ -41,13 +41,7 @@ class Transmitter(gr.top_block):
         # Variables
         ## signal related variables
         self.sig = sig
-        self.const_definition = digital.constellation_calcdist(
-            [-1 - 1j, -1 + 1j, 1 + 1j, 1 - 1j],
-            [0, 1, 3, 2],
-            4,
-            1,
-            digital.constellation.POWER_NORMALIZATION,
-        ).base()
+        self.const_definition = digital.constellation_qpsk().base()
         self.const_definition.set_npwr(0)
         self.const_definition.gen_soft_dec_lut(8)
 
@@ -57,7 +51,7 @@ class Transmitter(gr.top_block):
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
         self.cc_enc = fec.cc_encoder_make(
-            128, 7, 2, [79, 109], 0, fec.CC_STREAMING, True
+            pkt.total_packets_len, 7, 2, [79, 109], 0, fec.CC_STREAMING, False
         )
 
         # Blocks
@@ -75,10 +69,10 @@ class Transmitter(gr.top_block):
             excess_bw=0.35,
             verbose=False,
             log=False,
-            truncate=False,
+            truncate=True,
         )
         self.blocks_vector_source_x_0 = blocks.vector_source_b(
-            self.input_file, False, 1, []
+            self.input_file, True, 1, []
         )
         self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
         self.blocks_throttle2_0 = blocks.throttle(
@@ -109,6 +103,7 @@ class Transmitter(gr.top_block):
         )
         self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
+        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
         self.audio_sink_0 = audio.sink(self.sig.samp_rate, "", True)
         self.analog_sig_source_x_0 = analog.sig_source_c(
             self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.5, 0, 0
@@ -117,17 +112,29 @@ class Transmitter(gr.top_block):
         # Connections
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
         self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_throttle2_0, 0))
+        self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
         self.connect((self.blocks_multiply_xx_0, 0), (self.blocks_complex_to_real_0, 0))
         self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
         self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.blocks_tagged_stream_mux_0, 1))
         self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.digital_protocol_formatter_bb_0, 0))
         self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
-        self.connect((self.blocks_throttle2_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.blocks_throttle2_0, 0), (self.blocks_head_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
         self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
         self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_multiply_xx_0, 0))
         self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
         self.connect((self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0))
+
+    def get_nb_of_audio_samples(self) -> int:
+        nb_packet = int(len(self.input_file) / self.pkt.total_packets_len)
+        nb_bits_transmitted = (
+            len(self.input_file) * 8 + nb_packet * len(self.access_key) + nb_packet * 32
+        ) * 2
+        audio_samples_to_transmit = nb_bits_transmitted * self.sig.sps
+        audio_samples_to_transmit += int(0.1 * audio_samples_to_transmit)
+        time_to_transmit = audio_samples_to_transmit/self.sig.samp_rate
+        print(f"{audio_samples_to_transmit} bits in {time_to_transmit} s.")
+        return audio_samples_to_transmit
 
     def get_samp_rate(self):
         return self.sig.samp_rate

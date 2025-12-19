@@ -19,7 +19,7 @@ options:
     realtime_scheduling: '1'
     run: 'True'
     run_command: '{python} -u {filename}'
-    run_options: prompt
+    run_options: run
     sizing_mode: fixed
     thread_safe_setters: ''
     title: transmitter 45
@@ -66,7 +66,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2128, 24.0]
+    coordinate: [2336, 36.0]
     rotation: 0
     state: enabled
 - name: cc_enc
@@ -102,7 +102,7 @@ blocks:
     rot_sym: '4'
     soft_dec_lut: '''auto'''
     sym_map: '[0, 1, 3, 2]'
-    type: calcdist
+    type: qpsk
   states:
     bus_sink: false
     bus_source: false
@@ -131,7 +131,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2808, 232.0]
+    coordinate: [3000, 220.0]
     rotation: 0
     state: enabled
 - name: packet_size
@@ -167,7 +167,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1888, 24.0]
+    coordinate: [1800, 20.0]
     rotation: 0
     state: enabled
 - name: sps
@@ -179,7 +179,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2056, 24.0]
+    coordinate: [2136, 28.0]
     rotation: 0
     state: enabled
 - name: analog_sig_source_x_0
@@ -219,7 +219,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2896, 344.0]
+    coordinate: [3088, 336.0]
     rotation: 0
     state: enabled
 - name: blocks_complex_to_real_0
@@ -236,6 +236,24 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [2432, 344.0]
+    rotation: 0
+    state: enabled
+- name: blocks_head_0
+  id: blocks_head
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: '1024'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2864, 344.0]
     rotation: 0
     state: enabled
 - name: blocks_multiply_xx_0
@@ -360,7 +378,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    repeat: 'False'
+    repeat: 'True'
     tags: '[]'
     type: byte
     vector: (0, 0, 0)
@@ -433,12 +451,13 @@ blocks:
 connections:
 - [analog_sig_source_x_0, '0', blocks_multiply_xx_0, '1']
 - [blocks_complex_to_real_0, '0', blocks_throttle2_0, '0']
+- [blocks_head_0, '0', audio_sink_0, '0']
 - [blocks_multiply_xx_0, '0', blocks_complex_to_real_0, '0']
 - [blocks_repack_bits_bb_1_0, '0', digital_constellation_modulator_0, '0']
 - [blocks_stream_to_tagged_stream_0, '0', blocks_tagged_stream_mux_0, '1']
 - [blocks_stream_to_tagged_stream_0, '0', digital_protocol_formatter_bb_0, '0']
 - [blocks_tagged_stream_mux_0, '0', blocks_unpack_k_bits_bb_0, '0']
-- [blocks_throttle2_0, '0', audio_sink_0, '0']
+- [blocks_throttle2_0, '0', blocks_head_0, '0']
 - [blocks_unpack_k_bits_bb_0, '0', fec_extended_encoder_0, '0']
 - [blocks_vector_source_x_0, '0', blocks_stream_to_tagged_stream_0, '0']
 - [digital_constellation_modulator_0, '0', blocks_multiply_xx_0, '0']
