@@ -4,6 +4,7 @@ some configuration class to keep things tidy
 
 from dataclasses import dataclass
 
+from gnuradio import digital
 
 @dataclass
 class PacketConfig:
@@ -45,3 +46,12 @@ class SignalConfig:
 
 
 DEFAULT_SIGNAL_CONFIG = SignalConfig(samp_rate=48000, carrier_freq=2500, baudrate=500)
+
+BSK_CONST = digital.psk_constellation(2, digital.mod_codes.NO_CODE, True)
+QPSK_CONST = digital.psk_constellation(4, digital.mod_codes.NO_CODE, True)
+EIGHT_PSK_CONST = digital.psk_constellation(8, digital.mod_codes.NO_CODE, True)
+
+
+
+if __name__ == "__main__":
+    pass

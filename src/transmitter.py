@@ -63,7 +63,7 @@ class Transmitter(gr.top_block):
         )
         self.digital_constellation_modulator_0 = digital.generic_mod(
             constellation=self.const_definition,
-            differential=True,
+            differential=False,
             samples_per_symbol=self.sig.sps,
             pre_diff_code=True,
             excess_bw=0.35,
