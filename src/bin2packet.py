@@ -48,17 +48,16 @@ def split_payload_into_packet(
         # yield data chunck
         yield data_chunck
 
-    else:
-        # last packet with filler
-        data = mv[pointer:]
-        filler = token_bytes(pkt.data_chunck_len - len(data))
-        data_len_flag = len(data).to_bytes()
+    # last packet with filler
+    data = mv[pointer:]
+    filler = token_bytes(pkt.data_chunck_len - len(data))
+    data_len_flag = len(data).to_bytes()
 
-        # assemble packet
-        data_chunck = data_len_flag + data + filler
+    # assemble packet
+    data_chunck = data_len_flag + data + filler
 
-        # yield data chunck
-        yield data_chunck
+    # yield data chunck
+    yield data_chunck
 
 
 def generate_dummy_packet(pkt: config.PacketConfig) -> bytes:
