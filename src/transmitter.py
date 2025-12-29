@@ -27,7 +27,7 @@ class Transmitter(gr.top_block):
         input_data: Any,
         pkt: PacketConfig,
         sig: SignalConfig,
-        constellation=DEFAULT_DQPSK_CONST
+        constellation
     ):
         """main transmitter class (heavily based on GRC companion output)
 
@@ -135,70 +135,6 @@ class Transmitter(gr.top_block):
         print(f"{audio_samples_to_transmit} bits in {time_to_transmit} s.")
         return audio_samples_to_transmit
 
-    def get_samp_rate(self):
-        return self.sig.samp_rate
-
-    def set_samp_rate(self, samp_rate):
-        self.sig.samp_rate = samp_rate
-        self.set_sps(int(self.sig.samp_rate / self.sig.baudrate))
-        self.analog_sig_source_x.set_sampling_freq(self.sig.samp_rate)
-        self.blocks_throttle.set_sample_rate(self.sig.samp_rate)
-
-    def get_baudrate(self):
-        return self.sig.baudrate
-
-    def set_baudrate(self, baudrate):
-        self.sig.baudrate = baudrate
-        self.set_sps(int(self.sig.samp_rate / self.sig.baudrate))
-
-    def get_access_key(self):
-        return self.access_key
-
-    def set_access_key(self, access_key):
-        self.access_key = access_key
-        self.set_hdr_format(digital.header_format_default(self.access_key, 0))
-
-    def get_sps(self):
-        return self.sig.sps
-
-    def set_sps(self, sps):
-        self.sig.sps = sps
-
-    def get_packet_size(self):
-        return self.pkt.total_packets_len
-
-    def set_packet_size(self, packet_size):
-        self.pkt.total_packets_len = packet_size
-        self.blocks_stream_to_tagged_stream.set_packet_len(self.pkt.total_packets_len)
-        self.blocks_stream_to_tagged_stream.set_packet_len_pmt(
-            self.pkt.total_packets_len
-        )
-
-    def get_hdr_format(self):
-        return self.hdr_format
-
-    def set_hdr_format(self, hdr_format):
-        self.hdr_format = hdr_format
-        self.digital_protocol_formatter_bb.set_header_format(self.hdr_format)
-
-    def get_const_definition(self):
-        return self.const_definition
-
-    def set_const_definition(self, const_definition):
-        self.const_definition = const_definition
-
-    def get_cc_enc(self):
-        return self.cc_enc
-
-    def set_cc_enc(self, cc_enc):
-        self.cc_enc = cc_enc
-
-    def get_carrier_freq(self):
-        return self.sig.carrier_freq
-
-    def set_carrier_freq(self, carrier_freq):
-        self.sig.carrier_freq = carrier_freq
-        self.analog_sig_source_x.set_frequency(self.sig.carrier_freq)
 
 
 def transmit(
