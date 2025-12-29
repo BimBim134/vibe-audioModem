@@ -9,5 +9,6 @@ dependencies:
   - matplotlib
   - reedsolo
   - pip
+  - sounddevice
   - pip:
       - sip

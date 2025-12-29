@@ -43,7 +43,7 @@ class Receiver(gr.top_block):
             integration_period=10000,
         )
         self.digital_correlate_access_code_xx_ts = digital.correlate_access_code_bb_ts(
-            access_key, 3, "packet_len"
+            self.access_key, 3, "packet_len"
         )
         self.digital_constellation_receiver_cb = digital.constellation_receiver_cb(
             self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
@@ -59,7 +59,7 @@ class Receiver(gr.top_block):
         self.blocks_multiply_const_xx_1 = blocks.multiply_const_ff(2, 1)
         self.blocks_float_to_complex = blocks.float_to_complex(1)
         self.blocks_add_const_vxx = blocks.add_const_ff((-1))
-        self.audio_source = audio.source(self.sig.samp_rate, "", True)
+        self.audio_source = audio.source(self.sig.samp_rate, "hw:4,0", True)
         self.analog_sig_source_x_1 = analog.sig_source_c(
             self.sig.samp_rate, analog.GR_SIN_WAVE, (-self.sig.carrier_freq), 1, 0, 0
         )
@@ -130,4 +130,4 @@ def receive(
 
 
 if __name__ == "__main__":
-    main()
+    receive()
