@@ -41,6 +41,7 @@ DEFAULT_PACKET_CONFIG = PacketConfig(
 
 @dataclass
 class SignalConfig:
+    """signal configuration"""
     samp_rate: int
 
     carrier_freq: float
@@ -48,6 +49,11 @@ class SignalConfig:
 
     @property
     def sps(self) -> int:
+        """sample per symbol
+
+        Returns:
+            int: number of sample per symbol
+        """
         return int(self.samp_rate / self.baudrate)
 
 
