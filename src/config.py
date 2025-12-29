@@ -6,6 +6,9 @@ from dataclasses import dataclass
 
 from gnuradio import digital
 
+# PACKET CONFIG
+
+
 @dataclass
 class PacketConfig:
     """packet configuration"""
@@ -33,6 +36,9 @@ DEFAULT_PACKET_CONFIG = PacketConfig(
 )
 
 
+# SIGNAL CONFIG
+
+
 @dataclass
 class SignalConfig:
     samp_rate: int
@@ -47,10 +53,25 @@ class SignalConfig:
 
 DEFAULT_SIGNAL_CONFIG = SignalConfig(samp_rate=48000, carrier_freq=2500, baudrate=500)
 
-BSK_CONST = digital.psk_constellation(2, digital.mod_codes.NO_CODE, True)
-QPSK_CONST = digital.psk_constellation(4, digital.mod_codes.NO_CODE, True)
-EIGHT_PSK_CONST = digital.psk_constellation(8, digital.mod_codes.NO_CODE, True)
 
+# CONSTELLATION CONFIG
+
+DEFAULT_BSK_CONST = digital.bpsk_constellation()
+
+DEFAULT_DQPSK_CONST = digital.psk_constellation(
+    m=4, mod_code=digital.mod_codes.GRAY_CODE, differential=True
+)
+
+DEFAULT_8PSK_CONST = digital.psk_constellation(
+    m=8, mod_code=digital.mod_codes.GRAY_CODE, differential=True
+)
+
+DEFAULT_QAM_CONST = digital.qam_constellation(
+    constellation_points=16,
+    differential=True,
+    mod_code=digital.mod_codes.GRAY_CODE,
+    large_ampls_to_corners=False,
+)
 
 
 if __name__ == "__main__":

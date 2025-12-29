@@ -18,7 +18,7 @@ from gnuradio import analog, blocks, digital, fec, gr, audio
 
 from bin2packet import prepare_data
 from config import PacketConfig, SignalConfig
-from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG
+from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
 
 
 class Transmitter(gr.top_block):
@@ -27,6 +27,7 @@ class Transmitter(gr.top_block):
         input_data: Any,
         pkt: PacketConfig,
         sig: SignalConfig,
+        constellation=DEFAULT_DQPSK_CONST
     ):
         """main transmitter class (heavily based on GRC companion output)
 
@@ -41,9 +42,7 @@ class Transmitter(gr.top_block):
         # Variables
         ## signal related variables
         self.sig = sig
-        self.const_definition = digital.constellation_qpsk().base()
-        self.const_definition.set_npwr(0)
-        self.const_definition.gen_soft_dec_lut(8)
+        self.const_definition = constellation
 
         ## digital communication variables
         self.pkt = pkt
@@ -55,15 +54,15 @@ class Transmitter(gr.top_block):
         )
 
         # Blocks
-        self.fec_extended_encoder_0 = fec.extended_encoder(
+        self.fec_extended_encoder = fec.extended_encoder(
             encoder_obj_list=self.cc_enc, threading=None, puncpat="11"
         )
-        self.digital_protocol_formatter_bb_0 = digital.protocol_formatter_bb(
+        self.digital_protocol_formatter_bb = digital.protocol_formatter_bb(
             self.hdr_format, "packet_len"
         )
-        self.digital_constellation_modulator_0 = digital.generic_mod(
+        self.digital_constellation_modulator = digital.generic_mod(
             constellation=self.const_definition,
-            differential=False,
+            differential=True,
             samples_per_symbol=self.sig.sps,
             pre_diff_code=True,
             excess_bw=0.35,
@@ -71,11 +70,11 @@ class Transmitter(gr.top_block):
             log=False,
             truncate=True,
         )
-        self.blocks_vector_source_x_0 = blocks.vector_source_b(
+        self.blocks_vector_source_x = blocks.vector_source_b(
             self.input_file, True, 1, []
         )
-        self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
-        self.blocks_throttle2_0 = blocks.throttle(
+        self.blocks_unpack_k_bits_bb = blocks.unpack_k_bits_bb(8)
+        self.blocks_throttle = blocks.throttle(
             gr.sizeof_float * 1,
             self.sig.samp_rate,
             True,
@@ -92,38 +91,38 @@ class Transmitter(gr.top_block):
                 )
             ),
         )
-        self.blocks_tagged_stream_mux_0 = blocks.tagged_stream_mux(
+        self.blocks_tagged_stream_mux = blocks.tagged_stream_mux(
             gr.sizeof_char * 1, "packet_len", 0
         )
-        self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(
+        self.blocks_stream_to_tagged_stream = blocks.stream_to_tagged_stream(
             gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len"
         )
-        self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(
+        self.blocks_repack_bits_bb_1 = blocks.repack_bits_bb(
             1, 8, "", False, gr.GR_MSB_FIRST
         )
-        self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
-        self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
-        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
-        self.audio_sink_0 = audio.sink(self.sig.samp_rate, "", True)
-        self.analog_sig_source_x_0 = analog.sig_source_c(
+        self.blocks_multiply_xx = blocks.multiply_vcc(1)
+        self.blocks_complex_to_real = blocks.complex_to_real(1)
+        self.blocks_head = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
+        self.audio_sink = audio.sink(self.sig.samp_rate, "", True)
+        self.analog_sig_source_x = analog.sig_source_c(
             self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.5, 0, 0
         )
 
         # Connections
-        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
-        self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_throttle2_0, 0))
-        self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
-        self.connect((self.blocks_multiply_xx_0, 0), (self.blocks_complex_to_real_0, 0))
-        self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
-        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.blocks_tagged_stream_mux_0, 1))
-        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.digital_protocol_formatter_bb_0, 0))
-        self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
-        self.connect((self.blocks_throttle2_0, 0), (self.blocks_head_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
-        self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
-        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_multiply_xx_0, 0))
-        self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
-        self.connect((self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0))
+        self.connect((self.analog_sig_source_x, 0), (self.blocks_multiply_xx, 1))
+        self.connect((self.blocks_complex_to_real, 0), (self.blocks_throttle, 0))
+        self.connect((self.blocks_head, 0), (self.audio_sink, 0))
+        self.connect((self.blocks_multiply_xx, 0), (self.blocks_complex_to_real, 0))
+        self.connect((self.blocks_repack_bits_bb_1, 0), (self.digital_constellation_modulator, 0))
+        self.connect((self.blocks_stream_to_tagged_stream, 0), (self.blocks_tagged_stream_mux, 1))
+        self.connect((self.blocks_stream_to_tagged_stream, 0), (self.digital_protocol_formatter_bb, 0))
+        self.connect((self.blocks_tagged_stream_mux, 0), (self.blocks_unpack_k_bits_bb, 0))
+        self.connect((self.blocks_throttle, 0), (self.blocks_head, 0))
+        self.connect((self.blocks_unpack_k_bits_bb, 0), (self.fec_extended_encoder, 0))
+        self.connect((self.blocks_vector_source_x, 0), (self.blocks_stream_to_tagged_stream, 0))
+        self.connect((self.digital_constellation_modulator, 0), (self.blocks_multiply_xx, 0))
+        self.connect((self.digital_protocol_formatter_bb, 0), (self.blocks_tagged_stream_mux, 0))
+        self.connect((self.fec_extended_encoder, 0), (self.blocks_repack_bits_bb_1, 0))
 
     def get_nb_of_audio_samples(self) -> int:
         nb_packet = int(len(self.input_file) / self.pkt.total_packets_len)
@@ -142,8 +141,8 @@ class Transmitter(gr.top_block):
     def set_samp_rate(self, samp_rate):
         self.sig.samp_rate = samp_rate
         self.set_sps(int(self.sig.samp_rate / self.sig.baudrate))
-        self.analog_sig_source_x_0.set_sampling_freq(self.sig.samp_rate)
-        self.blocks_throttle2_0.set_sample_rate(self.sig.samp_rate)
+        self.analog_sig_source_x.set_sampling_freq(self.sig.samp_rate)
+        self.blocks_throttle.set_sample_rate(self.sig.samp_rate)
 
     def get_baudrate(self):
         return self.sig.baudrate
@@ -170,8 +169,8 @@ class Transmitter(gr.top_block):
 
     def set_packet_size(self, packet_size):
         self.pkt.total_packets_len = packet_size
-        self.blocks_stream_to_tagged_stream_0.set_packet_len(self.pkt.total_packets_len)
-        self.blocks_stream_to_tagged_stream_0.set_packet_len_pmt(
+        self.blocks_stream_to_tagged_stream.set_packet_len(self.pkt.total_packets_len)
+        self.blocks_stream_to_tagged_stream.set_packet_len_pmt(
             self.pkt.total_packets_len
         )
 
@@ -180,7 +179,7 @@ class Transmitter(gr.top_block):
 
     def set_hdr_format(self, hdr_format):
         self.hdr_format = hdr_format
-        self.digital_protocol_formatter_bb_0.set_header_format(self.hdr_format)
+        self.digital_protocol_formatter_bb.set_header_format(self.hdr_format)
 
     def get_const_definition(self):
         return self.const_definition
@@ -199,13 +198,14 @@ class Transmitter(gr.top_block):
 
     def set_carrier_freq(self, carrier_freq):
         self.sig.carrier_freq = carrier_freq
-        self.analog_sig_source_x_0.set_frequency(self.sig.carrier_freq)
+        self.analog_sig_source_x.set_frequency(self.sig.carrier_freq)
 
 
 def transmit(
     input_file: Any,
     pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
     signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+    constellation = DEFAULT_DQPSK_CONST
 ) -> None:
     """transmit a file over sound !
 
@@ -214,7 +214,7 @@ def transmit(
         pkt_conf (PacketConfig, optional): packet description. Defaults to DEFAULT_PACKET_CONFIG.
         signal_conf (SignalConfig, optional): signal description. Defaults to DEFAULT_SIGNAL_CONFIG.
     """
-    tb = Transmitter(input_data=input_file, pkt=pkt_conf, sig=signal_conf)
+    tb = Transmitter(input_data=input_file, pkt=pkt_conf, sig=signal_conf, constellation=constellation)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
