@@ -29,7 +29,7 @@ class PacketConfig:
 
 
 DEFAULT_PACKET_CONFIG = PacketConfig(
-    total_packets_len=128,
+    total_packets_len=255,
     preamble_packets=3,
     postamble_packets=0,
     error_correction_len=12,
