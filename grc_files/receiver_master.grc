@@ -42,7 +42,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3752, 248.0]
+    coordinate: [2112, 264.0]
     rotation: 0
     state: enabled
 - name: baudrate
@@ -89,7 +89,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3440, 108.0]
+    coordinate: [1880, 128.0]
     rotation: 0
     state: enabled
 - name: const_definition
@@ -109,43 +109,19 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1208, 84.0]
+    coordinate: [872, 16.0]
     rotation: 0
     state: enabled
-- name: loop_bandwidth
+- name: freq_deviation
   id: variable
   parameters:
     comment: ''
-    value: -0.111344*np.log(baudrate) + 1.045302
+    value: 100/samp_rate
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1800, 416.0]
-    rotation: 0
-    state: disabled
-- name: loop_bandwidth
-  id: variable
-  parameters:
-    comment: ''
-    value: 2*np.pi*0.04
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1208, 280.0]
-    rotation: 0
-    state: enabled
-- name: nfilts
-  id: variable
-  parameters:
-    comment: ''
-    value: '64'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1320, 280.0]
+    coordinate: [624, 88.0]
     rotation: 0
     state: enabled
 - name: output_file_path
@@ -158,35 +134,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [4368, 216.0]
-    rotation: 0
-    state: enabled
-- name: packet_size
-  id: variable
-  parameters:
-    comment: ''
-    value: '64'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [4272, 216.0]
-    rotation: 0
-    state: enabled
-- name: rrc_taps
-  id: variable_rrc_filter_taps
-  parameters:
-    alpha: '0.35'
-    comment: ''
-    gain: '1'
-    ntaps: 51*sps
-    samp_rate: samp_rate
-    sym_rate: baudrate
-    value: ''
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [904, 264.0]
     rotation: 0
     state: enabled
 - name: samp_rate
@@ -307,7 +254,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3280, 344.0]
+    coordinate: [1712, 360.0]
     rotation: 0
     state: enabled
 - name: blocks_float_to_complex_0
@@ -341,7 +288,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3080, 344.0]
+    coordinate: [1520, 360.0]
     rotation: 0
     state: enabled
 - name: blocks_multiply_xx_1
@@ -379,7 +326,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [4064, 336.0]
+    coordinate: [2360, 352.0]
     rotation: 0
     state: enabled
 - name: blocks_uchar_to_float_0_0_0
@@ -394,7 +341,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2896, 352.0]
+    coordinate: [1352, 368.0]
     rotation: 0
     state: enabled
 - name: blocks_unpack_k_bits_bb_0_0
@@ -410,23 +357,27 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2728, 344.0]
+    coordinate: [1192, 360.0]
     rotation: 0
     state: enabled
-- name: digital_constellation_decoder_cb_0_0_0
-  id: digital_constellation_decoder_cb
+- name: digital_constellation_receiver_cb_0
+  id: digital_constellation_receiver_cb
   parameters:
     affinity: ''
     alias: ''
     comment: ''
     constellation: const_definition
+    fmax: freq_deviation
+    fmin: -freq_deviation
+    loop_bw: '0.06'
     maxoutbuf: '0'
     minoutbuf: '0'
+    showports: 'False'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2120, 344.0]
+    coordinate: [896, 368.0]
     rotation: 0
     state: enabled
 - name: digital_correlate_access_code_xx_ts_0
@@ -445,177 +396,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3744, 328.0]
-    rotation: 0
-    state: enabled
-- name: digital_costas_loop_cc_0_0
-  id: digital_costas_loop_cc
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    order: len(const_definition.points())
-    use_snr: 'True'
-    w: 2*np.pi/100
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1832, 352.0]
-    rotation: 0
-    state: enabled
-- name: digital_diff_decoder_bb_0_0
-  id: digital_diff_decoder_bb
-  parameters:
-    affinity: ''
-    alias: ''
-    coding: digital.DIFF_DIFFERENTIAL
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    modulus: len(const_definition.points())
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [2368, 336.0]
-    rotation: 0
-    state: enabled
-- name: digital_map_bb_1_0
-  id: digital_map_bb
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    map: const_definition.pre_diff_code()
-    maxoutbuf: '0'
-    minoutbuf: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [2568, 344.0]
-    rotation: 0
-    state: enabled
-- name: digital_symbol_sync_xx_0
-  id: digital_symbol_sync_xx
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    constellation: const_definition
-    damping: 1.0/np.sqrt(2.0)
-    loop_bw: loop_bandwidth
-    max_dev: '1.5'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    nfilters: nfilts
-    osps: '1'
-    pfb_mf_taps: rrc_taps
-    resamp_type: digital.IR_PFB_NO_MF
-    sps: sps
-    ted_gain: '1.4142'
-    ted_type: digital.TED_GARDNER
-    type: cc
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1208, 356.0]
-    rotation: 0
-    state: enabled
-- name: epy_block_1
-  id: epy_block
-  parameters:
-    _source_code: "\"\"\"\nEmbedded Python Blocks:\n\nEach time this file is saved,\
-      \ GRC will instantiate the first class it finds\nto get ports and parameters\
-      \ of your block. The arguments to __init__  will\nbe the parameters. All of\
-      \ them are required to have default values!\n\"\"\"\n\nimport warnings\nimport\
-      \ base64\n\nimport numpy as np\nfrom gnuradio import gr\nfrom reedsolo import\
-      \ RSCodec, ReedSolomonError\nimport pmt\n\ndef decode_single_packet(packet,\n\
-      \                         ecc,\n                         id_len,\n         \
-      \                data_len):\n    \"\"\"takes a single packet and decode it.\n\
-      \n    Args:\n        packet (bytes): input packet\n        ecc (RSCodec): Reed\
-      \ Solomon Encoder\n        id_len (int): id descriptor length\n        data_len\
-      \ (int): data length descriptor length\n\n    Returns:\n        id, data (int,\
-      \ bytes): packet id, packet data\n    \"\"\"\n    try:\n        decoded_packet\
-      \ = ecc.decode(packet)[0]\n        id = int.from_bytes(decoded_packet[:id_len],\
-      \ 'big') - 1\n        d_len = int.from_bytes(decoded_packet[id_len:id_len +\
-      \ data_len], 'big')\n        if id == -1: # filter out the preamble and postamble\n\
-      \            if b'eof' in decoded_packet:\n                return (-1, b'eof')\n\
-      \            else:\n                return (-1, decoded_packet[id_len + data_len:id_len\
-      \ + data_len + d_len])\n        else:\n            return (id, decoded_packet[id_len\
-      \ + data_len:id_len + data_len + d_len])\n    except ReedSolomonError as e:\n\
-      \        warnings.warn(\"packet is corrupted beyond repair !\")\n        print(e)\n\
-      \        return (-1, packet)\n\nclass blk(gr.basic_block):  # other base classes\
-      \ are basic_block, decim_block, interp_block\n    def __init__(self,\n     \
-      \            out_filename='',\n                 packet_size=64,\n          \
-      \       ecc_size=6,\n                 id_len=2,\n                 data_len=1,\n\
-      \                 verbose=False):\n        gr.basic_block.__init__(\n      \
-      \      self,\n            name='Packets to Binaries',\n            in_sig=[np.uint8],\n\
-      \            out_sig=None\n        )\n        self.out_filename = out_filename\n\
-      \        self.packet_size = packet_size\n        self.ecc = RSCodec(ecc_size)\n\
-      \        self.ecc.maxerrata(verbose=verbose)\n        self.id_len = id_len\n\
-      \        self.data_len = data_len\n\n        self.packets = {}\n\n        self.packet_count\
-      \ = 0\n        self.eof = False\n\n    \n    def save_file(self):\n        data\
-      \ = dict(sorted(self.packets.items()))\n\n        received_ids = set(data.keys())\n\
-      \        check_id = set(range(len(data)))\n        if received_ids != check_id:\n\
-      \            warnings.warn(\"data may be incomplete !\", BytesWarning)\n\n \
-      \       data = list(data.values())\n        output = b''.join(data)\n      \
-      \  output = base64.urlsafe_b64decode(output)\n        with open(self.out_filename,\
-      \ 'wb') as f:\n            f.write(output)\n\n    def general_work(self, input_items,\
-      \ output_items):\n        if not self.eof:\n            in0 = input_items[0]\n\
-      \            tags = self.get_tags_in_window(0, 0, len(in0))\n\n            packet_start\
-      \ = 0\n            for tag in tags:\n                if tag.key == pmt.string_to_symbol(\"\
-      packet_len\"):\n                    packet_len = pmt.to_long(tag.value)\n  \
-      \                  packet_end = packet_start + packet_len\n\n              \
-      \      if packet_end <= len(in0):\n                        raw_packet = in0[packet_start:packet_end]\n\
-      \n                        id, packet_data = decode_single_packet(raw_packet,\n\
-      \                                                            self.ecc,\n   \
-      \                                                         self.id_len,\n   \
-      \                                                         self.data_len)\n \
-      \                       if len(packet_data) > 0:\n                         \
-      \   packet_start = packet_end\n                            self.consume(0, packet_start)\n\
-      \                            if not id == -1:\n                            \
-      \    # saving data\n                                gr.log_debug.info(f\"receiving\
-      \ packet {id:0>6d} : {len(packet_data)}\")\n                               \
-      \ self.packets[id] = packet_data\n                                return 0\n\
-      \                            else:\n                                # checking\
-      \ if it is EOF\n                                gr.log_debug.info(f\"receiving\
-      \ packet pre/postamble : {len(packet_data)}\")\n                           \
-      \     if b'eof' in packet_data:\n                                    gr.log_debug.info(\"\
-      receving EOF\")\n                                    self.eof = True\n     \
-      \                               self.save_file()\n                         \
-      \           gr.log_debug.info(f'saving file to {self.out_filename}')\n     \
-      \                           return 0\n                        else:\n      \
-      \                      gr.log_debug.info(\"no data in packet\")\n          \
-      \                  return 0\n\n                    else:\n                 \
-      \       gr.log_debug.info(\"packet not complete, waiting for more data\")\n\
-      \                        return 0              \n                else:\n   \
-      \                 gr.log_debug.info(f'unknown tag {tag.key}')\n            \
-      \        return 0\n        return -1 # Return -1 to indicate end of file\n\n\
-      if __name__ == \"__main__\":\n    test = blk()"
-    affinity: ''
-    alias: ''
-    comment: ''
-    data_len: '1'
-    ecc_size: '10'
-    id_len: '2'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    out_filename: output_file_path
-    packet_size: packet_size
-    verbose: 'False'
-  states:
-    _io_cache: ('Packets to Binaries', 'blk', [('out_filename', "''"), ('packet_size',
-      '64'), ('ecc_size', '6'), ('id_len', '2'), ('data_len', '1'), ('verbose', 'False')],
-      [('0', 'byte', 1)], [], '', ['data_len', 'id_len', 'out_filename', 'packet_size'])
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [4272, 304.0]
+    coordinate: [2104, 344.0]
     rotation: 0
     state: enabled
 - name: fec_extended_decoder_0
@@ -635,27 +416,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3440, 320.0]
-    rotation: 0
-    state: enabled
-- name: fft_filter_xxx_0
-  id: fft_filter_xxx
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    decim: '1'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    nthreads: '1'
-    samp_delay: '0'
-    taps: rrc_taps
-    type: ccf
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [920, 408.0]
+    coordinate: [1880, 336.0]
     rotation: 0
     state: enabled
 - name: import_0
@@ -671,6 +432,39 @@ blocks:
     coordinate: [288, 16.0]
     rotation: 0
     state: enabled
+- name: pdu_tagged_stream_to_pdu_0
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2552, 360.0]
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_0
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: ''
+    affinity: ''
+    alias: ''
+    bind: 'True'
+    comment: ''
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2808, 352.0]
+    rotation: 0
+    state: enabled
 
 connections:
 - [analog_agc_xx_0, '0', blocks_multiply_xx_1, '0']
@@ -680,19 +474,15 @@ connections:
 - [blocks_add_const_vxx_0_0_0, '0', fec_extended_decoder_0, '0']
 - [blocks_float_to_complex_0, '0', analog_agc_xx_0, '0']
 - [blocks_multiply_const_xx_1_0_0, '0', blocks_add_const_vxx_0_0_0, '0']
-- [blocks_multiply_xx_1, '0', fft_filter_xxx_0, '0']
-- [blocks_repack_bits_bb_0_0, '0', epy_block_1, '0']
+- [blocks_multiply_xx_1, '0', digital_constellation_receiver_cb_0, '0']
+- [blocks_repack_bits_bb_0_0, '0', pdu_tagged_stream_to_pdu_0, '0']
 - [blocks_uchar_to_float_0_0_0, '0', blocks_multiply_const_xx_1_0_0, '0']
 - [blocks_unpack_k_bits_bb_0_0, '0', blocks_uchar_to_float_0_0_0, '0']
-- [digital_constellation_decoder_cb_0_0_0, '0', digital_diff_decoder_bb_0_0, '0']
+- [digital_constellation_receiver_cb_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
 - [digital_correlate_access_code_xx_ts_0, '0', blocks_repack_bits_bb_0_0, '0']
-- [digital_costas_loop_cc_0_0, '0', digital_constellation_decoder_cb_0_0_0, '0']
-- [digital_diff_decoder_bb_0_0, '0', digital_map_bb_1_0, '0']
-- [digital_map_bb_1_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
-- [digital_symbol_sync_xx_0, '0', digital_costas_loop_cc_0_0, '0']
 - [fec_extended_decoder_0, '0', digital_correlate_access_code_xx_ts_0, '0']
-- [fft_filter_xxx_0, '0', digital_symbol_sync_xx_0, '0']
+- [pdu_tagged_stream_to_pdu_0, pdus, zeromq_pub_msg_sink_0, in]
 
 metadata:
   file_format: 1
-  grc_version: 3.10.10.0
+  grc_version: 3.10.12.0
