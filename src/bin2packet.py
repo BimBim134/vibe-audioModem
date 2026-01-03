@@ -57,17 +57,21 @@ def split_payload_into_packet(
     yield data_chunck
 
 
-def generate_dummy_packet(pkt: config.PacketConfig) -> bytes:
+def generate_dummy_packet(pkt: config.PacketConfig, mode:str="preamble") -> bytes:
     """generate a dummy packet. the data_len flag is set to 0.
 
     Args:
         pkt (config.PacketConfig): packet description
+        mode (str): 
 
     Returns:
         bytes: dummy packet
     """
     data = token_bytes(pkt.data_chunck_len)
-    data_len_flag = (0).to_bytes()
+    if mode == "preamble":
+        data_len_flag = (0).to_bytes()
+    else:
+        data_len_flag = (255).to_bytes()
     return data_len_flag + data
 
 
@@ -95,7 +99,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
         rsc.encode(generate_dummy_packet(pkt)) for _ in range(pkt.preamble_packets)
     ]
     postamble = [
-        rsc.encode(generate_dummy_packet(pkt)) for _ in range(pkt.postamble_packets)
+        rsc.encode(generate_dummy_packet(pkt, "postamble")) for _ in range(pkt.postamble_packets)
     ]
 
     # chain everything together
