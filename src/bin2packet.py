@@ -159,6 +159,19 @@ def _(input_data: bytes, pkt: config.PacketConfig) -> np.ndarray:
     return payload_to_encoded_packet(input_data, pkt)
 
 
+def export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) -> None:
+    """export file to packetized file
+
+    Args:
+        input_data (Any): input data
+        pkt (config.PacketConfig): packet configuration
+        filepath (Path): output file path
+    """
+    data = prepare_data(input_data, pkt)
+    with filepath.open("wb") as f:
+        f.write(data)
+
+
 if __name__ == "__main__":
     conf = config.DEFAULT_PACKET_CONFIG
     test_payload = (
