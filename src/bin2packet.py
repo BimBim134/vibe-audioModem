@@ -1,7 +1,3 @@
-"""
-Embedded Python Block: bytes to packets block
-"""
-
 from functools import singledispatch
 from itertools import chain
 from pathlib import Path
