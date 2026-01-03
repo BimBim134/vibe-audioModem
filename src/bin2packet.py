@@ -171,13 +171,13 @@ def export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) -> 
 
 if __name__ == "__main__":
     conf = config.DEFAULT_PACKET_CONFIG
-    test_payload = (
+    TEST_PAYLOAD = (
         b"hello world ! this is a message transmitted using vibe-audio-modem :)"
     )
-    packets = prepare_data(test_payload, conf)
+    packets = prepare_data(TEST_PAYLOAD, conf)
     assert len(packets) % conf.total_packets_len == 0
 
-    print(f"payload (length:{len(packets)}):\n", test_payload)
+    print(f"payload (length:{len(packets)}):\n", TEST_PAYLOAD)
     print("packets")
     for p in range(int(len(packets) / conf.total_packets_len)):
         idx = slice(p * conf.total_packets_len, (p + 1) * conf.total_packets_len)
@@ -186,4 +186,5 @@ if __name__ == "__main__":
             f"(lenght:{len(packets[idx])})\n",
             b"".join([b.tobytes() for b in packets[idx]]),
         )
-    pass
+    
+    export_to_bin(TEST_PAYLOAD, conf, Path("research/test_payload_packetized.bin"))
