@@ -5,6 +5,7 @@ some configuration class to keep things tidy
 from dataclasses import dataclass
 
 from gnuradio import digital
+from reedsolo import RSCodec
 
 # PACKET CONFIG
 
@@ -26,6 +27,11 @@ class PacketConfig:
             int: len of usefull data in each packet
         """
         return self.total_packets_len - self.error_correction_len - 1
+    
+    @property
+    def rsc_codec(self)->RSCodec:
+        """reed solomon codec"""
+        return RSCodec(self.error_correction_len)
 
 
 DEFAULT_PACKET_CONFIG = PacketConfig(

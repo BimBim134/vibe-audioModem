@@ -6,7 +6,6 @@ from secrets import token_bytes
 
 import numpy as np
 import pmt
-from reedsolo import RSCodec
 
 import config
 
@@ -82,7 +81,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
         tuple: _description_
     """
     # initialize encoder
-    rsc = RSCodec(pkt.error_correction_len)
+    rsc = pkt.rsc_codec
 
     # encode packet
     packets = [
