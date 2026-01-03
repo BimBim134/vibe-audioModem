@@ -68,22 +68,9 @@ DEFAULT_SIGNAL_CONFIG = SignalConfig(samp_rate=48000, carrier_freq=2500, baudrat
 
 # CONSTELLATION CONFIG
 
-DEFAULT_BSK_CONST = digital.bpsk_constellation()
+DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
 
-DEFAULT_DQPSK_CONST = digital.psk_constellation(
-    m=4, mod_code=digital.mod_codes.GRAY_CODE, differential=True
-)
-
-DEFAULT_8PSK_CONST = digital.psk_constellation(
-    m=8, mod_code=digital.mod_codes.GRAY_CODE, differential=True
-)
-
-DEFAULT_QAM_CONST = digital.qam_constellation(
-    constellation_points=16,
-    differential=True,
-    mod_code=digital.mod_codes.GRAY_CODE,
-    large_ampls_to_corners=False,
-)
+DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
 
 
 if __name__ == "__main__":
