@@ -9,7 +9,7 @@ options:
     description: ''
     gen_cmake: 'On'
     gen_linking: dynamic
-    generate_options: no_gui
+    generate_options: qt_gui
     hier_block_src_path: '.:'
     id: receiver_master
     max_nouts: '0'
@@ -42,14 +42,14 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2112, 264.0]
+    coordinate: [3120, 224.0]
     rotation: 0
     state: enabled
 - name: baudrate
   id: variable
   parameters:
     comment: ''
-    value: '250'
+    value: '500'
   states:
     bus_sink: false
     bus_source: false
@@ -89,7 +89,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1880, 128.0]
+    coordinate: [2888, 88.0]
     rotation: 0
     state: enabled
 - name: const_definition
@@ -104,12 +104,36 @@ blocks:
     rot_sym: '4'
     soft_dec_lut: '''auto'''
     sym_map: '[0, 1, 3, 2]'
-    type: calcdist
+    type: dqpsk
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [872, 16.0]
+    rotation: 0
+    state: disabled
+- name: const_definition
+  id: variable
+  parameters:
+    comment: ''
+    value: digital.psk_constellation(m=4, mod_code=digital.mod_codes.GRAY_CODE, differential=True)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1024, 16.0]
+    rotation: 0
+    state: enabled
+- name: decimation
+  id: variable
+  parameters:
+    comment: ''
+    value: int(sps/4)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [640, 304.0]
     rotation: 0
     state: enabled
 - name: freq_deviation
@@ -124,23 +148,11 @@ blocks:
     coordinate: [624, 88.0]
     rotation: 0
     state: enabled
-- name: output_file_path
-  id: variable
-  parameters:
-    comment: ''
-    value: '""'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [4368, 216.0]
-    rotation: 0
-    state: enabled
 - name: samp_rate
   id: variable
   parameters:
     comment: ''
-    value: '44100'
+    value: '48000'
   states:
     bus_sink: false
     bus_source: false
@@ -160,6 +172,23 @@ blocks:
     coordinate: [704, 16.0]
     rotation: 0
     state: enabled
+- name: variable_adaptive_algorithm_0
+  id: variable_adaptive_algorithm
+  parameters:
+    comment: ''
+    cons: const_definition
+    delta: '10.0'
+    ffactor: '0.99'
+    modulus: '2'
+    step_size: '.01'
+    type: lms
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1520, 456.0]
+    rotation: 0
+    state: enabled
 - name: analog_agc_xx_0
   id: analog_agc_xx
   parameters:
@@ -171,54 +200,14 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     rate: 1e-4
-    reference: 2*np.sqrt(2)
+    reference: np.sqrt(2)
     type: complex
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [400, 384.0]
+    coordinate: [864, 376.0]
     rotation: 0
-    state: enabled
-- name: analog_const_source_x_0
-  id: analog_const_source_x
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    const: '0'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    type: float
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [232, 480.0]
-    rotation: 180
-    state: enabled
-- name: analog_sig_source_x_1
-  id: analog_sig_source_x
-  parameters:
-    affinity: ''
-    alias: ''
-    amp: '1'
-    comment: ''
-    freq: -carrier_freq
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    offset: '0'
-    phase: '0'
-    samp_rate: samp_rate
-    showports: 'False'
-    type: complex
-    waveform: analog.GR_SIN_WAVE
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [616, 504.0]
-    rotation: 180
     state: enabled
 - name: audio_source_0
   id: audio_source
@@ -236,9 +225,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [32, 384.0]
+    coordinate: [32, 456.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: blocks_add_const_vxx_0_0_0
   id: blocks_add_const_vxx
   parameters:
@@ -254,23 +243,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1712, 360.0]
-    rotation: 0
-    state: enabled
-- name: blocks_float_to_complex_0
-  id: blocks_float_to_complex
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [232, 400.0]
+    coordinate: [2720, 320.0]
     rotation: 0
     state: enabled
 - name: blocks_multiply_const_xx_1_0_0
@@ -288,27 +261,77 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1520, 360.0]
+    coordinate: [2528, 320.0]
     rotation: 0
     state: enabled
-- name: blocks_multiply_xx_1
-  id: blocks_multiply_xx
+- name: blocks_null_sink_0
+  id: blocks_null_sink
   parameters:
     affinity: ''
     alias: ''
+    bus_structure_sink: '[[0,],]'
     comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    num_inputs: '2'
-    type: complex
+    num_inputs: '1'
+    type: float
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [624, 416.0]
+    coordinate: [2224, 376.0]
     rotation: 0
     state: enabled
+- name: blocks_null_sink_0_0
+  id: blocks_null_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_sink: '[[0,],]'
+    comment: ''
+    num_inputs: '1'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2224, 416.0]
+    rotation: 0
+    state: enabled
+- name: blocks_null_sink_0_1
+  id: blocks_null_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_sink: '[[0,],]'
+    comment: ''
+    num_inputs: '1'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2224, 456.0]
+    rotation: 0
+    state: enabled
+- name: blocks_null_sink_0_2
+  id: blocks_null_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_sink: '[[0,],]'
+    comment: ''
+    num_inputs: '1'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2200, 280.0]
+    rotation: 0
+    state: disabled
 - name: blocks_repack_bits_bb_0_0
   id: blocks_repack_bits_bb
   parameters:
@@ -326,7 +349,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2360, 352.0]
+    coordinate: [3368, 312.0]
     rotation: 0
     state: enabled
 - name: blocks_uchar_to_float_0_0_0
@@ -341,7 +364,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1352, 368.0]
+    coordinate: [2360, 328.0]
     rotation: 0
     state: enabled
 - name: blocks_unpack_k_bits_bb_0_0
@@ -357,7 +380,25 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1192, 360.0]
+    coordinate: [2200, 320.0]
+    rotation: 0
+    state: enabled
+- name: blocks_wavfile_source_0
+  id: blocks_wavfile_source
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    file: /home/bimbim/Codes/vibe-audioModem/research/test_default_const_default_pkt_default_sig_default.wav
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nchan: '1'
+    repeat: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [32, 376.0]
     rotation: 0
     state: enabled
 - name: digital_constellation_receiver_cb_0
@@ -377,7 +418,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [896, 368.0]
+    coordinate: [1904, 328.0]
     rotation: 0
     state: enabled
 - name: digital_correlate_access_code_xx_ts_0
@@ -396,7 +437,55 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2104, 344.0]
+    coordinate: [3112, 304.0]
+    rotation: 0
+    state: enabled
+- name: digital_linear_equalizer_0
+  id: digital_linear_equalizer
+  parameters:
+    adapt_after_training: 'True'
+    affinity: ''
+    alg: variable_adaptive_algorithm_0
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_taps: '15'
+    sps: int(decimation/4)
+    training_sequence: '[ ]'
+    training_start_tag: corr_est
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1520, 328.0]
+    rotation: 0
+    state: enabled
+- name: digital_symbol_sync_xx_0
+  id: digital_symbol_sync_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: const_definition
+    damping: 1/np.sqrt(2)
+    loop_bw: '0.045'
+    max_dev: '1.5'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nfilters: '128'
+    osps: int(decimation/4)
+    pfb_mf_taps: '[]'
+    resamp_type: digital.IR_MMSE_8TAP
+    sps: sps/decimation
+    ted_gain: '1.0'
+    ted_type: digital.TED_GARDNER
+    type: cc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1040, 344.0]
     rotation: 0
     state: enabled
 - name: fec_extended_decoder_0
@@ -416,7 +505,46 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1880, 336.0]
+    coordinate: [2888, 296.0]
+    rotation: 0
+    state: enabled
+- name: freq_xlating_fir_filter_xxx_0
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: carrier_freq
+    comment: ''
+    decim: decimation
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    taps: firdes.complex_band_pass(1, samp_rate, -samp_rate/(2*decimation), samp_rate/(2*decimation),
+      10)
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [640, 376.0]
+    rotation: 0
+    state: enabled
+- name: hilbert_fc_0
+  id: hilbert_fc
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '6.76'
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_taps: '65'
+    win: window.WIN_HAMMING
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [448, 384.0]
     rotation: 0
     state: enabled
 - name: import_0
@@ -446,13 +574,370 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2552, 360.0]
+    coordinate: [3560, 320.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_const_sink_x_0_0
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'False'
+    gui_hint: ''
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '""'
+    nconnections: '1'
+    size: '128'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1344, 272.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_const_sink_x_0_2
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'False'
+    gui_hint: ''
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '""'
+    nconnections: '1'
+    size: '128'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1904, 504.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_const_sink_x_0_2_0
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'False'
+    gui_hint: ''
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '""'
+    nconnections: '1'
+    size: '128'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2208, 520.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: '0'
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [864, 504.0]
     rotation: 0
     state: enabled
 - name: zeromq_pub_msg_sink_0
   id: zeromq_pub_msg_sink
   parameters:
-    address: ''
+    address: '"tcp://*:5555"'
     affinity: ''
     alias: ''
     bind: 'True'
@@ -462,25 +947,33 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2808, 352.0]
+    coordinate: [3816, 312.0]
     rotation: 0
     state: enabled
 
 connections:
-- [analog_agc_xx_0, '0', blocks_multiply_xx_1, '0']
-- [analog_const_source_x_0, '0', blocks_float_to_complex_0, '1']
-- [analog_sig_source_x_1, '0', blocks_multiply_xx_1, '1']
-- [audio_source_0, '0', blocks_float_to_complex_0, '0']
+- [analog_agc_xx_0, '0', digital_symbol_sync_xx_0, '0']
 - [blocks_add_const_vxx_0_0_0, '0', fec_extended_decoder_0, '0']
-- [blocks_float_to_complex_0, '0', analog_agc_xx_0, '0']
 - [blocks_multiply_const_xx_1_0_0, '0', blocks_add_const_vxx_0_0_0, '0']
-- [blocks_multiply_xx_1, '0', digital_constellation_receiver_cb_0, '0']
 - [blocks_repack_bits_bb_0_0, '0', pdu_tagged_stream_to_pdu_0, '0']
 - [blocks_uchar_to_float_0_0_0, '0', blocks_multiply_const_xx_1_0_0, '0']
 - [blocks_unpack_k_bits_bb_0_0, '0', blocks_uchar_to_float_0_0_0, '0']
+- [blocks_wavfile_source_0, '0', hilbert_fc_0, '0']
+- [digital_constellation_receiver_cb_0, '0', blocks_null_sink_0_2, '0']
 - [digital_constellation_receiver_cb_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
+- [digital_constellation_receiver_cb_0, '1', blocks_null_sink_0, '0']
+- [digital_constellation_receiver_cb_0, '2', blocks_null_sink_0_0, '0']
+- [digital_constellation_receiver_cb_0, '3', blocks_null_sink_0_1, '0']
+- [digital_constellation_receiver_cb_0, '4', qtgui_const_sink_x_0_2_0, '0']
 - [digital_correlate_access_code_xx_ts_0, '0', blocks_repack_bits_bb_0_0, '0']
+- [digital_linear_equalizer_0, '0', digital_constellation_receiver_cb_0, '0']
+- [digital_linear_equalizer_0, '0', qtgui_const_sink_x_0_2, '0']
+- [digital_symbol_sync_xx_0, '0', digital_linear_equalizer_0, '0']
+- [digital_symbol_sync_xx_0, '0', qtgui_const_sink_x_0_0, '0']
 - [fec_extended_decoder_0, '0', digital_correlate_access_code_xx_ts_0, '0']
+- [freq_xlating_fir_filter_xxx_0, '0', analog_agc_xx_0, '0']
+- [freq_xlating_fir_filter_xxx_0, '0', qtgui_freq_sink_x_0, '0']
+- [hilbert_fc_0, '0', freq_xlating_fir_filter_xxx_0, '0']
 - [pdu_tagged_stream_to_pdu_0, pdus, zeromq_pub_msg_sink_0, in]
 
 metadata:
