@@ -14,7 +14,8 @@ import signal
 from typing import Any
 import threading
 
-from gnuradio import analog, blocks, digital, fec, gr, audio
+from gnuradio import blocks, digital, fec, gr, audio
+import numpy as np
 
 from bin2packet import prepare_data
 from config import PacketConfig, SignalConfig
@@ -54,13 +55,9 @@ class Transmitter(gr.top_block):
         )
 
         # Blocks
-        self.fec_extended_encoder = fec.extended_encoder(
-            encoder_obj_list=self.cc_enc, threading=None, puncpat="11"
-        )
-        self.digital_protocol_formatter_bb = digital.protocol_formatter_bb(
-            self.hdr_format, "packet_len"
-        )
-        self.digital_constellation_modulator = digital.generic_mod(
+        self.fec_extended_encoder_0 = fec.extended_encoder(encoder_obj_list=self.cc_enc, threading= None, puncpat='11')
+        self.digital_protocol_formatter_bb_0 = digital.protocol_formatter_bb(self.hdr_format, "packet_len")
+        self.digital_constellation_modulator_0 = digital.generic_mod(
             constellation=self.const_definition,
             differential=True,
             samples_per_symbol=self.sig.sps,
@@ -68,61 +65,33 @@ class Transmitter(gr.top_block):
             excess_bw=0.35,
             verbose=False,
             log=False,
-            truncate=True,
-        )
-        self.blocks_vector_source_x = blocks.vector_source_b(
-            self.input_file, True, 1, []
-        )
-        self.blocks_unpack_k_bits_bb = blocks.unpack_k_bits_bb(8)
-        self.blocks_throttle = blocks.throttle(
-            gr.sizeof_float * 1,
-            self.sig.samp_rate,
-            True,
-            (
-                0
-                if "auto" == "auto"
-                else max(
-                    (
-                        int(float(0.1) * self.sig.samp_rate)
-                        if "auto" == "time"
-                        else int(0.1)
-                    ),
-                    1,
-                )
-            ),
-        )
-        self.blocks_tagged_stream_mux = blocks.tagged_stream_mux(
-            gr.sizeof_char * 1, "packet_len", 0
-        )
-        self.blocks_stream_to_tagged_stream = blocks.stream_to_tagged_stream(
-            gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len"
-        )
-        self.blocks_repack_bits_bb_1 = blocks.repack_bits_bb(
-            1, 8, "", False, gr.GR_MSB_FIRST
-        )
-        self.blocks_multiply_xx = blocks.multiply_vcc(1)
-        self.blocks_complex_to_real = blocks.complex_to_real(1)
-        self.blocks_head = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
-        self.audio_sink = audio.sink(self.sig.samp_rate, "", True)
-        self.analog_sig_source_x = analog.sig_source_c(
-            self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.5, 0, 0
-        )
-
+            truncate=False)
+        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file, False, 1, [])
+        self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
+        self.blocks_tagged_stream_mux_0 = blocks.tagged_stream_mux(gr.sizeof_char*1, 'packet_len', 0)
+        self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len")
+        self.blocks_rotator_cc_0 = blocks.rotator_cc((2 * np.pi * (self.sig.carrier_freq / self.sig.samp_rate)), False)
+        self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(1, 8, "", False, gr.GR_MSB_FIRST)
+        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff((1/4))
+        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, 1024)
+        self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
+        self.audio_sink_0 = audio.sink(self.sig.samp_rate, '', True)
+        
         # Connections
-        self.connect((self.analog_sig_source_x, 0), (self.blocks_multiply_xx, 1))
-        self.connect((self.blocks_complex_to_real, 0), (self.blocks_throttle, 0))
-        self.connect((self.blocks_head, 0), (self.audio_sink, 0))
-        self.connect((self.blocks_multiply_xx, 0), (self.blocks_complex_to_real, 0))
-        self.connect((self.blocks_repack_bits_bb_1, 0), (self.digital_constellation_modulator, 0))
-        self.connect((self.blocks_stream_to_tagged_stream, 0), (self.blocks_tagged_stream_mux, 1))
-        self.connect((self.blocks_stream_to_tagged_stream, 0), (self.digital_protocol_formatter_bb, 0))
-        self.connect((self.blocks_tagged_stream_mux, 0), (self.blocks_unpack_k_bits_bb, 0))
-        self.connect((self.blocks_throttle, 0), (self.blocks_head, 0))
-        self.connect((self.blocks_unpack_k_bits_bb, 0), (self.fec_extended_encoder, 0))
-        self.connect((self.blocks_vector_source_x, 0), (self.blocks_stream_to_tagged_stream, 0))
-        self.connect((self.digital_constellation_modulator, 0), (self.blocks_multiply_xx, 0))
-        self.connect((self.digital_protocol_formatter_bb, 0), (self.blocks_tagged_stream_mux, 0))
-        self.connect((self.fec_extended_encoder, 0), (self.blocks_repack_bits_bb_1, 0))
+        self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_multiply_const_vxx_0, 0))
+        self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_head_0, 0))
+        self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
+        self.connect((self.blocks_rotator_cc_0, 0), (self.blocks_complex_to_real_0, 0))
+        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.blocks_tagged_stream_mux_0, 1))
+        self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.digital_protocol_formatter_bb_0, 0))
+        self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
+        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
+        self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
+        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_rotator_cc_0, 0))
+        self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
+        self.connect((self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0))
+
 
     def get_nb_of_audio_samples(self) -> int:
         nb_packet = int(len(self.input_file) / self.pkt.total_packets_len)
