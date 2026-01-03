@@ -2,20 +2,17 @@
 Embedded Python Block: bytes to packets block
 """
 
-from random import randbytes
-from pathlib import Path
-from typing import Iterator
-from math import ceil
-from itertools import chain
 from functools import singledispatch
+from itertools import chain
+from pathlib import Path
+from typing import Iterator, Any
 from secrets import token_bytes
 
+import numpy as np
 import pmt
 from reedsolo import RSCodec
-import numpy as np
 
 import config
-
 
 def split_payload_into_packet(
     payload: bytes, pkt: config.PacketConfig
@@ -184,5 +181,9 @@ if __name__ == "__main__":
     print("packets")
     for p in range(int(len(packets) / conf.total_packets_len)):
         idx = slice(p * conf.total_packets_len, (p + 1) * conf.total_packets_len)
-        print(p,f'(lenght:{len(packets[idx])})\n', b''.join([b.tobytes() for b in packets[idx]]))
+        print(
+            p,
+            f"(lenght:{len(packets[idx])})\n",
+            b"".join([b.tobytes() for b in packets[idx]]),
+        )
     pass
