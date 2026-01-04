@@ -1,9 +1,12 @@
 import sys
 import signal
 import threading
+from typing import Any
 
 import numpy as np
 from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
+from gnuradio.filter import firdes, hilbert_fc, freq_xlating_fir_filter_ccc
+from gnuradio.fft import window
 
 
 from config import PacketConfig, SignalConfig
@@ -12,7 +15,7 @@ from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_C
 
 class Receiver(gr.top_block):
 
-    def __init__(self, pkt: PacketConfig, sig: SignalConfig, constellation):
+    def __init__(self, pkt: PacketConfig, sig: SignalConfig, constellation:Any):
         gr.top_block.__init__(self, "receiver master", catch_exceptions=True)
         self.flowgraph_started = threading.Event()
 
@@ -21,103 +24,131 @@ class Receiver(gr.top_block):
         self.sig = sig
         self.const_definition = constellation
         self.freq_deviation = 100 / self.sig.samp_rate
+        self.decimation = int(self.sig.sps/8)
+        self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_lms(
+            self.const_definition, 0.001
+        ).base()
+        self.freq_deviation = 100/self.sig.samp_rate
 
         ## digital communication variables
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
-        self.cc_dec = cc_dec = fec.cc_decoder.make(
-            8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True
-        )
+        self.cc_dec = fec.cc_decoder.make(8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True)
 
         # Blocks
-        self.zeromq_pub_msg_sink = zeromq.pub_msg_sink("tcp://*:5555", 100, True)
-        self.pdu_tagged_stream_to_pdu = pdu.tagged_stream_to_pdu(
-            gr.types.byte_t, "packet_len"
+        self.audio_source_0 = audio.source(self.sig.samp_rate, '', True)
+
+        ## signal preprocessing
+        ### frequency shift
+        self.hilbert_fc_0 = hilbert_fc(65, window.WIN_HAMMING, 6.76) # float -> complex
+        self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_ccc(
+            self.decimation,
+            firdes.complex_band_pass(
+                1,
+                self.sig.samp_rate,
+                -self.sig.samp_rate / (2 * self.decimation),
+                self.sig.samp_rate / (2 * self.decimation),
+                10,
+            ),
+            self.sig.carrier_freq,
+            self.sig.samp_rate,
         )
-        self.fec_extended_decoder = fec.extended_decoder(
-            decoder_obj_list=cc_dec,
+        ### Automatic Gain Control
+        self.analog_agc_xx_0 = analog.agc_cc((1e-4), np.sqrt(2), 1.0, 10)
+        ### Coarse frequency correction
+        self.digital_fll_band_edge_cc_0 = digital.fll_band_edge_cc(
+            (self.sig.sps / self.decimation), 0.35, 44, (1e-3)
+        )
+
+        ## symbol synchronization
+        self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
+            digital.TED_GARDNER,
+            (self.sig.sps/self.decimation),
+            0.045,
+            (1/np.sqrt(2)),
+            1.0,
+            1.5,
+            3,
+            self.const_definition,
+            digital.IR_PFB_NO_MF,
+            128,
+            )
+        self.digital_linear_equalizer_0 = digital.linear_equalizer(
+            15, 3, self.variable_adaptive_algorithm_0, True, [], "corr_est"
+        )
+        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
+            self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
+        )
+
+        ## constellation decoding
+        self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
+            (2 ** self.const_definition.bits_per_symbol()), digital.DIFF_DIFFERENTIAL
+        )
+        self.digital_map_bb_0 = digital.map_bb(self.const_definition.pre_diff_code())
+
+        ## convolutionnal error correction
+        ### go from [0,1] to [-1, 1]
+        self.blocks_unpack_k_bits_bb_0_0 = blocks.unpack_k_bits_bb(self.const_definition.bits_per_symbol())
+        self.blocks_uchar_to_float_0_0_0 = blocks.uchar_to_float()
+        self.blocks_multiply_const_xx_1_0_0 = blocks.multiply_const_ff(2, 1)
+        self.blocks_add_const_vxx_0_0_0 = blocks.add_const_ff((-1))
+        ### actual decoding
+        self.fec_extended_decoder_0 = fec.extended_decoder(
+            decoder_obj_list=self.cc_dec,
             threading=None,
             ann=None,
             puncpat="11",
             integration_period=10000,
         )
-        self.digital_correlate_access_code_xx_ts = digital.correlate_access_code_bb_ts(
-            self.access_key, 3, "packet_len"
-        )
-        self.digital_constellation_receiver_cb = digital.constellation_receiver_cb(
-            self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
-        )
-        self.blocks_unpack_k_bits_bb = blocks.unpack_k_bits_bb(
-            int(np.log2(len(self.const_definition.points())))
-        )
-        self.blocks_uchar_to_float = blocks.uchar_to_float()
-        self.blocks_repack_bits_bb = blocks.repack_bits_bb(
-            1, 8, "packet_len", True, gr.GR_MSB_FIRST
-        )
-        self.blocks_multiply_xx_1 = blocks.multiply_vcc(1)
-        self.blocks_multiply_const_xx_1 = blocks.multiply_const_ff(2, 1)
-        self.blocks_float_to_complex = blocks.float_to_complex(1)
-        self.blocks_add_const_vxx = blocks.add_const_ff((-1))
-        self.audio_source = audio.source(self.sig.samp_rate, "hw:4,0", True)
-        self.analog_sig_source_x_1 = analog.sig_source_c(
-            self.sig.samp_rate, analog.GR_SIN_WAVE, (-self.sig.carrier_freq), 1, 0, 0
-        )
-        self.analog_const_source_x = analog.sig_source_f(
-            0, analog.GR_CONST_WAVE, 0, 0, 0
-        )
-        self.analog_agc_xx = analog.agc_cc((1e-4), (2 * np.sqrt(2)), 1.0, 10)
+
+        ## frame synchronization
+        self.digital_correlate_access_code_xx_ts_0 = digital.correlate_access_code_bb_ts('access_key', 3, 'packet_len')
+        self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(1, 8, "packet_len", True, gr.GR_MSB_FIRST)
+        self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(gr.types.byte_t, 'packet_len')
+
+        ## send output packets to zmq sink
+        self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink("tcp://*:5555", 100, True)
 
         # Connections
-
-        self.msg_connect(
-            (self.pdu_tagged_stream_to_pdu, "pdus"), (self.zeromq_pub_msg_sink, "in")
-        )
-        self.connect((self.analog_agc_xx, 0), (self.blocks_multiply_xx_1, 0))
-        self.connect((self.analog_const_source_x, 0), (self.blocks_float_to_complex, 1))
-        self.connect((self.analog_sig_source_x_1, 0), (self.blocks_multiply_xx_1, 1))
-        self.connect((self.audio_source, 0), (self.blocks_float_to_complex, 0))
-        self.connect((self.blocks_add_const_vxx, 0), (self.fec_extended_decoder, 0))
-        self.connect((self.blocks_float_to_complex, 0), (self.analog_agc_xx, 0))
-        self.connect(
-            (self.blocks_multiply_const_xx_1, 0), (self.blocks_add_const_vxx, 0)
-        )
-        self.connect(
-            (self.blocks_multiply_xx_1, 0), (self.digital_constellation_receiver_cb, 0)
-        )
-        self.connect(
-            (self.blocks_repack_bits_bb, 0), (self.pdu_tagged_stream_to_pdu, 0)
-        )
-        self.connect(
-            (self.blocks_uchar_to_float, 0), (self.blocks_multiply_const_xx_1, 0)
-        )
-        self.connect((self.blocks_unpack_k_bits_bb, 0), (self.blocks_uchar_to_float, 0))
-        self.connect(
-            (self.digital_constellation_receiver_cb, 0),
-            (self.blocks_unpack_k_bits_bb, 0),
-        )
-        self.connect(
-            (self.digital_correlate_access_code_xx_ts, 0),
-            (self.blocks_repack_bits_bb, 0),
-        )
-        self.connect(
-            (self.fec_extended_decoder, 0),
-            (self.digital_correlate_access_code_xx_ts, 0),
-        )
+        self.connect((self.audio_source_0, 0), (self.hilbert_fc_0, 0))
+        self.connect((self.hilbert_fc_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
+        self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
+        self.connect((self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
+        self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0))
+        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_constellation_receiver_cb_0, 0))
+        self.connect((self.digital_constellation_receiver_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
+        self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
+        self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
+        self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
+        self.connect((self.blocks_uchar_to_float_0_0_0, 0), (self.blocks_multiply_const_xx_1_0_0, 0))
+        self.connect((self.blocks_multiply_const_xx_1_0_0, 0), (self.blocks_add_const_vxx_0_0_0, 0))
+        self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
+        self.connect((self.fec_extended_decoder_0, 0), (self.digital_correlate_access_code_xx_ts_0, 0))
+        self.connect((self.digital_correlate_access_code_xx_ts_0, 0), (self.blocks_repack_bits_bb_0_0, 0))
+        self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
+        self.connect((self.analog_agc_xx_0, 0), (self.digital_fll_band_edge_cc_0, 0))
+        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, 'pdus'), (self.zeromq_pub_msg_sink_0, 'in'))
 
 
 def receive(
-    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
-    signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    constellation=DEFAULT_DQPSK_CONST,
+    pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
+    sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+    constellation: Any = DEFAULT_DQPSK_CONST,
 ):
+    """receive an incomming transmission specified by **pkt**, **sig** and modulated using **constellation**.
 
-    tb = Receiver(pkt=pkt_conf, sig=signal_conf, constellation=constellation)
+    Args:
+        pkt (PacketConfig, optional): packet configuration. Defaults to DEFAULT_PACKET_CONFIG.
+        sig (SignalConfig, optional): signal configuration. Defaults to DEFAULT_SIGNAL_CONFIG.
+        constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
+    """
+
+    tb = Receiver(pkt, sig, constellation)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
         tb.wait()
-
         sys.exit(0)
 
     signal.signal(signal.SIGINT, sig_handler)
