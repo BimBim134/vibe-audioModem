@@ -62,7 +62,7 @@ class Transmitter(gr.top_block):
         self.blocks_rotator_cc_0 = blocks.rotator_cc((2 * np.pi * (self.sig.carrier_freq / self.sig.samp_rate)), False)
         self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(1, 8, "", False, gr.GR_MSB_FIRST)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff((1/4))
-        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, 1024)
+        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
         self.audio_sink_0 = audio.sink(self.sig.samp_rate, '', True)
 
@@ -89,45 +89,7 @@ class Transmitter(gr.top_block):
         ) * 2
         audio_samples_to_transmit = nb_bits_transmitted * self.sig.sps
         audio_samples_to_transmit += int(0.1 * audio_samples_to_transmit) # some extra margin (+10% samples)
-        time_to_transmit = audio_samples_to_transmit/self.sig.samp_rate
-        print(f"{audio_samples_to_transmit} bits in {time_to_transmit} s.")
         return audio_samples_to_transmit
-
-
-def transmit_data(
-    input_file: Any,
-    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
-    signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    constellation: digital.psk_constellation = DEFAULT_DQPSK_CONST,
-) -> None:
-    """data transmission module
-
-    Args:
-        input_file (Any): input file
-        pkt_conf (PacketConfig, optional): packet description. Defaults to DEFAULT_PACKET_CONFIG.
-        signal_conf (SignalConfig, optional): signal description. Defaults to DEFAULT_SIGNAL_CONFIG.
-        constellation (digital.psk_constellation): constellation definition
-    """
-    tb = Transmitter(
-        input_data=input_file,
-        pkt=pkt_conf,
-        sig=signal_conf,
-        constellation=constellation,
-    )
-
-    def sig_handler(sig=None, frame=None):
-        tb.stop()
-        tb.wait()
-
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, sig_handler)
-    signal.signal(signal.SIGTERM, sig_handler)
-
-    tb.start()
-    tb.flowgraph_started.set()
-
-    tb.wait()
 
 
 class beeper(gr.top_block):
@@ -145,37 +107,13 @@ class beeper(gr.top_block):
         self.sig = sig
 
         # Blocks
-        self.analog_sig_source_x_0 = analog.sig_source_f(self.sig.samp_rate, analog.GR_SIN_WAVE, 1000, 1, 0, 0)
+        self.analog_sig_source_x_0 = analog.sig_source_f(self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 1, 0, 0)
         self.blocks_head_0 = blocks.head(gr.sizeof_float * 1, self.sig.samp_rate * duration)
         self.audio_sink_0 = audio.sink(self.sig.samp_rate, "", True)
 
         # Connections
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_head_0, 0))
         self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
-
-
-def beep(signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG, duration: float = 1):
-    """beeper module
-
-    Args:
-        sig (SignalConfig): signal configuration
-        duration (float, optional): duration (s). Defaults to 1.
-    """
-    tb = beeper(signal_conf, duration)
-
-    def sig_handler(sig=None, frame=None):
-        tb.stop()
-        tb.wait()
-
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, sig_handler)
-    signal.signal(signal.SIGTERM, sig_handler)
-
-    tb.start()
-    tb.flowgraph_started.set()
-
-    tb.wait()
 
 
 def send_data(
@@ -197,8 +135,44 @@ def send_data(
         constellation (digital.psk_constellation): constellation definition
         duration (float, optional): duration (s). Defaults to 1.
     """
-    beep(signal_conf, beep_duration)
-    transmit_data(input_file, pkt_conf, signal_conf, constellation)
+    # beeper initialization
+    beep_tx = beeper(signal_conf, beep_duration)
+
+    def beep_tx_sig_handler(sig=None, frame=None):
+        beep_tx.stop()
+        beep_tx.wait()
+
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, beep_tx_sig_handler)
+    signal.signal(signal.SIGTERM, beep_tx_sig_handler)
+
+    # data transmission initialization
+    data_tx = Transmitter(
+        input_data=input_file,
+        pkt=pkt_conf,
+        sig=signal_conf,
+        constellation=constellation,
+    )
+
+    def data_tx_sig_handler(sig=None, frame=None):
+        data_tx.stop()
+        data_tx.wait()
+
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, data_tx_sig_handler)
+    signal.signal(signal.SIGTERM, data_tx_sig_handler)
+
+    # sendin data
+    beep_tx.start()
+    beep_tx.flowgraph_started.set()
+
+    data_tx.start()
+    data_tx.flowgraph_started.set()
+
+    beep_tx.wait()
+    data_tx.wait()
 
 
 if __name__ == "__main__":
