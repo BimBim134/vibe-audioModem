@@ -1,121 +1,142 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-#
-# SPDX-License-Identifier: GPL-3.0
-#
-# GNU Radio Python Flow Graph
-# Title: peak_detector
-# Author: bimbim
-# GNU Radio version: 3.10.10.0
-
-from gnuradio import audio
-from gnuradio import blocks
-from gnuradio import fft
-from gnuradio.fft import window
-from gnuradio import gr
-from gnuradio.filter import firdes
+import time
 import sys
-import signal
-from argparse import ArgumentParser
-from gnuradio.eng_arg import eng_float, intx
-from gnuradio import eng_notation
-
 import numpy as np
-from scipy.signal import find_peaks
+from gnuradio import gr, analog, audio, blocks, fft
+from gnuradio.fft import window
 
-class peak_frequency_detector(gr.sync_block):
-    """Peak Frequency Detector"""
+import matplotlib.pyplot as plt
 
-    def __init__(self, sample_rate=48000, fft_size=1024, threshold=10):
-        gr.sync_block.__init__(
-            self,
-            name='Peak Frequency Detector',
-            in_sig=[(np.float32, fft_size)],  # Accepts vector of fft_size elements
-            out_sig=None
-        )
-        self.sample_rate = sample_rate
-        self.fft_size = fft_size
-        self.threshold = threshold
+from config import SignalConfig
+from config import DEFAULT_SIGNAL_CONFIG
 
-    def work(self, input_items, output_items):
-        for spectrum in input_items[0]:  # Iterate over vector batches
-            freqs = np.fft.rfftfreq(self.fft_size, 1.0 / self.sample_rate)
-
-            # Find all local peaks above threshold
-            peaks, props = find_peaks(spectrum, height=self.threshold)
-
-            if peaks.size > 0:
-                max_peak_idx = peaks[np.argmax(props['peak_heights'])]
-                peak_freq = freqs[max_peak_idx]
-                print(f"Detected Peak Frequency: {peak_freq:.2f} Hz")
-            else:
-                print("No peak detected above threshold.")
+class FrequencyListener(gr.top_block):
+    def __init__(self, samp_rate:int, fft_size:int):
+        gr.top_block.__init__(self, "Frequency Listener")
         
-        return len(input_items[0])
-
-
-class peak_detector(gr.top_block):
-
-    def __init__(self):
-        gr.top_block.__init__(self, "peak_detector", catch_exceptions=True)
-
-        ##################################################
-        # Variables
-        ##################################################
-        self.samp_rate = samp_rate = 44100
-
-        ##################################################
-        # Blocks
-        ##################################################
-
-        self.fft_vxx_0 = fft.fft_vfc(1024, True, window.blackmanharris(1024), False, 1)
-        self.epy_block_0 = peak_frequency_detector(sample_rate=samp_rate, fft_size=1024, threshold=10)
-        self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_float*1, 1024)
-        self.blocks_complex_to_mag_0 = blocks.complex_to_mag(1024)
-        self.audio_source_0_0 = audio.source(samp_rate, 'plughw:0,0', True)
-
-
-        ##################################################
-        # Connections
-        ##################################################
-        self.connect((self.audio_source_0_0, 0), (self.blocks_stream_to_vector_0, 0))
-        self.connect((self.blocks_complex_to_mag_0, 0), (self.epy_block_0, 0))
-        self.connect((self.blocks_stream_to_vector_0, 0), (self.fft_vxx_0, 0))
-        self.connect((self.fft_vxx_0, 0), (self.blocks_complex_to_mag_0, 0))
-
-
-    def get_samp_rate(self):
-        return self.samp_rate
-
-    def set_samp_rate(self, samp_rate):
+        # variables
+        self.fft_size = fft_size
         self.samp_rate = samp_rate
-        self.epy_block_0.sample_rate = self.samp_rate
+
+        # blocks
+        self.audio_src = audio.source(self.samp_rate, '', True)
+        self.stream_to_vec = blocks.stream_to_vector(gr.sizeof_float, self.fft_size)
+        self.window = window.blackmanharris(self.fft_size)
+        self.fft = fft.fft_vfc(self.fft_size, True, self.window, True, 1)
+        self.to_mag = blocks.complex_to_mag(self.fft_size)
+        self.probe = blocks.probe_signal_vf(self.fft_size)
+
+        # Connections
+        self.connect(self.audio_src, self.stream_to_vec)
+        self.connect(self.stream_to_vec, self.fft)
+        self.connect(self.fft, self.to_mag)
+        self.connect(self.to_mag, self.probe)
 
 
-
-
-def main(top_block_cls=peak_detector, options=None):
-    tb = top_block_cls()
-
-    def sig_handler(sig=None, frame=None):
+def wait_for_beep(sig:SignalConfig, fft_size = 2048, threshold=50.0):
+    tb = FrequencyListener(sig.samp_rate, fft_size)
+    tb.start()
+    
+    print(">>> En attente du BEEP...")
+    
+    found_freq = None
+    
+    try:
+        while True:
+            # 1. On récupère le spectre depuis la sonde (C'est instantané)
+            spectrum = np.array(tb.probe.level())
+            
+            # 2. On cherche le max (pic d'énergie)
+            peak_idx = np.argmax(spectrum)
+            peak_val = spectrum[peak_idx]
+            
+            # 3. Vérification du seuil (Est-ce du bruit ou un signal ?)
+            if peak_val > threshold:
+                # Conversion index -> fréquence
+                # freq = index * (Fs / FFT_size)
+                freq = peak_idx * (sig.samp_rate / fft_size)
+                
+                # Petit filtre pour ignorer le DC (0Hz) et les très basses fréquences
+                if freq > 400: 
+                    print(f"!!! BEEP DÉTECTÉ à {freq:.1f} Hz (Amplitude: {peak_val:.1f}) !!!")
+                    found_freq = freq
+                    break
+            
+            # Petite pause pour ne pas manger 100% du CPU
+            time.sleep(0.05)
+            
+    except KeyboardInterrupt:
+        pass
+    finally:
         tb.stop()
         tb.wait()
+        del tb # Libération de la carte son
+        
+    return found_freq
 
-        sys.exit(0)
+def live_spectrogram():
+    samp_rate = 48000
+    fft_size = 1024
+    history_length = 100  # Nombre de lignes dans le spectrogramme (historique)
 
-    signal.signal(signal.SIGINT, sig_handler)
-    signal.signal(signal.SIGTERM, sig_handler)
-
+    # Initialisation GNU Radio
+    tb = FrequencyListener(samp_rate, fft_size)
     tb.start()
+    
+    # Préparation des données
+    # On crée une matrice vide pour l'historique (Temps x Fréquence)
+    waterfall_data = np.zeros((history_length, fft_size // 2)) 
 
+    # Configuration Matplotlib
+    plt.ion() # Mode interactif
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # On affiche une image initiale
+    # extent permet d'avoir les bons axes (Hz et Temps)
+    im = ax.imshow(waterfall_data, aspect='auto', origin='lower', 
+                   extent=[0, samp_rate/2, 0, history_length],
+                   cmap='inferno', vmin=0, vmax=50) # Ajuste vmax selon le volume
+    
+    ax.set_xlabel("Fréquence (Hz)")
+    ax.set_ylabel("Temps (passé)")
+    ax.set_title("Spectrogramme Temps-Réel")
+    plt.colorbar(im, label="Amplitude")
+
+    print(">>> Affichage du spectrogramme. Ctrl+C pour arrêter.")
+    
     try:
-        input('Press Enter to quit: ')
-    except EOFError:
+        while True:
+            # 1. Récupérer les données de la sonde
+            # La FFT retourne fft_size points. On ne garde que la moitié positive (0 -> Fs/2)
+            raw_data = np.array(tb.probe.level())
+            half_spectrum = raw_data[:fft_size // 2]
+            
+            # 2. Conversion en décibels (optionnel mais recommandé pour voir mieux)
+            # On ajoute 1e-6 pour éviter log(0)
+            db_spectrum = 20 * np.log10(half_spectrum + 1e-6)
+            
+            # 3. Mise à jour de la "Chute d'eau"
+            # On décale tout vers le bas (roll) et on met la nouvelle ligne en haut
+            waterfall_data = np.roll(waterfall_data, -1, axis=0)
+            waterfall_data[-1, :] = db_spectrum
+            
+            # 4. Mise à jour du graphique
+            im.set_data(waterfall_data)
+            # Mise à jour de l'échelle de couleur dynamique (optionnel)
+            im.set_clim(vmin=np.min(db_spectrum), vmax=np.max(db_spectrum) + 10)
+            
+            plt.draw()
+            plt.pause(0.05) # Petite pause pour laisser l'interface respirer
+            
+    except KeyboardInterrupt:
         pass
-    tb.stop()
-    tb.wait()
+    finally:
+        tb.stop()
+        tb.wait()
+        print("Arrêt.")
 
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    # freq = wait_for_beep(DEFAULT_SIGNAL_CONFIG)
+    # if freq:
+    #     print(f"Lancement de la démodulation sur {freq} Hz...")
+    #     # Ici tu peux lancer ta classe Receiver avec la fréquence trouvée
+    live_spectrogram()
