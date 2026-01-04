@@ -42,7 +42,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [528, 216.0]
+    coordinate: [440, 216.0]
     rotation: 0
     state: enabled
 - name: baudrate
@@ -54,7 +54,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1800, 168.0]
+    coordinate: [1496, 168.0]
     rotation: 0
     state: enabled
 - name: carrier_freq
@@ -66,7 +66,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1944, 168.0]
+    coordinate: [1640, 168.0]
     rotation: 0
     state: enabled
 - name: cc_enc
@@ -87,7 +87,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1352, 136.0]
+    coordinate: [1096, 136.0]
     rotation: 0
     state: enabled
 - name: const_definition
@@ -99,7 +99,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1848, 240.0]
+    coordinate: [1544, 240.0]
     rotation: 0
     state: enabled
 - name: hdr_format
@@ -111,7 +111,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [528, 136.0]
+    coordinate: [440, 136.0]
     rotation: 0
     state: enabled
 - name: packet_size
@@ -123,7 +123,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [256, 272.0]
+    coordinate: [208, 272.0]
     rotation: 0
     state: enabled
 - name: samp_rate
@@ -147,7 +147,30 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1880, 168.0]
+    coordinate: [1576, 168.0]
+    rotation: 0
+    state: enabled
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    freq: carrier_freq
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: samp_rate
+    showports: 'False'
+    type: float
+    waveform: analog.GR_SIN_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2296, 192.0]
     rotation: 0
     state: enabled
 - name: audio_sink_0
@@ -164,7 +187,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2840, 352.0]
+    coordinate: [2688, 336.0]
     rotation: 0
     state: enabled
 - name: blocks_complex_to_real_0
@@ -180,7 +203,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2352, 360.0]
+    coordinate: [1992, 360.0]
     rotation: 0
     state: enabled
 - name: blocks_head_0
@@ -198,7 +221,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2680, 352.0]
+    coordinate: [2320, 352.0]
     rotation: 0
     state: enabled
 - name: blocks_multiply_const_vxx_0
@@ -216,7 +239,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2520, 352.0]
+    coordinate: [2160, 352.0]
     rotation: 0
     state: enabled
 - name: blocks_repack_bits_bb_1_0
@@ -236,7 +259,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1576, 328.0]
+    coordinate: [1320, 328.0]
     rotation: 0
     state: enabled
 - name: blocks_rotator_cc_0
@@ -253,7 +276,26 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2144, 344.0]
+    coordinate: [1784, 344.0]
+    rotation: 0
+    state: enabled
+- name: blocks_stream_mux_0
+  id: blocks_stream_mux
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    lengths: (1, 1)
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_inputs: '2'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2528, 328.0]
     rotation: 0
     state: enabled
 - name: blocks_stream_to_tagged_stream_0
@@ -272,7 +314,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [232, 344.0]
+    coordinate: [184, 344.0]
     rotation: 0
     state: enabled
 - name: blocks_tagged_stream_mux_0
@@ -292,7 +334,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [792, 328.0]
+    coordinate: [704, 328.0]
     rotation: 0
     state: enabled
 - name: blocks_unpack_k_bits_bb_0
@@ -308,7 +350,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1200, 336.0]
+    coordinate: [944, 336.0]
     rotation: 0
     state: enabled
 - name: blocks_vector_source_x_0
@@ -350,7 +392,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1840, 312.0]
+    coordinate: [1536, 312.0]
     rotation: 0
     state: enabled
 - name: digital_protocol_formatter_bb_0
@@ -367,7 +409,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [528, 296.0]
+    coordinate: [440, 296.0]
     rotation: 0
     state: enabled
 - name: fec_extended_encoder_0
@@ -385,7 +427,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1352, 320.0]
+    coordinate: [1096, 320.0]
     rotation: 0
     state: enabled
 - name: import_0
@@ -403,11 +445,13 @@ blocks:
     state: enabled
 
 connections:
+- [analog_sig_source_x_0, '0', blocks_stream_mux_0, '0']
 - [blocks_complex_to_real_0, '0', blocks_multiply_const_vxx_0, '0']
-- [blocks_head_0, '0', audio_sink_0, '0']
+- [blocks_head_0, '0', blocks_stream_mux_0, '1']
 - [blocks_multiply_const_vxx_0, '0', blocks_head_0, '0']
 - [blocks_repack_bits_bb_1_0, '0', digital_constellation_modulator_0, '0']
 - [blocks_rotator_cc_0, '0', blocks_complex_to_real_0, '0']
+- [blocks_stream_mux_0, '0', audio_sink_0, '0']
 - [blocks_stream_to_tagged_stream_0, '0', blocks_tagged_stream_mux_0, '1']
 - [blocks_stream_to_tagged_stream_0, '0', digital_protocol_formatter_bb_0, '0']
 - [blocks_tagged_stream_mux_0, '0', blocks_unpack_k_bits_bb_0, '0']

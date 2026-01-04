@@ -17,7 +17,7 @@ class Transmitter(gr.top_block):
         input_data: Any,
         pkt: PacketConfig,
         sig: SignalConfig,
-        constellation
+        constellation:Any
     ):
         """main transmitter class
 
@@ -39,13 +39,23 @@ class Transmitter(gr.top_block):
         self.input_file = prepare_data(input_data, pkt)
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
-        self.cc_enc = fec.cc_encoder_make(
-            pkt.total_packets_len, 7, 2, [79, 109], 0, fec.CC_STREAMING, False
-        )
+        self.cc_enc = fec.cc_encoder_make(pkt.total_packets_len, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
 
         # Blocks
-        self.fec_extended_encoder_0 = fec.extended_encoder(encoder_obj_list=self.cc_enc, threading= None, puncpat='11')
+        ## file source
+        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file)
+
+        ## protocol layer
+        self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len")
         self.digital_protocol_formatter_bb_0 = digital.protocol_formatter_bb(self.hdr_format, "packet_len")
+        self.blocks_tagged_stream_mux_0 = blocks.tagged_stream_mux(gr.sizeof_char*1, 'packet_len', 0)
+
+        ## convolutionnal error correction encoding
+        self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
+        self.fec_extended_encoder_0 = fec.extended_encoder(encoder_obj_list=self.cc_enc, threading= None, puncpat='11')
+        self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(1, 8, "", False, gr.GR_MSB_FIRST)
+
+        ## modulation
         self.digital_constellation_modulator_0 = digital.generic_mod(
             constellation=self.const_definition,
             differential=True,
@@ -54,36 +64,48 @@ class Transmitter(gr.top_block):
             excess_bw=0.35,
             verbose=False,
             log=False,
-            truncate=False)
-        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file, False, 1, [])
-        self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
-        self.blocks_tagged_stream_mux_0 = blocks.tagged_stream_mux(gr.sizeof_char*1, 'packet_len', 0)
-        self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len")
+            truncate=True)
         self.blocks_rotator_cc_0 = blocks.rotator_cc((2 * np.pi * (self.sig.carrier_freq / self.sig.samp_rate)), False)
-        self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(1, 8, "", False, gr.GR_MSB_FIRST)
-        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff((1/4))
-        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
+        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff((1/4))
+
+        ## head block to terminate cleanly the flow graph after everything is sent
+        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
+
+        ## beeper to help receiver to lock to carrier frequency
+        self.analog_sig_source_x_0 = analog.sig_source_f(self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.25, 0, 0)
+
+        ## first beeper, then data transmission
+        self.blocks_stream_mux_0 = blocks.stream_mux(gr.sizeof_float*1, (self.sig.beeper_nb_sample, self.get_nb_of_audio_samples()))
+
+        ## out audio
         self.audio_sink_0 = audio.sink(self.sig.samp_rate, '', True)
 
-        # Connections
-        self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_multiply_const_vxx_0, 0))
-        self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
-        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_head_0, 0))
-        self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
-        self.connect((self.blocks_rotator_cc_0, 0), (self.blocks_complex_to_real_0, 0))
+        # Connections between blocks
+        self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
         self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.blocks_tagged_stream_mux_0, 1))
         self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.digital_protocol_formatter_bb_0, 0))
+        self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
         self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
-        self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
-        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_rotator_cc_0, 0))
-        self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
         self.connect((self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0))
+        self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
+        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_rotator_cc_0, 0))
+        self.connect((self.blocks_rotator_cc_0, 0), (self.blocks_complex_to_real_0, 0))
+        self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_multiply_const_vxx_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_head_0, 0))
+        self.connect((self.blocks_head_0, 0), (self.blocks_stream_mux_0, 1))
+        self.connect((self.blocks_stream_mux_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_stream_mux_0, 0))
 
     def get_nb_of_audio_samples(self) -> int:
+        """ calculate the correct number of audio sample to transmit 
+        * nb_bits_transmitted = (total file length + access keys + packet_len tags) * rate FEC
+
+        Returns:
+            int: number of audio sample to transmit
+        """
         nb_packet = int(len(self.input_file) / self.pkt.total_packets_len)
-        # nb_bits_transmitted = (total file length + access keys + packet_len tags) * rate FEC
         nb_bits_transmitted = (
             len(self.input_file) * 8 + nb_packet * len(self.access_key) + nb_packet * 32
         ) * 2
@@ -92,87 +114,27 @@ class Transmitter(gr.top_block):
         return audio_samples_to_transmit
 
 
-class beeper(gr.top_block):
-    def __init__(self, sig: SignalConfig, duration: float = 1):
-        """produce a single sinusoidal signal as given frequency for a given duration
-
-        Args:
-            sig (SignalConfig): signal configuration
-            duration (float, optional): duration (s). Defaults to 1.
-        """
-        gr.top_block.__init__(self, "Not titled yet", catch_exceptions=True)
-        self.flowgraph_started = threading.Event()
-
-        # Variables
-        self.sig = sig
-
-        # Blocks
-        self.analog_sig_source_x_0 = analog.sig_source_f(self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 1, 0, 0)
-        self.blocks_head_0 = blocks.head(gr.sizeof_float * 1, self.sig.samp_rate * duration)
-        self.audio_sink_0 = audio.sink(self.sig.samp_rate, "", True)
-
-        # Connections
-        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_head_0, 0))
-        self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
-
-
 def send_data(
-    input_file: Any,
-    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
-    signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    constellation: digital.psk_constellation = DEFAULT_DQPSK_CONST,
-    beep_duration=1,
-) -> None:
-    """send file using audio modem !
-    * first produce a beep to helps receiver side to lock in to carrier frequency
-    * transmit file using psk modulation
+    input_data: Any,
+    pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
+    sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+    constellation: Any = DEFAULT_DQPSK_CONST,
+):
+    tb = Transmitter(input_data, pkt, sig, constellation)
 
-    Args:
-        input_file (Any): input file
-        pkt_conf (PacketConfig, optional): packet description. Defaults to DEFAULT_PACKET_CONFIG.
-        signal_conf (SignalConfig, optional): signal description. Defaults to DEFAULT_SIGNAL_CONFIG.
-        sig (SignalConfig): signal configuration
-        constellation (digital.psk_constellation): constellation definition
-        duration (float, optional): duration (s). Defaults to 1.
-    """
-    # beeper initialization
-    beep_tx = beeper(signal_conf, beep_duration)
-
-    def beep_tx_sig_handler(sig=None, frame=None):
-        beep_tx.stop()
-        beep_tx.wait()
+    def sig_handler(sig=None, frame=None):
+        tb.stop()
+        tb.wait()
 
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, beep_tx_sig_handler)
-    signal.signal(signal.SIGTERM, beep_tx_sig_handler)
+    signal.signal(signal.SIGINT, sig_handler)
+    signal.signal(signal.SIGTERM, sig_handler)
 
-    # data transmission initialization
-    data_tx = Transmitter(
-        input_data=input_file,
-        pkt=pkt_conf,
-        sig=signal_conf,
-        constellation=constellation,
-    )
+    tb.start()
+    tb.flowgraph_started.set()
 
-    def data_tx_sig_handler(sig=None, frame=None):
-        data_tx.stop()
-        data_tx.wait()
-
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, data_tx_sig_handler)
-    signal.signal(signal.SIGTERM, data_tx_sig_handler)
-
-    # sendin data
-    beep_tx.start()
-    beep_tx.flowgraph_started.set()
-
-    data_tx.start()
-    data_tx.flowgraph_started.set()
-
-    beep_tx.wait()
-    data_tx.wait()
+    tb.wait()
 
 
 if __name__ == "__main__":

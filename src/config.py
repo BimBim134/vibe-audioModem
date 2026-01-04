@@ -8,8 +8,6 @@ from gnuradio import digital
 from reedsolo import RSCodec
 
 # PACKET CONFIG
-
-
 @dataclass
 class PacketConfig:
     """packet configuration"""
@@ -33,7 +31,6 @@ class PacketConfig:
         """reed solomon codec"""
         return RSCodec(self.error_correction_len)
 
-
 DEFAULT_PACKET_CONFIG = PacketConfig(
     total_packets_len=255,
     preamble_packets=3,
@@ -43,33 +40,32 @@ DEFAULT_PACKET_CONFIG = PacketConfig(
 
 
 # SIGNAL CONFIG
-
-
 @dataclass
 class SignalConfig:
     """signal configuration"""
     samp_rate: int
 
     carrier_freq: float
+    beeper_duration: float
     baudrate: int
 
     @property
     def sps(self) -> int:
-        """sample per symbol
-
-        Returns:
-            int: number of sample per symbol
-        """
+        """sample per symbol"""
         return int(self.samp_rate / self.baudrate)
+    
+    @property
+    def beeper_nb_sample(self) -> int:
+        """beeper number of audio sample"""
+        return int(self.samp_rate*self.beeper_duration)
 
-
-DEFAULT_SIGNAL_CONFIG = SignalConfig(samp_rate=48000, carrier_freq=2500, baudrate=500)
+DEFAULT_SIGNAL_CONFIG = SignalConfig(
+    samp_rate=48000, beeper_duration=0.5, carrier_freq=2500, baudrate=500
+)
 
 
 # CONSTELLATION CONFIG
-
 DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
-
 DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
 
 
