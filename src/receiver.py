@@ -14,8 +14,14 @@ from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_C
 
 
 class Receiver(gr.top_block):
+    def __init__(self, pkt: PacketConfig, sig: SignalConfig, constellation: Any):
+        """main receiver class
 
-    def __init__(self, pkt: PacketConfig, sig: SignalConfig, constellation:Any):
+        Args:
+            pkt (PacketConfig): packet configuration
+            sig (SignalConfig): signal configuration
+            constellation (Any): constellation definition
+        """
         gr.top_block.__init__(self, "receiver master", catch_exceptions=True)
         self.flowgraph_started = threading.Event()
 
