@@ -2,6 +2,7 @@ import sys
 import signal
 import threading
 from typing import Any
+import logging
 
 import numpy as np
 from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
@@ -11,6 +12,8 @@ from gnuradio.fft import window
 from config import PacketConfig, SignalConfig
 from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
 from peak_detector import FrequencyListener, wait_for_beep
+
+logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 
 
 class Receiver(gr.top_block):
@@ -22,7 +25,11 @@ class Receiver(gr.top_block):
             sig (SignalConfig): signal configuration
             constellation (Any): constellation definition
         """
-        gr.top_block.__init__(self, "receiver master", catch_exceptions=True)
+        gr.top_block.__init__(self, "receiver master", catch_exceptions=False)
+        logging.info("Receiver class instanciated")
+        logging.info(pkt)
+        logging.info(sig)
+
         self.flowgraph_started = threading.Event()
 
         # Variables
@@ -149,7 +156,6 @@ def receive(
         sig (SignalConfig, optional): signal configuration. Defaults to DEFAULT_SIGNAL_CONFIG.
         constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
     """
-
     tb = Receiver(pkt, sig, constellation)
 
     def sig_handler(sig=None, frame=None):
@@ -162,6 +168,7 @@ def receive(
 
     tb.start()
     tb.flowgraph_started.set()
+    logging.info("receiver started")
 
     tb.wait()
 
@@ -186,6 +193,8 @@ def wait_for_incomming_transmission(
     # starting demodulation and decoding ! :D
     receive(pkt, sig, constellation)
 
+
+logging.info("receiver module loaded")
 
 if __name__ == "__main__":
     wait_for_incomming_transmission()

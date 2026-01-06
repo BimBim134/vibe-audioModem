@@ -1,13 +1,16 @@
 import time
 import sys
+import logging
+
 import numpy as np
 from gnuradio import gr, audio, blocks, fft
 from gnuradio.fft import window
-
 from scipy.signal import find_peaks
 
 from config import SignalConfig
 from config import DEFAULT_SIGNAL_CONFIG
+
+logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 
 
 class FrequencyListener(gr.top_block):
@@ -19,6 +22,7 @@ class FrequencyListener(gr.top_block):
             fft_size (int): fft size
         """
         gr.top_block.__init__(self, "Frequency Listener")
+        logging.info("FrequencyListener class instanciated")
 
         # variables
         self.fft_size = fft_size
@@ -51,6 +55,7 @@ def wait_for_beep(sig: SignalConfig, fft_size: int = 2048) -> np.float64:
     """
     tb = FrequencyListener(sig.samp_rate, fft_size)
     tb.start()
+    logging.info("FrequencyListener started")
 
     found_freq = None
     try:
@@ -64,8 +69,10 @@ def wait_for_beep(sig: SignalConfig, fft_size: int = 2048) -> np.float64:
 
             if len(peaks) > 0:
                 best_peak_idx = peaks[np.argmax(properties["prominences"])]
-                found_freq = best_peak_idx * (sig.samp_rate / fft_size)
-                break
+                found_freq = float(best_peak_idx * (sig.samp_rate / fft_size))
+                if 500 < found_freq < 15000:
+                    logging.info(f"frequency peak found at {found_freq:2f} Hz")
+                    break
 
             time.sleep(0.05)
 
@@ -75,9 +82,11 @@ def wait_for_beep(sig: SignalConfig, fft_size: int = 2048) -> np.float64:
         tb.stop()
         tb.wait()
         del tb  # Libération de la carte son
+        logging.info("FrequencyListener instance deleted")
 
     return found_freq
 
+logging.info("peak_detector module loaded")
 
 if __name__ == "__main__":
     freq = wait_for_beep(DEFAULT_SIGNAL_CONFIG)

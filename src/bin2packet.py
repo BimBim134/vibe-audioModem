@@ -3,11 +3,14 @@ from itertools import chain
 from pathlib import Path
 from typing import Iterator, Any
 from secrets import token_bytes
+import logging
 
 import numpy as np
 import pmt
 
 import config
+
+logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 
 def split_payload_into_packet(
     payload: bytes, pkt: config.PacketConfig
@@ -63,6 +66,7 @@ def generate_dummy_packet(pkt: config.PacketConfig, mode:str="preamble") -> byte
         bytes: dummy packet
     """
     data = token_bytes(pkt.data_chunck_len)
+    logging.debug(f"generating dummy packet as {mode}")
     if mode == "preamble":
         data_len_flag = (0).to_bytes()
     else:
@@ -89,6 +93,8 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
         for data_chunck in split_payload_into_packet(payload, pkt)
     ]
 
+    logging.info(f"splitted data into {len(packets)} packets")
+
     # add preamble and postamble
     preamble = [
         rsc.encode(generate_dummy_packet(pkt)) for _ in range(pkt.preamble_packets)
@@ -99,6 +105,8 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
 
     # chain everything together
     flattened = b"".join(chain(preamble, packets, postamble))
+
+    logging.info(f"payload generated (len={len(flattened)})i(f""")
 
     return np.frombuffer(flattened, dtype=np.uint8)
 
@@ -137,6 +145,7 @@ def _(input_data: Path, pkt: config.PacketConfig) -> np.ndarray:
     Returns:
         bytes: packetized and error encoded file
     """
+    logging.info(f"loading data from path: {input_data}")
     file = import_file_from_path(input_data)
     return payload_to_encoded_packet(file, pkt)
 
@@ -152,10 +161,11 @@ def _(input_data: bytes, pkt: config.PacketConfig) -> np.ndarray:
     Returns:
         bytes: packetized and error encoded file
     """
+    logging.info(f"loading data as bytes (len={len(input_data)})")
     return payload_to_encoded_packet(input_data, pkt)
 
 
-def export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) -> None:
+def _export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) -> None:
     """export file to packetized file
 
     Args:
@@ -163,6 +173,7 @@ def export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) -> 
         pkt (config.PacketConfig): packet configuration
         filepath (Path): output file path
     """
+    logging.debug(f"exported data (len={len(input_data)}) to: {filepath}")
     data = prepare_data(input_data, pkt)
     with filepath.open("wb") as f:
         f.write(data)
@@ -175,15 +186,5 @@ if __name__ == "__main__":
     )
     packets = prepare_data(TEST_PAYLOAD, conf)
     assert len(packets) % conf.total_packets_len == 0
-
-    print(f"payload (length:{len(packets)}):\n", TEST_PAYLOAD)
-    print("packets")
-    for p in range(int(len(packets) / conf.total_packets_len)):
-        idx = slice(p * conf.total_packets_len, (p + 1) * conf.total_packets_len)
-        print(
-            p,
-            f"(lenght:{len(packets[idx])})\n",
-            b"".join([b.tobytes() for b in packets[idx]]),
-        )
     
-    export_to_bin(TEST_PAYLOAD, conf, Path("research/test_payload_packetized.bin"))
+    _export_to_bin(TEST_PAYLOAD, conf, Path("research/test_payload_packetized.bin"))

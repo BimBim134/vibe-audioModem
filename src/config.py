@@ -1,11 +1,14 @@
 """
 some configuration class to keep things tidy
 """
-
+import logging
 from dataclasses import dataclass
 
 from gnuradio import digital
 from reedsolo import RSCodec
+
+logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
+
 
 # PACKET CONFIG
 @dataclass
@@ -68,6 +71,7 @@ DEFAULT_SIGNAL_CONFIG = SignalConfig(
 DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
 DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
 
+logging.info("config module loaded")
 
 if __name__ == "__main__":
     pass
