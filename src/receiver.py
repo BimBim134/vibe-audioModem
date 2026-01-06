@@ -8,9 +8,9 @@ from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
 from gnuradio.filter import firdes, hilbert_fc, freq_xlating_fir_filter_ccc
 from gnuradio.fft import window
 
-
 from config import PacketConfig, SignalConfig
 from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
+from peak_detector import FrequencyListener, wait_for_beep
 
 
 class Receiver(gr.top_block):
@@ -166,5 +166,26 @@ def receive(
     tb.wait()
 
 
+def wait_for_incomming_transmission(
+    pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
+    sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+    constellation: Any = DEFAULT_DQPSK_CONST,
+) -> None:
+    """Wait for a beep and launch a receiver at measured frequency. Output is then sent to zmq server at `tcp://*:5555` for packet decoding.
+
+    Args:
+        pkt (PacketConfig, optional): packet configuration. Defaults to DEFAULT_PACKET_CONFIG.
+        sig (SignalConfig, optional): signal configuration. Defaults to DEFAULT_SIGNAL_CONFIG.
+        constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
+    """
+    transmission_frequency = wait_for_beep(sig)
+
+    # updating the signal configuration
+    sig.carrier_freq = transmission_frequency
+
+    # starting demodulation and decoding ! :D
+    receive(pkt, sig, constellation)
+
+
 if __name__ == "__main__":
-    receive()
+    wait_for_incomming_transmission()
