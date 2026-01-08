@@ -116,7 +116,7 @@ class Receiver(gr.top_block):
         )
 
         ## frame synchronization
-        self.digital_correlate_access_code_xx_ts_0 = digital.correlate_access_code_bb_ts('access_key', 3, 'packet_len')
+        self.digital_correlate_access_code_xx_ts_0 = digital.correlate_access_code_bb_ts(self.access_key, 3, 'packet_len')
         self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(1, 8, "packet_len", True, gr.GR_MSB_FIRST)
         self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(gr.types.byte_t, 'packet_len')
 
