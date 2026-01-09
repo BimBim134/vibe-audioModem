@@ -8,7 +8,7 @@ import logging
 import numpy as np
 import pmt
 
-import config
+import src.config as config
 
 logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 
@@ -106,7 +106,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
     # chain everything together
     flattened = b"".join(chain(preamble, packets, postamble))
 
-    logging.info(f"payload generated (len={len(flattened)})i(f""")
+    logging.info(f"payload generated (len={len(flattened)})")
 
     return np.frombuffer(flattened, dtype=np.uint8)
 
@@ -123,7 +123,7 @@ def import_file_from_path(filepath: Path) -> bytes:
     with open(filepath, "rb") as f:
         input_file = f.read()
     input_file = np.frombuffer(input_file, dtype=np.uint8)
-    payload = pmt.to_pmt({"path": filepath, "data": input_file})
+    payload = pmt.to_pmt({"path": str(filepath), "data": input_file})
     output = pmt.serialize_str(payload)
     return output
 
@@ -147,6 +147,7 @@ def _(input_data: Path, pkt: config.PacketConfig) -> np.ndarray:
     """
     logging.info(f"loading data from path: {input_data}")
     file = import_file_from_path(input_data)
+    logging.info(f"loaded {len(file)} bytes")
     return payload_to_encoded_packet(file, pkt)
 
 
@@ -173,8 +174,8 @@ def _export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) ->
         pkt (config.PacketConfig): packet configuration
         filepath (Path): output file path
     """
-    logging.debug(f"exported data (len={len(input_data)}) to: {filepath}")
     data = prepare_data(input_data, pkt)
+    logging.debug(f"exported data to: {filepath}")
     with filepath.open("wb") as f:
         f.write(data)
 
@@ -186,5 +187,9 @@ if __name__ == "__main__":
     )
     packets = prepare_data(TEST_PAYLOAD, conf)
     assert len(packets) % conf.total_packets_len == 0
-    
-    _export_to_bin(TEST_PAYLOAD, conf, Path("research/test_payload_packetized.bin"))
+
+    _export_to_bin(
+        Path("C:/Users/microbimbim/Codes/vibe-audioModem/research/conjecture.txt"),
+        conf,
+        Path("research/test_payload_packetized.bin"),
+    )
