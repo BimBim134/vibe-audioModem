@@ -9,9 +9,9 @@ from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
 from gnuradio.filter import firdes, hilbert_fc, freq_xlating_fir_filter_ccc
 from gnuradio.fft import window
 
-from config import PacketConfig, SignalConfig
-from config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
-from peak_detector import FrequencyListener, wait_for_beep
+from src.config import PacketConfig, SignalConfig
+from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
+from src.peak_detector import FrequencyListener, wait_for_beep
 
 logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 

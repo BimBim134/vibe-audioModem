@@ -3,8 +3,8 @@ import logging
 
 from reedsolo import ReedSolomonError
 
-from config import PacketConfig
-from config import DEFAULT_PACKET_CONFIG
+from src.config import PacketConfig
+from src.config import DEFAULT_PACKET_CONFIG
 
 logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 
@@ -27,7 +27,7 @@ def decode_packet(raw_packet: bytes, pkt: PacketConfig):
         return decoded_payload[1 : packet_len + 1]
 
 
-def receveur_paquets(pkt: PacketConfig):
+def receveur_paquets(pkt: PacketConfig=DEFAULT_PACKET_CONFIG):
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.connect("tcp://localhost:5555")

@@ -7,8 +7,8 @@ from gnuradio import gr, audio, blocks, fft
 from gnuradio.fft import window
 from scipy.signal import find_peaks
 
-from config import SignalConfig
-from config import DEFAULT_SIGNAL_CONFIG
+from src.config import SignalConfig
+from src.config import DEFAULT_SIGNAL_CONFIG
 
 logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 
