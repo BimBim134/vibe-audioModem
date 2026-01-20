@@ -118,7 +118,7 @@ class completeChain(gr.top_block, Qt.QWidget):
         self.channels_channel_model_0 = channels.channel_model(
             noise_voltage=(1e-2),
             frequency_offset=0.25,
-            epsilon=1.01,
+            epsilon=1.0,
             taps=[1.0],
             noise_seed=0,
             block_tags=True,
