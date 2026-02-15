@@ -2,14 +2,14 @@ import threading
 import time
 import sys
 
-from src import receiver, packet2bin, transmitter
+from src import receiver, packet2bin, transmitter, config
+from src.rx.audio_interface import start_audio_interface
 
 def wait_for_messages() -> None:
     threads = [
         threading.Thread(target=func, daemon=True)
         for func in (
-            receiver.wait_for_incomming_transmission,
-            packet2bin.receveur_paquets,
+            start_audio_interface(config.DEFAULT_SIGNAL_CONFIG, 2048),
         )
     ]
     for t in threads:
@@ -28,4 +28,4 @@ def wait_for_messages() -> None:
 
 if __name__ == "__main__":
     wait_for_messages()
-    # transmitter.send_data(b"ceci est un test")
+
