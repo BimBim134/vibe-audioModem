@@ -2,7 +2,7 @@
 ## Receiver
 ### Diagram
 ```mermaid
-flowchart LR
+flowchart TD
 PD[Peak detector]
 DM@{shape: procs, label: "Demodulators"}
 P2B[Packet Decoder]
@@ -19,17 +19,24 @@ IN@{ shape: circle, label: "Audio IN"}
 FFT
 end
 
+subgraph MP[Messages Processor]
+direction LR
+P2B --> DB
+end
+
+subgraph LST[Listenner]
+PD -.- DM
+end
+
 FFT_data@{ shape: f-circ}
-MESSAGES_data@{ shape: f-circ}
 
 AI ---|"5555 audio : (float)"| DM
 AI ----|"5556 FFT : (complex)"| FFT_data --> PD
-DM  ---|"5557 packet : vibe packet (bytes)"| P2B
-P2B ---|"5558 formatted messages (json)"| MESSAGES_data --> Messages & DB
+DM  ---|"5557 packet : vibe packet (bytes)"| MP
+MP ---|"5558 formatted messages (json)"| Messages
 
 IN --> FFT
 FFT_data --> Waterfall
-PD -.- DM
 ```
 
 ### port description
