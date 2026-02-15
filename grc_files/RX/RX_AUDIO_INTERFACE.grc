@@ -124,7 +124,7 @@ blocks:
     nthreads: '1'
     shift: 'True'
     type: float
-    window: window.blackmanharris(1024)
+    window: window.blackmanharris(fft_size)
   states:
     bus_sink: false
     bus_source: false
