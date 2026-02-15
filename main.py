@@ -2,13 +2,14 @@ import threading
 import time
 import sys
 
-from src import receiver, packet2bin, transmitter, config
+from src import config
 from src.rx.audio_interface import start_audio_interface
 
 def wait_for_messages() -> None:
     threads = [
         threading.Thread(target=func, daemon=True)
         for func in (
+            print("let\'s gooo"), # this is where you launch stuff
             start_audio_interface(config.DEFAULT_SIGNAL_CONFIG, 2048),
         )
     ]
