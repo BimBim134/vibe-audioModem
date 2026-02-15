@@ -34,7 +34,7 @@ class AudioInterface(gr.top_block):
         ## audio broadcasting
         self.audio_source = audio.source(self.sig.samp_rate, "", True)
         self.zeromq_pub_sink_audio = zeromq.pub_sink(
-            gr.sizeof_float, self.fft_size, "tcp://*:5556", 0, False, (-1), "", True, True,
+            gr.sizeof_float, 1, "tcp://*:5556", 0, False, (-1), "", True, True,
         )
 
         ## fft computing and broadcasting
@@ -46,7 +46,7 @@ class AudioInterface(gr.top_block):
         )
         self.blocks_complex_to_mag = blocks.complex_to_mag(self.fft_size)
         self.zeromq_pub_sink_fft = zeromq.pub_sink(
-            gr.sizeof_float, 1, "tcp://*:5555", 100, False, (-1), "", True, True
+            gr.sizeof_float, self.fft_size, "tcp://*:5555", 100, False, (-1), "", True, True
         )
 
         # Connections
