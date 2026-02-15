@@ -82,6 +82,7 @@ def start_audio_interface(signal_conf:SignalConfig, fft_size:int):
 
     tb.wait()
 
+logging.info("audio interface module loaded")
 
 if __name__ == "__main__":
     start_audio_interface(DEFAULT_SIGNAL_CONFIG, 2048)
