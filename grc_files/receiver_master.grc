@@ -209,25 +209,6 @@ blocks:
     coordinate: [584, 440.0]
     rotation: 0
     state: enabled
-- name: audio_source_0
-  id: audio_source
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    device_name: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    num_outputs: '1'
-    ok_to_block: 'True'
-    samp_rate: samp_rate
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [40, 448.0]
-    rotation: 0
-    state: enabled
 - name: blocks_add_const_vxx_0_0_0
   id: blocks_add_const_vxx
   parameters:
@@ -611,10 +592,32 @@ blocks:
     coordinate: [4184, 392.0]
     rotation: 0
     state: enabled
+- name: zeromq_sub_source_0
+  id: zeromq_sub_source
+  parameters:
+    address: tcp://127.0.0.1:5555
+    affinity: ''
+    alias: ''
+    bind: 'False'
+    comment: ''
+    hwm: '-1'
+    key: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    pass_tags: 'False'
+    timeout: '100'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 408.0]
+    rotation: 0
+    state: enabled
 
 connections:
 - [analog_agc_xx_0, '0', digital_fll_band_edge_cc_0, '0']
-- [audio_source_0, '0', hilbert_fc_0, '0']
 - [blocks_add_const_vxx_0_0_0, '0', fec_extended_decoder_0, '0']
 - [blocks_multiply_const_xx_1_0_0, '0', blocks_add_const_vxx_0_0_0, '0']
 - [blocks_repack_bits_bb_0_0, '0', pdu_tagged_stream_to_pdu_0, '0']
@@ -634,6 +637,7 @@ connections:
 - [freq_xlating_fir_filter_xxx_0, '0', analog_agc_xx_0, '0']
 - [hilbert_fc_0, '0', freq_xlating_fir_filter_xxx_0, '0']
 - [pdu_tagged_stream_to_pdu_0, pdus, zeromq_pub_msg_sink_0, in]
+- [zeromq_sub_source_0, '0', hilbert_fc_0, '0']
 
 metadata:
   file_format: 1
