@@ -16,17 +16,17 @@ from src.peak_detector import FrequencyListener, wait_for_beep
 logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
 
 
-class Receiver(gr.top_block):
+class Demodulator(gr.top_block):
     def __init__(self, pkt: PacketConfig, sig: SignalConfig, constellation: Any):
-        """main receiver class
+        """main Demodulator class
 
         Args:
             pkt (PacketConfig): packet configuration
             sig (SignalConfig): signal configuration
             constellation (Any): constellation definition
         """
-        gr.top_block.__init__(self, "receiver master", catch_exceptions=False)
-        logging.info("Receiver class instanciated")
+        gr.top_block.__init__(self, "Demodulator master", catch_exceptions=False)
+        logging.info("Demodulator class instanciated")
         logging.info(pkt)
         logging.info(sig)
 
@@ -50,8 +50,8 @@ class Receiver(gr.top_block):
         self.cc_dec = fec.cc_decoder.make(8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True)
 
         # Blocks
-        self.audio_source_0 = audio.source(self.sig.samp_rate, '', True)
-
+        # self.audio_source_0 = audio.source(self.sig.samp_rate, '', True)
+        self.audio_source_0 = zeromq.sub_source(gr.sizeof_float, 1, 'tcp://127.0.0.1:5555', 100, False, (-1), '', False)
         ## signal preprocessing
         ### frequency shift
         self.hilbert_fc_0 = hilbert_fc(65, window.WIN_HAMMING, 6.76) # float -> complex
@@ -90,7 +90,7 @@ class Receiver(gr.top_block):
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
             15, 3, self.variable_adaptive_algorithm_0, True, [], "corr_est"
         )
-        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
+        self.digital_constellation_Demodulator_cb_0 = digital.constellation_Demodulator_cb(
             self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
         )
 
@@ -129,8 +129,8 @@ class Receiver(gr.top_block):
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
         self.connect((self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
         self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0))
-        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_constellation_receiver_cb_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
+        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_constellation_Demodulator_cb_0, 0))
+        self.connect((self.digital_constellation_Demodulator_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
         self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
@@ -156,7 +156,7 @@ def receive(
         sig (SignalConfig, optional): signal configuration. Defaults to DEFAULT_SIGNAL_CONFIG.
         constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
     """
-    tb = Receiver(pkt, sig, constellation)
+    tb = Demodulator(pkt, sig, constellation)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
@@ -168,7 +168,7 @@ def receive(
 
     tb.start()
     tb.flowgraph_started.set()
-    logging.info("receiver started")
+    logging.info("Demodulator started")
 
     tb.wait()
 
@@ -178,7 +178,7 @@ def wait_for_incomming_transmission(
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     constellation: Any = DEFAULT_DQPSK_CONST,
 ) -> None:
-    """Wait for a beep and launch a receiver at measured frequency. Output is then sent to zmq server at `tcp://*:5555` for packet decoding.
+    """Wait for a beep and launch a Demodulator at measured frequency. Output is then sent to zmq server at `tcp://*:5555` for packet decoding.
 
     Args:
         pkt (PacketConfig, optional): packet configuration. Defaults to DEFAULT_PACKET_CONFIG.
@@ -194,7 +194,7 @@ def wait_for_incomming_transmission(
     receive(pkt, sig, constellation)
 
 
-logging.info("receiver module loaded")
+logging.info("Demodulator module loaded")
 
 if __name__ == "__main__":
     wait_for_incomming_transmission()
