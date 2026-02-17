@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from gnuradio import digital
 from reedsolo import RSCodec
 
-logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
 
 
 # PACKET CONFIG

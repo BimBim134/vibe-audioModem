@@ -12,7 +12,7 @@ from gnuradio import zeromq
 
 from src.config import SignalConfig, DEFAULT_SIGNAL_CONFIG
 
-logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
 
 class AudioInterface(gr.top_block):
 
