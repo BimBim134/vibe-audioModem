@@ -1,32 +1,18 @@
-import threading
-import time
-import sys
+from concurrent.futures import ProcessPoolExecutor
+import logging
 
-from src import config
+from src.config import DEFAULT_SIGNAL_CONFIG
 from src.rx.audio_interface import start_audio_interface
+from src.rx.listenner import launch_demodulator
 
-def wait_for_messages() -> None:
-    threads = [
-        threading.Thread(target=func, daemon=True)
-        for func in (
-            print("let\'s gooo"), # this is where you launch stuff
-            start_audio_interface(config.DEFAULT_SIGNAL_CONFIG, 2048),
-        )
-    ]
-    for t in threads:
-        t.start()
+logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
 
-    try:
-        while True:
-            time.sleep(1)
-            # Optional: Check if threads are still alive
-            if not any(t.is_alive() for t in threads):
-                break
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-        sys.exit(0)
-
+def main():
+    with ProcessPoolExecutor() as executor:
+        executor.submit(start_audio_interface, DEFAULT_SIGNAL_CONFIG, 2048)
+        executor.submit(launch_demodulator)
+    print("yeeah")
 
 if __name__ == "__main__":
-    wait_for_messages()
-
+    main()
+    pass
