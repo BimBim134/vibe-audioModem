@@ -8,7 +8,7 @@ dependencies:
   - scipy
   - matplotlib
   - reedsolo
+  - pyzmq
   - pip
-  - sounddevice
   - pip:
       - sip
