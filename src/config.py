@@ -10,7 +10,6 @@ from reedsolo import RSCodec
 logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
 
 
-# PACKET CONFIG
 @dataclass
 class PacketConfig:
     """packet configuration"""
@@ -33,16 +32,8 @@ class PacketConfig:
     def rsc_codec(self)->RSCodec:
         """reed solomon codec"""
         return RSCodec(self.error_correction_len)
+    
 
-DEFAULT_PACKET_CONFIG = PacketConfig(
-    total_packets_len=255,
-    preamble_packets=3,
-    postamble_packets=1, # serve as EOF flag
-    error_correction_len=12,
-)
-
-
-# SIGNAL CONFIG
 @dataclass
 class SignalConfig:
     """signal configuration"""
@@ -62,14 +53,33 @@ class SignalConfig:
         """beeper number of audio sample"""
         return int(self.samp_rate*self.beeper_duration)
 
+
+@dataclass
+class PortsConfig:
+    """ports configuration"""
+    audio_port: int
+    
+    fft_port: int
+    fft_size: int
+
+    raw_packets_port:int
+
+
+DEFAULT_PACKET_CONFIG = PacketConfig(
+    total_packets_len=255,
+    preamble_packets=3,
+    postamble_packets=1, # serve as EOF flag
+    error_correction_len=12,
+)
+
 DEFAULT_SIGNAL_CONFIG = SignalConfig(
     samp_rate=48000, beeper_duration=0.5, carrier_freq=2500, baudrate=500
 )
 
-
-# CONSTELLATION CONFIG
 DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
 DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
+
+DEFAULT_PORTS_CONFIG = PortsConfig(audio_port=5555, fft_port=5556, fft_size=2048, raw_packets_port=5557)
 
 logging.info("config module loaded")
 

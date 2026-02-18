@@ -10,13 +10,13 @@ from gnuradio.fft import window
 from gnuradio import gr
 from gnuradio import zeromq
 
-from src.config import SignalConfig, DEFAULT_SIGNAL_CONFIG
+from src.config import SignalConfig, PortsConfig, DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
 
 logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
 
 class AudioInterface(gr.top_block):
 
-    def __init__(self, sig: SignalConfig, fft_size: int = 2028):
+    def __init__(self, sig: SignalConfig, ports: PortsConfig):
         """Gets input audio stream from sound card and computes its FFT. Provides audio and FFT on separated ports.
 
         Args:
@@ -25,28 +25,31 @@ class AudioInterface(gr.top_block):
         """
         gr.top_block.__init__(self, "Audio interface", catch_exceptions=True)
         self.flowgraph_started = threading.Event()
+        logging.info("AudioInterface class instanciated")
+        logging.info(sig)
+        logging.info(ports)
 
         # Variables
         self.sig = sig
-        self.fft_size = fft_size
+        self.ports = ports
 
         # Blocks
         ## audio broadcasting
         self.audio_source = audio.source(self.sig.samp_rate, "", True)
         self.zeromq_pub_sink_audio = zeromq.pub_sink(
-            gr.sizeof_float, 1, "tcp://*:5556", 0, False, (-1), "", True, True,
+            gr.sizeof_float, 1, f"tcp://*:{self.ports.audio_port}", 0, False, (-1), "", True, True,
         )
 
         ## fft computing and broadcasting
         self.blocks_stream_to_vector = blocks.stream_to_vector(
-            gr.sizeof_float * 1, self.fft_size
+            gr.sizeof_float * 1, self.ports.fft_size
         )
         self.fft_vxx = fft.fft_vfc(
-            self.fft_size, True, window.blackmanharris(self.fft_size), True, 1
+            self.ports.fft_size, True, window.blackmanharris(self.ports.fft_size), True, 1
         )
-        self.blocks_complex_to_mag = blocks.complex_to_mag(self.fft_size)
+        self.blocks_complex_to_mag = blocks.complex_to_mag(self.ports.fft_size)
         self.zeromq_pub_sink_fft = zeromq.pub_sink(
-            gr.sizeof_float, self.fft_size, "tcp://*:5555", 100, False, (-1), "", True, True
+            gr.sizeof_float, self.ports.fft_size, f"tcp://*:{self.ports.fft_port}", 100, False, (-1), "", True, True
         )
 
         # Connections
@@ -57,14 +60,17 @@ class AudioInterface(gr.top_block):
         self.connect((self.blocks_complex_to_mag, 0), (self.zeromq_pub_sink_fft, 0))
 
 
-def start_audio_interface(signal_conf:SignalConfig, fft_size:int):
+def start_audio_interface(
+        signal_conf:SignalConfig=DEFAULT_SIGNAL_CONFIG,
+        ports_conf:PortsConfig=DEFAULT_PORTS_CONFIG
+    ):
     """Starts the audio interface.
 
     Args:
         sig (SignalConfig): signal configuration (mainly to get samplerate)
         fft_size (int, optional): fft windows size. Defaults to 2028.
     """
-    tb = AudioInterface(signal_conf, fft_size)
+    tb = AudioInterface(signal_conf, ports_conf)
     logging.info("audio interface initialized")
 
     def sig_handler(sig=None, frame=None):
@@ -85,4 +91,4 @@ def start_audio_interface(signal_conf:SignalConfig, fft_size:int):
 logging.info("audio interface module loaded")
 
 if __name__ == "__main__":
-    start_audio_interface(DEFAULT_SIGNAL_CONFIG, 2048)
+    pass

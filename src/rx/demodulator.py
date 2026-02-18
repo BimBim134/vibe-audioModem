@@ -9,25 +9,30 @@ from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
 from gnuradio.filter import firdes, hilbert_fc, freq_xlating_fir_filter_ccc
 from gnuradio.fft import window
 
-from src.config import PacketConfig, SignalConfig
-from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
+from src.config import PacketConfig, SignalConfig, PortsConfig
+from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST, DEFAULT_PORTS_CONFIG
 
 logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
 
 
 class Demodulator(gr.top_block):
-    def __init__(self, pkt: PacketConfig, sig: SignalConfig, constellation: Any):
+    def __init__(self, pkt: PacketConfig,
+                 sig: SignalConfig,
+                 constellation: Any,
+                 ports_conf: PortsConfig):
         """main Demodulator class
 
         Args:
             pkt (PacketConfig): packet configuration
             sig (SignalConfig): signal configuration
             constellation (Any): constellation definition
+            ports_conf(PortsConfig): ports configuration
         """
         gr.top_block.__init__(self, "Demodulator master", catch_exceptions=False)
         logging.info("Demodulator class instanciated")
         logging.info(pkt)
         logging.info(sig)
+        logging.info(ports_conf)
 
         self.flowgraph_started = threading.Event()
 
@@ -48,9 +53,12 @@ class Demodulator(gr.top_block):
         self.hdr_format = digital.header_format_default(self.access_key, 0)
         self.cc_dec = fec.cc_decoder.make(8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True)
 
+        ## ports configuration
+        self.ports = ports_conf
+
         # Blocks
         # self.audio_source_0 = audio.source(self.sig.samp_rate, '', True)
-        self.audio_source_0 = zeromq.sub_source(gr.sizeof_float, 1, 'tcp://127.0.0.1:5555', 100, False, (-1), '', False)
+        self.audio_source_0 = zeromq.sub_source(gr.sizeof_float, 1, f'tcp://127.0.0.1:{self.ports.audio_port}', 100, False, (-1), '', False)
         ## signal preprocessing
         ### frequency shift
         self.hilbert_fc_0 = hilbert_fc(65, window.WIN_HAMMING, 6.76) # float -> complex
@@ -120,7 +128,7 @@ class Demodulator(gr.top_block):
         self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(gr.types.byte_t, 'packet_len')
 
         ## send output packets to zmq sink
-        self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink("tcp://*:5555", 100, True)
+        self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(f"tcp://*:{self.ports.raw_packets_port}", 100, True)
 
         # Connections
         self.connect((self.audio_source_0, 0), (self.hilbert_fc_0, 0))
@@ -147,14 +155,18 @@ def launch_demodulator(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     constellation: Any = DEFAULT_DQPSK_CONST,
-    carrier_frequency: float | None = None
+    carrier_frequency: float | None = None,
+    ports: PortsConfig = DEFAULT_PORTS_CONFIG
 ):
-    """receive an incomming transmission specified by **pkt**, **sig** and modulated using **constellation**.
+    """receives an incomming transmission specified by **pkt**, **sig** and modulated using **constellation** at **carrier_frequency**.
+    Outputs results on raw_packet_port defined in **ports**
 
     Args:
         pkt (PacketConfig, optional): packet configuration. Defaults to DEFAULT_PACKET_CONFIG.
         sig (SignalConfig, optional): signal configuration. Defaults to DEFAULT_SIGNAL_CONFIG.
         constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
+        carrier_frequency (float | None, optionnal): carrier frequency. Defaults to None.
+        ports (PortsConfig, optional): ports configuration. Defaults to DEFAULT_PORTS_CONFIG.
     """
     signal_config = sig
 
