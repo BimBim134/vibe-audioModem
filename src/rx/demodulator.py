@@ -147,6 +147,7 @@ def launch_demodulator(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     constellation: Any = DEFAULT_DQPSK_CONST,
+    carrier_frequency: float | None = None
 ):
     """receive an incomming transmission specified by **pkt**, **sig** and modulated using **constellation**.
 
@@ -155,7 +156,12 @@ def launch_demodulator(
         sig (SignalConfig, optional): signal configuration. Defaults to DEFAULT_SIGNAL_CONFIG.
         constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
     """
-    tb = Demodulator(pkt, sig, constellation)
+    signal_config = sig
+
+    if carrier_frequency:
+        signal_config.carrier_freq = carrier_frequency
+
+    tb = Demodulator(pkt, signal_config, constellation)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
@@ -170,3 +176,10 @@ def launch_demodulator(
     logging.info("Demodulator started")
 
     tb.wait()
+
+
+logging.info("Demodulator module loaded")
+
+
+if __name__ == "__main__":
+    pass
