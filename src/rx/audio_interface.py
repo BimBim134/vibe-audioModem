@@ -62,7 +62,8 @@ class AudioInterface(gr.top_block):
 
 def start_audio_interface(
         signal_conf:SignalConfig=DEFAULT_SIGNAL_CONFIG,
-        ports_conf:PortsConfig=DEFAULT_PORTS_CONFIG
+        ports_conf:PortsConfig=DEFAULT_PORTS_CONFIG,
+        stop_event=None
     ):
     """Starts the audio interface.
 
@@ -74,21 +75,30 @@ def start_audio_interface(
     logging.info("audio interface initialized")
 
     def sig_handler(sig=None, frame=None):
+        logging.info("AudioInterface: SIGINT/SIGTERM received")
         tb.stop()
         tb.wait()
-
         sys.exit(0)
 
     signal.signal(signal.SIGINT, sig_handler)
     signal.signal(signal.SIGTERM, sig_handler)
+
+    if stop_event is not None:
+        def monitor_stop_event():
+            stop_event.wait()
+            logging.info("AudioInterface: stop_event set, stopping flowgraph")
+            tb.stop()
+            tb.wait()
+        
+        monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
+        monitor_thread.start()
 
     tb.start()
     logging.info("audio interface started")
     tb.flowgraph_started.set()
 
     tb.wait()
-
-logging.info("audio interface module loaded")
+    logging.info("audio interface stopped")
 
 if __name__ == "__main__":
     pass
