@@ -24,6 +24,9 @@ def search_for_incomming_transmission(
     socket.setsockopt(zmq.SUBSCRIBE, b"")
     logging.info(f"peak detector subscribed to fft on port {ports.fft_port}")
 
+    half_size = ports.fft_size // 2
+    freq_resolution = sig.samp_rate / ports.fft_size
+
     try:
         while True:
             msg = socket.recv()
@@ -32,17 +35,17 @@ def search_for_incomming_transmission(
             if data.size != ports.fft_size:
                 continue
 
-            half_size = ports.fft_size // 2
             real_spectrum = data[half_size:]
 
             peaks, properties = find_peaks(real_spectrum, height=0.5, distance=20)
 
-            freq_resolution = sig.samp_rate / ports.fft_size
             peak_freqs = peaks * freq_resolution
             peak_amps = properties['peak_heights']
 
             if len(peak_freqs) > 0:
-                logging.debug(f"peak detected at {peak_freqs} Hz, {peak_amps}")
+                for pf, pa in zip(peak_freqs, peak_amps):
+                    if pf > 200:
+                        logging.debug(f"peak detected at {pf:.2f} Hz, {pa:.2f}")
 
 
 
