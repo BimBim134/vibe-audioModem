@@ -52,6 +52,11 @@ class SignalConfig:
     def beeper_nb_sample(self) -> int:
         """beeper number of audio sample"""
         return int(self.samp_rate*self.beeper_duration)
+    
+    @property
+    def nyquist_freq(self) -> float:
+        """nyquist frequency"""
+        return self.samp_rate / 2
 
 
 @dataclass
