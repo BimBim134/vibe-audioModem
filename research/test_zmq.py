@@ -28,7 +28,7 @@ try:
         if data.size != FFT_SIZE:
             continue
 
-        waterfall[row, :] = data[half_size:]
+        waterfall[row, :] = 10 * np.log10(data[half_size:])
 
         row += 1
         print("#", end='')
