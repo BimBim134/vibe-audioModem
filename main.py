@@ -10,7 +10,7 @@ logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(modu
 def main():
     with ProcessPoolExecutor() as executor:
         executor.submit(start_audio_interface, DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG)
-        # executor.submit(search_for_incomming_transmission, 5555, 2048, DEFAULT_SIGNAL_CONFIG)
+        executor.submit(search_for_incomming_transmission, DEFAULT_PORTS_CONFIG, DEFAULT_SIGNAL_CONFIG)
     print("yeeah")
 
 if __name__ == "__main__":
