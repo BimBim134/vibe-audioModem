@@ -84,7 +84,7 @@ DEFAULT_SIGNAL_CONFIG = SignalConfig(
 DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
 DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
 
-DEFAULT_PORTS_CONFIG = PortsConfig(audio_port=5555, fft_port=5556, fft_size=2048, raw_packets_port=5557)
+DEFAULT_PORTS_CONFIG = PortsConfig(audio_port=5555, fft_port=5556, fft_size=4096, raw_packets_port=5557)
 
 logging.info("config module loaded")
 
