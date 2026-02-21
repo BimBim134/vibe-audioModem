@@ -10,7 +10,7 @@ import pmt
 
 import src.config as config
 
-logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
 def split_payload_into_packet(
     payload: bytes, pkt: config.PacketConfig

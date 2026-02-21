@@ -6,7 +6,7 @@ from reedsolo import ReedSolomonError
 from src.config import PacketConfig
 from src.config import DEFAULT_PACKET_CONFIG
 
-logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
 
 def decode_packet(raw_packet: bytes, pkt: PacketConfig):

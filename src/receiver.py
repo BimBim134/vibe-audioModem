@@ -13,7 +13,7 @@ from src.config import PacketConfig, SignalConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
 from src.rx.peak_detector import FrequencyListener, wait_for_beep
 
-logging.basicConfig(format="%(levelname)s: %(module)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
 
 class Demodulator(gr.top_block):
