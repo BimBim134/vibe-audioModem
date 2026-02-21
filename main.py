@@ -2,10 +2,11 @@ import multiprocessing
 import logging
 import time
 
-from src.config import DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
-# from src.rx.audio_interface import start_audio_interface
-from research.audio_from_file import start_audio_interface
+from src.config import DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG, DEFAULT_PACKET_CONFIG
+from src.rx.audio_interface import start_audio_interface
+# from research.audio_from_file import start_audio_interface
 from src.rx.peak_detector import search_for_incomming_transmission
+from src.rx.packet_decoding import listen_for_packets
 
 logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
@@ -61,7 +62,6 @@ def main():
             "kwargs": {
                 "signal_conf": DEFAULT_SIGNAL_CONFIG,
                 "ports_conf": DEFAULT_PORTS_CONFIG,
-                "file": "research/test.wav",
                 "stop_event": stop_event
             },
             "name": "AudioInterfaceProcess"
@@ -74,7 +74,16 @@ def main():
                 "stop_event": stop_event
             },
             "name": "PeakDetectorProcess"
-        }
+        },
+        {
+            "target": listen_for_packets,
+            "kwargs": {
+                "pkt": DEFAULT_PACKET_CONFIG,
+                "ports": DEFAULT_PORTS_CONFIG,
+                "stop_event": stop_event
+            },
+            "name": "RawPacketDecoderProcess"
+        },
     ]
     
     run_processes(process_configs, stop_event)

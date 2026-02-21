@@ -4,7 +4,7 @@ import logging
 from reedsolo import ReedSolomonError
 
 from src.config import PacketConfig
-from src.config import DEFAULT_PACKET_CONFIG
+from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_PORTS_CONFIG, PortsConfig
 
 logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
@@ -27,22 +27,32 @@ def decode_packet(raw_packet: bytes, pkt: PacketConfig):
         return decoded_payload[1 : packet_len + 1]
 
 
-def receveur_paquets(pkt: PacketConfig=DEFAULT_PACKET_CONFIG):
+def listen_for_packets(
+        pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
+        ports: PortsConfig = DEFAULT_PORTS_CONFIG,
+        stop_event = None
+    ):
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.connect("tcp://localhost:5555")
-
+    socket.bind(f"tcp://*:{ports.raw_packets_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
+    socket.setsockopt(zmq.RCVTIMEO, 500)
 
-    logging.info("waiting for packets on tcp://localhost:5555")
+    logging.info(f"Packet decoder listening for packets on port {ports.raw_packets_port}")
 
-    while True:
-        try:
-            msg = socket.recv()
-            logging.debug(decode_packet(msg, pkt))
-
-        except KeyboardInterrupt:
-            break
+    try:
+        while stop_event is None or not stop_event.is_set():
+            try:
+                msg = socket.recv()
+                logging.debug("Received packet: %s", decode_packet(msg, pkt))
+            except zmq.Again:
+                continue
+    except KeyboardInterrupt:
+        pass
+    finally:
+        logging.info("Packet decoder: closing socket and context")
+        socket.close()
+        context.term()
 
 
 logging.info("packet2bin module loaded")

@@ -97,9 +97,7 @@ class Demodulator(gr.top_block):
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
             15, 3, self.variable_adaptive_algorithm_0, True, [], "corr_est"
         )
-        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
-            self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
-        )
+        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation)
 
         ## constellation decoding
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
@@ -128,7 +126,7 @@ class Demodulator(gr.top_block):
         self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(gr.types.byte_t, 'packet_len')
 
         ## send output packets to zmq sink
-        self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(f"tcp://*:{self.ports.raw_packets_port}", 100, True)
+        self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False)
 
         # Connections
         self.connect((self.audio_source_0, 0), (self.hilbert_fc_0, 0))
@@ -157,7 +155,6 @@ def launch_demodulator(
     constellation: Any = DEFAULT_DQPSK_CONST,
     carrier_frequency: float | None = None,
     ports: PortsConfig = DEFAULT_PORTS_CONFIG,
-    raw_packet_port_override: int | None = None
 ):
     """receives an incomming transmission specified by **pkt**, **sig** and modulated using **constellation** at **carrier_frequency**.
     Outputs results on raw_packet_port defined in **ports**
@@ -168,14 +165,10 @@ def launch_demodulator(
         constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
         carrier_frequency (float | None, optionnal): carrier frequency. Defaults to None.
         ports (PortsConfig, optional): ports configuration. Defaults to DEFAULT_PORTS_CONFIG.
-        raw_packet_port_override (int | None, optional): Override the ZMQ port for raw packets. Defaults to None.
     """
     import copy
     signal_config = sig
     ports_config = copy.copy(ports)
-    
-    if raw_packet_port_override:
-        ports_config.raw_packets_port = raw_packet_port_override
 
     if carrier_frequency:
         signal_config.carrier_freq = carrier_frequency

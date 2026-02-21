@@ -89,7 +89,6 @@ def search_for_incomming_transmission(
                                     "sig": sig,
                                     "carrier_frequency": pf,
                                     "ports": ports,
-                                    "raw_packet_port_override": assigned_port
                                 },
                                 name=f"Demodulator_{int(pf)}Hz"
                             )
