@@ -7,7 +7,7 @@ from src.config import DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
 from research.audio_from_file import start_audio_interface
 from src.rx.peak_detector import search_for_incomming_transmission
 
-logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
 def run_processes(process_configs, stop_event, timeout=2.0):
     """
@@ -61,7 +61,7 @@ def main():
             "kwargs": {
                 "signal_conf": DEFAULT_SIGNAL_CONFIG,
                 "ports_conf": DEFAULT_PORTS_CONFIG,
-                "file": "/home/bimbim/Codes/vibe-audioModem/test.wav",
+                "file": "research/test.wav",
                 "stop_event": stop_event
             },
             "name": "AudioInterfaceProcess"
