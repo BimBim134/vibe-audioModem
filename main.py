@@ -8,26 +8,29 @@ from src.rx.peak_detector import search_for_incomming_transmission
 
 logging.basicConfig(format="%(levelname)s: %(processName)s - %(process)d: %(module)s: %(message)s", level=logging.DEBUG)
 
-def main():
-    stop_event = multiprocessing.Event()
+def run_processes(process_configs, stop_event, timeout=2.0):
+    """
+    Run and manage a list of multiprocessing.Process configurations.
     
-    p1 = multiprocessing.Process(
-        target=start_audio_interface, 
-        args=(DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG, stop_event),
-        name="AudioInterfaceProcess"
-    )
-    p2 = multiprocessing.Process(
-        target=search_for_incomming_transmission, 
-        args=(DEFAULT_PORTS_CONFIG, DEFAULT_SIGNAL_CONFIG, stop_event),
-        name="PeakDetectorProcess"
-    )
-
-    try:
-        p1.start()
-        p2.start()
+    Args:
+        process_configs: List of dicts with 'target', 'args', and 'name'.
+        stop_event: multiprocessing.Event used to signal processes to stop.
+        timeout: Time in seconds to wait for processes to exit gracefully.
+    """
+    processes = []
+    
+    for config in process_configs:
+        p = multiprocessing.Process(
+            target=config['target'],
+            args=config.get('args', ()),
+            name=config.get('name', 'Process')
+        )
+        processes.append(p)
+        p.start()
         
+    try:
         # Keep the main process alive until processes exit or interrupt
-        while p1.is_alive() or p2.is_alive():
+        while any(p.is_alive() for p in processes):
             time.sleep(0.1)
             
     except KeyboardInterrupt:
@@ -35,18 +38,34 @@ def main():
         stop_event.set()
     finally:
         # Give processes some time to exit gracefully
-        p1.join(timeout=2)
-        p2.join(timeout=2)
-        
-        # Force terminate if still alive
-        if p1.is_alive():
-            logging.warning("Main: p1 still alive, terminating...")
-            p1.terminate()
-        if p2.is_alive():
-            logging.warning("Main: p2 still alive, terminating...")
-            p2.terminate()
+        for p in processes:
+            p.join(timeout=timeout)
             
-    print("Graceful shutdown complete. yeeah")
+        # Force terminate if still alive
+        for p in processes:
+            if p.is_alive():
+                logging.warning("Main: %s still alive, terminating...", p.name)
+                p.terminate()
+
+def main():
+    stop_event = multiprocessing.Event()
+    
+    process_configs = [
+        {
+            "target": start_audio_interface,
+            "args": (DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG, stop_event),
+            "name": "AudioInterfaceProcess"
+        },
+        {
+            "target": search_for_incomming_transmission,
+            "args": (DEFAULT_PORTS_CONFIG, DEFAULT_SIGNAL_CONFIG, stop_event),
+            "name": "PeakDetectorProcess"
+        }
+    ]
+    
+    run_processes(process_configs, stop_event)
+            
+    logging.info("Graceful shutdown complete.")
 
 if __name__ == "__main__":
     main()
