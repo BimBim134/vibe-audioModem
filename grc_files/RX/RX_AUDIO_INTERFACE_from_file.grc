@@ -92,6 +92,27 @@ blocks:
     coordinate: [360, 228.0]
     rotation: 0
     state: enabled
+- name: blocks_throttle2_0
+  id: blocks_throttle2
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    ignoretag: 'True'
+    limit: auto
+    maximum: '0.1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: samp_rate
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [176, 216.0]
+    rotation: 0
+    state: enabled
 - name: blocks_wavfile_source_0
   id: blocks_wavfile_source
   parameters:
@@ -179,8 +200,9 @@ blocks:
 connections:
 - [blocks_complex_to_mag_0, '0', zeromq_pub_sink_1, '0']
 - [blocks_stream_to_vector_0, '0', fft_vxx_0, '0']
-- [blocks_wavfile_source_0, '0', blocks_stream_to_vector_0, '0']
-- [blocks_wavfile_source_0, '0', zeromq_pub_sink_0, '0']
+- [blocks_throttle2_0, '0', blocks_stream_to_vector_0, '0']
+- [blocks_throttle2_0, '0', zeromq_pub_sink_0, '0']
+- [blocks_wavfile_source_0, '0', blocks_throttle2_0, '0']
 - [fft_vxx_0, '0', blocks_complex_to_mag_0, '0']
 
 metadata:

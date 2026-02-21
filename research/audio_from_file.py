@@ -39,6 +39,7 @@ class AudioInterface(gr.top_block):
         # Blocks
         ## audio broadcasting
         self.audio_source = blocks.wavfile_source(str(file), False)
+        self.blocks_throttle2_0 = blocks.throttle( gr.sizeof_float*1, self.sig.samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * self.sig.samp_rate) if "auto" == "time" else int(0.1), 1) )
         self.zeromq_pub_sink_audio = zeromq.pub_sink(
             gr.sizeof_float, 1, f"tcp://*:{self.ports.audio_port}", 0, False, (-1), "", True, True,
         )
@@ -56,8 +57,9 @@ class AudioInterface(gr.top_block):
         )
 
         # Connections
-        self.connect((self.audio_source, 0), (self.blocks_stream_to_vector, 0))
-        self.connect((self.audio_source, 0), (self.zeromq_pub_sink_audio, 0))
+        self.connect((self.audio_source, 0), (self.blocks_throttle2_0, 0))
+        self.connect((self.blocks_throttle2_0, 0), (self.blocks_stream_to_vector, 0))
+        self.connect((self.blocks_throttle2_0, 0), (self.zeromq_pub_sink_audio, 0))
         self.connect((self.blocks_stream_to_vector, 0), (self.fft_vxx, 0))
         self.connect((self.fft_vxx, 0), (self.blocks_complex_to_mag, 0))
         self.connect((self.blocks_complex_to_mag, 0), (self.zeromq_pub_sink_fft, 0))
@@ -77,6 +79,9 @@ def start_audio_interface(
     """
     tb = AudioInterface(signal_conf, ports_conf, file)
     logging.info("audio interface initialized")
+
+    logging.info("Waiting 5 seconds before starting")
+    time.sleep(5)
 
     def sig_handler(sig=None, frame=None):
         logging.info("AudioInterface: SIGINT/SIGTERM received")
