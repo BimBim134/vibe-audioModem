@@ -59,10 +59,10 @@ def search_for_incomming_transmission(
 
             real_spectrum = data[half_size:]
 
-            peaks, properties = find_peaks(real_spectrum, height=0.5, distance=20)
+            peaks, properties = find_peaks(real_spectrum, distance=int(sig.baudrate*freq_resolution), prominence=0.2)
 
             peak_freqs = peaks * freq_resolution
-            peak_amps = properties['peak_heights']
+            peak_amps = properties['prominences']
 
             if len(peak_freqs) > 0:
                 for pf, pa in zip(peak_freqs, peak_amps):
@@ -77,7 +77,7 @@ def search_for_incomming_transmission(
                                 break
                                 
                         if not is_running:
-                            logging.info("Transmission detected at %.2f Hz. Launching Demodulator...", pf)
+                            logging.info("Transmission detected at %.2f Hz, with prominence %.2f. Launching Demodulator...", pf, pa)
                             from src.rx.demodulator import launch_demodulator # Import here to avoid circular dependencies if any
                             
                             # Allocate a new port so multiple demodulators don't crash
