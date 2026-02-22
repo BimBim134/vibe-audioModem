@@ -10,5 +10,6 @@ dependencies:
   - reedsolo
   - pyzmq
   - pip
+  - dash
   - pip:
       - sip

@@ -101,4 +101,4 @@ def start_audio_interface(
     logging.info("audio interface stopped")
 
 if __name__ == "__main__":
-    pass
+    start_audio_interface()
