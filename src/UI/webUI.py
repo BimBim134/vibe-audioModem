@@ -20,9 +20,9 @@ MAX_BATCH_SIZE = 20  # Max FFT rows per batch to prevent huge payloads
 
 # Custom colorscale for light theme: White -> Soft Teal -> Deep Teal
 CUSTOM_COLORSCALE = [
-    [0.0, "rgb(255, 255, 255)"],  # White background
-    [0.5, "rgb(200, 230, 225)"],  # Light Teal
-    [1.0, "rgb(0, 120, 100)"],  # Deep Teal
+    [0.0, "#e4ebf5"],  # Orange
+    [0.5, "#bebddb"],  # Red
+    [1.0, "#ed476d"],  # Dark Red
 ]
 
 
@@ -69,7 +69,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                     data = np.frombuffer(msg, dtype=np.float32)
                     with fft_lock:
                         if len(data) == ports.fft_size:
-                            latest_fft = data[ports.half_fft_size :]
+                            latest_fft = data[ports.half_spectrum]
                         else:
                             # Fallback for dynamic resizing
                             mid = len(data) // 2
@@ -124,8 +124,9 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
             x=freqs_list,
             y=[0.0] * len(freqs_list),
             mode="lines",
-            line=dict(color="#006655"),
+            line=dict(width=0),
             fill="tonexty",
+            fillcolor=CUSTOM_COLORSCALE[1][1],
             name="Magnitude",
         ),
         row=1,
@@ -139,8 +140,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
             z=init_spectrogram,
             x=freqs_downsampled,
             colorscale=CUSTOM_COLORSCALE,
-            zmin=-100,
-            zmax=100,
+            zmin=-40,
+            zmax=40,
             showscale=False,
             name="Spectrogram",
         ),
