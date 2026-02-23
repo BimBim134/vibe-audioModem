@@ -23,11 +23,14 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
 
     freqs = np.linspace(0, sig.nyquist_freq, ports.half_fft_size)
 
+    spectrogram_data = np.full((200, ports.half_fft_size), - 100)
+
     latest_fft = np.zeros(ports.half_fft_size)
     fft_lock = threading.Lock()
 
     def zmq_listener():
         nonlocal latest_fft
+        nonlocal spectrogram_data
         context = zmq.Context()
         socket = context.socket(zmq.SUB)
         socket.connect(f"tcp://localhost:{ports.fft_port}")
@@ -50,6 +53,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                             mid = len(data) // 2
                             latest_fft = data[mid:]
                         latest_fft = 10*np.log(latest_fft)
+                        spectrogram_data = np.roll(spectrogram_data, 1, axis=0)
+                        spectrogram_data[0, :] = latest_fft
                 elif stop_event and stop_event.is_set():
                     break
             except Exception as e:
@@ -65,7 +70,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     listener_thread.start()
 
     # Initialize the figure ONCE
-    initial_fig = go.Figure(
+    fig_spectroscope = go.Figure(
         data=[
             # Trace 0: Invisible baseline at -100
             go.Scatter(x=freqs, y=np.full(len(freqs), -100), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False),
@@ -73,8 +78,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
             go.Scatter(x=freqs, y=np.zeros(len(freqs)), mode='lines', line=dict(color='#00ffcc'), fill='tonexty')
         ]
     )
-    initial_fig.update_layout(
-        title=f'Magnitude Spectrum (Port {ports.fft_port})',
+    fig_spectroscope.update_layout(
         xaxis_title='Fréquence (Hz)',
         yaxis_title='Magnitude',
         template='plotly_dark',
@@ -82,23 +86,49 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         yaxis=dict(range=[-100, 100])
     )
 
-    app.layout = html.Div([
-        dcc.Graph(id='live-spectroscope-graph', figure=initial_fig, config={'displayModeBar': False}),
-        dcc.Interval(
-            id='interval-component',
-            interval=100, # Update interval in milliseconds
-            n_intervals=0
+    fig_spectrogram = go.Figure(
+        data=go.Heatmap(
+            z=spectrogram_data
         )
+    )
+    fig_spectrogram.update_layout(
+        template='plotly_dark',
+        margin=dict(l=40, r=40, t=60, b=40)
+    )
+
+    app.layout = html.Div([
+        dcc.Graph(id='live-spectroscope-graph', figure=fig_spectroscope, config={'displayModeBar': False}),
+        dcc.Interval(
+            id='interval-spectroscope',
+            interval=250, # Update interval in milliseconds
+            n_intervals=0
+        ),
+        dcc.Graph(id='live-spectrogram-graph', figure=fig_spectrogram, config={'displayModeBar': False}),
+        dcc.Interval(
+            id='interval-spectrogram',
+            interval=250, # Update interval in milliseconds
+            n_intervals=0
+        ),
     ], style={'backgroundColor': '#111111', 'minHeight': '100vh', 'padding': '20px', 'boxSizing': 'border-box'})
 
     @app.callback(Output('live-spectroscope-graph', 'figure'),
-                  [Input('interval-component', 'n_intervals')])
-    def update_graph_live(n):
+                  [Input('interval-spectroscope', 'n_intervals')])
+    def update_spectroscope(n):
         with fft_lock:
             data = latest_fft.copy()
         
         patched_fig = Patch()
         patched_fig["data"][1]["y"] = data
+
+        return patched_fig
+
+    @app.callback(Output('live-spectrogram-graph', 'figure'),
+                  [Input('interval-spectrogram', 'n_intervals')])
+    def update_spectrogram(n):
+        with fft_lock:
+            data = spectrogram_data.copy()
+        patched_fig = Patch()
+        patched_fig["data"][0]["z"] = data
 
         return patched_fig
 
