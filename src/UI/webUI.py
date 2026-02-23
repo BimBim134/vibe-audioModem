@@ -18,6 +18,13 @@ logging.basicConfig(
 SPECTROGRAM_DOWNSAMPLE = 4  # Keep 1 bin out of N for the heatmap
 MAX_BATCH_SIZE = 20  # Max FFT rows per batch to prevent huge payloads
 
+# Custom colorscale to match the cyan #00ffcc theme
+CUSTOM_COLORSCALE = [
+    [0.0, "rgb(17, 17, 17)"],  # Dark background
+    [0.5, "rgb(0, 70, 60)"],  # Deep Teal
+    [1.0, "rgb(0, 255, 204)"],  # Active Cyan (#00ffcc)
+]
+
 
 def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     """
@@ -51,9 +58,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         socket.connect(f"tcp://localhost:{ports.fft_port}")
         socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
-        logging.info(
-            f"ZMQ Listener started, connecting to port {ports.fft_port}"
-        )
+        logging.info(f"ZMQ Listener started, connecting to port {ports.fft_port}")
 
         # Use stop_event if provided, otherwise check if the thread is still valid
         while stop_event is None or not stop_event.is_set():
@@ -133,7 +138,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         go.Heatmap(
             z=init_spectrogram,
             x=freqs_downsampled,
-            colorscale="Viridis",
+            colorscale=CUSTOM_COLORSCALE,
             zmin=-100,
             zmax=100,
             showscale=False,
