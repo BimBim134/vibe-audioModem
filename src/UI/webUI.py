@@ -27,7 +27,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     freqs = np.linspace(0, sig.nyquist_freq, ports.half_fft_size)
 
     latest_fft = np.zeros(ports.half_fft_size)
-    new_data_flag = [False]
+    fft_batch = []  # accumulate FFT rows between intervals
     fft_lock = threading.Lock()
 
     def zmq_listener():
@@ -54,7 +54,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                             mid = len(data) // 2
                             latest_fft = data[mid:]
                         latest_fft = 10*np.log(latest_fft)
-                        new_data_flag[0] = True
+                        fft_batch.append(latest_fft.tolist())
                 elif stop_event and stop_event.is_set():
                     break
             except Exception as e:
@@ -133,15 +133,16 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         ),
     ], style={'backgroundColor': '#111111', 'minHeight': '100vh', 'padding': '20px', 'boxSizing': 'border-box'})
 
-    # Server-side: only push the latest FFT row (~2048 floats instead of 200*2048)
+    # Server-side: push all FFT rows accumulated since last interval
     @app.callback(Output('fft-store', 'data'),
                   [Input('graph-interval', 'n_intervals')])
-    def push_latest_fft(n):
+    def push_fft_batch(n):
         with fft_lock:
-            if not new_data_flag[0]:
+            if not fft_batch:
                 return no_update
-            new_data_flag[0] = False
-            return latest_fft.tolist()
+            batch = list(fft_batch)
+            fft_batch.clear()
+        return batch
 
     # Clientside: accumulate spectrogram + update graph directly in browser
     # JS code is in assets/spectrogram.js
