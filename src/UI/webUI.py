@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Patch
+from dash import dcc, html, Patch, no_update
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
@@ -27,6 +27,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     spectrogram_data = np.full((200, ports.half_fft_size), - 100)
 
     latest_fft = np.zeros(ports.half_fft_size)
+    new_data_flag = [False]  # mutable container avoids nonlocal in callback
     fft_lock = threading.Lock()
 
     def zmq_listener():
@@ -56,6 +57,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                         latest_fft = 10*np.log(latest_fft)
                         spectrogram_data = np.roll(spectrogram_data, -1, axis=0)
                         spectrogram_data[-1, :] = latest_fft
+                        new_data_flag[0] = True
                 elif stop_event and stop_event.is_set():
                     break
             except Exception as e:
@@ -129,8 +131,11 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                   [Input('graph-interval', 'n_intervals')])
     def update_combined_graph(n):
         with fft_lock:
-            latest_data = latest_fft.copy()
-            spectro_data = spectrogram_data.copy()
+            if not new_data_flag[0]:
+                return no_update
+            new_data_flag[0] = False
+            latest_data = latest_fft.tolist()
+            spectro_data = spectrogram_data.tolist()
         
         patched_fig = Patch()
         patched_fig["data"][1]["y"] = latest_data
