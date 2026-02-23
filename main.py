@@ -7,6 +7,7 @@ from src.rx.audio_interface import start_audio_interface
 # from research.audio_from_file import start_audio_interface
 from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
+from src.UI.webUI import start_dashboard
 
 logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
@@ -66,29 +67,38 @@ def main():
             },
             "name": "AudioInterfaceProcess"
         },
+        #{
+        #    "target": search_for_incomming_transmission,
+        #    "kwargs": {
+        #        "ports": DEFAULT_PORTS_CONFIG,
+        #        "sig": DEFAULT_SIGNAL_CONFIG,
+        #        "stop_event": stop_event
+        #    },
+        #    "name": "PeakDetectorProcess"
+        #},
+        #{
+        #    "target": listen_for_packets,
+        #    "kwargs": {
+        #        "pkt": DEFAULT_PACKET_CONFIG,
+        #        "ports": DEFAULT_PORTS_CONFIG,
+        #        "stop_event": stop_event
+        #    },
+        #    "name": "RawPacketDecoderProcess"
+        #},
         {
-            "target": search_for_incomming_transmission,
+            "target": start_dashboard,
             "kwargs": {
-                "ports": DEFAULT_PORTS_CONFIG,
-                "sig": DEFAULT_SIGNAL_CONFIG,
+                "ports_conf": DEFAULT_PORTS_CONFIG,
+                "signal_conf": DEFAULT_SIGNAL_CONFIG,
                 "stop_event": stop_event
             },
-            "name": "PeakDetectorProcess"
-        },
-        {
-            "target": listen_for_packets,
-            "kwargs": {
-                "pkt": DEFAULT_PACKET_CONFIG,
-                "ports": DEFAULT_PORTS_CONFIG,
-                "stop_event": stop_event
-            },
-            "name": "RawPacketDecoderProcess"
+            "name": "DashboardProcess"
         },
     ]
     
     run_processes(process_configs, stop_event)
             
-    logging.info("Graceful shutdown complete.")
+    logging.info("Shutdown complete.")
 
 if __name__ == "__main__":
     main()
