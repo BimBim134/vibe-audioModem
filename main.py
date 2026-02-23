@@ -88,8 +88,8 @@ def main():
         {
             "target": start_dashboard,
             "kwargs": {
-                "ports_conf": DEFAULT_PORTS_CONFIG,
-                "signal_conf": DEFAULT_SIGNAL_CONFIG,
+                "ports": DEFAULT_PORTS_CONFIG,
+                "sig": DEFAULT_SIGNAL_CONFIG,
                 "stop_event": stop_event
             },
             "name": "DashboardProcess"
