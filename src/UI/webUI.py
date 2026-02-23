@@ -9,9 +9,9 @@ import logging
 
 from src.config import PortsConfig, SignalConfig
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
-def start_dashboard(ports_conf: PortsConfig, signal_conf: SignalConfig, stop_event=None):
+def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     """
     Start the Dash dashboard as a standalone process.
     """
@@ -21,27 +21,19 @@ def start_dashboard(ports_conf: PortsConfig, signal_conf: SignalConfig, stop_eve
 
     app = dash.Dash(__name__, update_title=None, title="Vibe - AudioModem")
 
-    # Load configuration from arguments
-    FFT_SIZE = ports_conf.fft_size
-    FFT_PORT = ports_conf.fft_port
-    NYQUIST = signal_conf.nyquist_freq
+    freqs = np.linspace(0, sig.nyquist_freq, ports.half_fft_size)
 
-    # The spectrum is symmetric for real signals, so we only need the first half (positive frequencies)
-    HALF_FFT_SIZE = FFT_SIZE // 2
-    # Start at 1 to avoid log(0) issues on x-axis
-    freqs = np.linspace(0, NYQUIST, HALF_FFT_SIZE)
-
-    latest_fft = np.zeros(HALF_FFT_SIZE)
+    latest_fft = np.zeros(ports.half_fft_size)
     fft_lock = threading.Lock()
 
     def zmq_listener():
         nonlocal latest_fft
         context = zmq.Context()
         socket = context.socket(zmq.SUB)
-        socket.connect(f"tcp://localhost:{FFT_PORT}")
+        socket.connect(f"tcp://localhost:{ports.fft_port}")
         socket.setsockopt_string(zmq.SUBSCRIBE, "")
         
-        logging.info(f"Dashboard: ZMQ Listener started, connecting to port {FFT_PORT}")
+        logging.info(f"Dashboard: ZMQ Listener started, connecting to port {ports.fft_port}")
         
         # Use stop_event if provided, otherwise check if the thread is still valid
         while stop_event is None or not stop_event.is_set():
@@ -50,17 +42,14 @@ def start_dashboard(ports_conf: PortsConfig, signal_conf: SignalConfig, stop_eve
                 if socket.poll(1000, zmq.POLLIN):
                     msg = socket.recv()
                     data = np.frombuffer(msg, dtype=np.float32)
-                    if len(data) == FFT_SIZE:
-                        with fft_lock:
-                            # GNU Radio fft_vfc with shift=True puts 0Hz at the center. 
-                            # The first half (0:2048) is -Nyquist to 0Hz.
-                            # The second half (2048:4096) is 0Hz to +Nyquist.
-                            latest_fft = data[HALF_FFT_SIZE:]
-                    else:
-                        with fft_lock:
+                    with fft_lock:
+                        if len(data) == ports.fft_size:
+                            latest_fft = data[ports.half_fft_size:]
+                        else:
                             # Fallback for dynamic resizing
                             mid = len(data) // 2
-                            latest_fft = 10*np.log(data[mid:])
+                            latest_fft = data[mid:]
+                        latest_fft = 10*np.log(latest_fft)
                 elif stop_event and stop_event.is_set():
                     break
             except Exception as e:
@@ -77,15 +66,20 @@ def start_dashboard(ports_conf: PortsConfig, signal_conf: SignalConfig, stop_eve
 
     # Initialize the figure ONCE
     initial_fig = go.Figure(
-        data=[go.Scatter(x=freqs, y=np.zeros(HALF_FFT_SIZE), mode='lines', line=dict(color='#00ffcc'))]
+        data=[
+            # Trace 0: Invisible baseline at -100
+            go.Scatter(x=freqs, y=np.full(len(freqs), -100), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False),
+            # Trace 1: Spectrogram trace filling down to the baseline
+            go.Scatter(x=freqs, y=np.zeros(len(freqs)), mode='lines', line=dict(color='#00ffcc'), fill='tonexty')
+        ]
     )
     initial_fig.update_layout(
-        title=f'Magnitude Spectrum (Port {FFT_PORT})',
+        title=f'Magnitude Spectrum (Port {ports.fft_port})',
         xaxis_title='Fréquence (Hz)',
         yaxis_title='Magnitude',
         template='plotly_dark',
         margin=dict(l=40, r=40, t=60, b=40),
-        yaxis=dict(range=[0, 20])
+        yaxis=dict(range=[-100, 100])
     )
 
     app.layout = html.Div([
@@ -104,15 +98,14 @@ def start_dashboard(ports_conf: PortsConfig, signal_conf: SignalConfig, stop_eve
             data = latest_fft.copy()
         
         patched_fig = Patch()
-        patched_fig["data"][0]["y"] = data
+        patched_fig["data"][1]["y"] = data
 
         return patched_fig
 
     logging.info("Starting Dash server...")
-    # Disable dev_tools_hot_reload to stop the "F5" refresh feel
     app.run(debug=False, use_reloader=False, port=8050, dev_tools_hot_reload=False)
 
 if __name__ == '__main__':
-    from src.config import DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
+    from src.config import DEFAULT_PORTS_CONFIG, DEFAULT_SIGNAL_CONFIG
     start_dashboard(DEFAULT_PORTS_CONFIG, DEFAULT_SIGNAL_CONFIG)
 
