@@ -2,6 +2,7 @@ import dash
 from dash import dcc, html, Patch
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
+from plotly.subplots import make_subplots
 import zmq
 import numpy as np
 import threading
@@ -69,66 +70,69 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     listener_thread = threading.Thread(target=zmq_listener, name="DashboardZMQListener", daemon=True)
     listener_thread.start()
 
-    # Initialize the figure ONCE
-    fig_spectroscope = go.Figure(
-        data=[
-            # Trace 0: Invisible baseline at -100
-            go.Scatter(x=freqs, y=np.full(len(freqs), -100), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False),
-            # Trace 1: Spectrogram trace filling down to the baseline
-            go.Scatter(x=freqs, y=np.zeros(len(freqs)), mode='lines', line=dict(color='#00ffcc'), fill='tonexty')
-        ]
+    # Combined figure with subplots
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        row_heights=[0.3, 0.7],
+        subplot_titles=("Spectroscope", "Spectrogram")
     )
-    fig_spectroscope.update_layout(
-        xaxis_title='Fréquence (Hz)',
-        yaxis_title='Magnitude',
+
+    # Row 1: Spectroscope
+    # Trace 0: Invisible baseline
+    fig.add_trace(
+        go.Scatter(x=freqs, y=np.full(len(freqs), -100), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False),
+        row=1, col=1
+    )
+    # Trace 1: Spectroscope data
+    fig.add_trace(
+        go.Scatter(x=freqs, y=np.zeros(len(freqs)), mode='lines', line=dict(color='#00ffcc'), fill='tonexty', name="Magnitude"),
+        row=1, col=1
+    )
+
+    # Row 2: Spectrogram
+    # Trace 2: Heatmap
+    fig.add_trace(
+        go.Heatmap(
+            z=spectrogram_data,
+            x=freqs,
+            colorscale='Viridis',
+            showscale=False,
+            name="Spectrogram"
+        ),
+        row=2, col=1
+    )
+
+    fig.update_layout(
         template='plotly_dark',
         margin=dict(l=40, r=40, t=60, b=40),
-        yaxis=dict(range=[-100, 100])
+        height=800,
+        showlegend=False
     )
-
-    fig_spectrogram = go.Figure(
-        data=go.Heatmap(
-            z=spectrogram_data
-        )
-    )
-    fig_spectrogram.update_layout(
-        template='plotly_dark',
-        margin=dict(l=40, r=40, t=60, b=40)
-    )
+    fig.update_yaxes(title_text="Magn. (dB)", range=[-100, 40], row=1, col=1)
+    fig.update_yaxes(title_text="Temps", row=2, col=1)
+    fig.update_xaxes(title_text="Fréquence (Hz)", row=2, col=1)
 
     app.layout = html.Div([
-        dcc.Graph(id='live-spectroscope-graph', figure=fig_spectroscope, config={'displayModeBar': False}),
+        dcc.Graph(id='live-graph', figure=fig, config={'displayModeBar': False}),
         dcc.Interval(
-            id='interval-spectroscope',
-            interval=250, # Update interval in milliseconds
-            n_intervals=0
-        ),
-        dcc.Graph(id='live-spectrogram-graph', figure=fig_spectrogram, config={'displayModeBar': False}),
-        dcc.Interval(
-            id='interval-spectrogram',
-            interval=250, # Update interval in milliseconds
+            id='graph-interval',
+            interval=200, # Update interval in milliseconds
             n_intervals=0
         ),
     ], style={'backgroundColor': '#111111', 'minHeight': '100vh', 'padding': '20px', 'boxSizing': 'border-box'})
 
-    @app.callback(Output('live-spectroscope-graph', 'figure'),
-                  [Input('interval-spectroscope', 'n_intervals')])
-    def update_spectroscope(n):
+    @app.callback(Output('live-graph', 'figure'),
+                  [Input('graph-interval', 'n_intervals')])
+    def update_combined_graph(n):
         with fft_lock:
-            data = latest_fft.copy()
+            latest_data = latest_fft.copy()
+            spectro_data = spectrogram_data.copy()
         
         patched_fig = Patch()
-        patched_fig["data"][1]["y"] = data
-
-        return patched_fig
-
-    @app.callback(Output('live-spectrogram-graph', 'figure'),
-                  [Input('interval-spectrogram', 'n_intervals')])
-    def update_spectrogram(n):
-        with fft_lock:
-            data = spectrogram_data.copy()
-        patched_fig = Patch()
-        patched_fig["data"][0]["z"] = data
+        patched_fig["data"][1]["y"] = latest_data
+        patched_fig["data"][2]["z"] = spectro_data
 
         return patched_fig
 
