@@ -71,6 +71,11 @@ class PortsConfig:
     raw_packets_port:int
 
     @property
+    def half_fft_size(self)->int:
+        """half of self.fft_size"""
+        return self.fft_size // 2
+
+    @property
     def half_spectrum(self)->slice:
         """slice object to get only half of the spectrum"""
         return slice(self.fft_size, None, None)
