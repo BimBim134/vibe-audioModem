@@ -18,11 +18,11 @@ logging.basicConfig(
 SPECTROGRAM_DOWNSAMPLE = 4  # Keep 1 bin out of N for the heatmap
 MAX_BATCH_SIZE = 20  # Max FFT rows per batch to prevent huge payloads
 
-# Custom colorscale to match the cyan #00ffcc theme
+# Custom colorscale for light theme: White -> Soft Teal -> Deep Teal
 CUSTOM_COLORSCALE = [
-    [0.0, "rgb(17, 17, 17)"],  # Dark background
-    [0.5, "rgb(0, 70, 60)"],  # Deep Teal
-    [1.0, "rgb(0, 255, 204)"],  # Active Cyan (#00ffcc)
+    [0.0, "rgb(255, 255, 255)"],  # White background
+    [0.5, "rgb(200, 230, 225)"],  # Light Teal
+    [1.0, "rgb(0, 120, 100)"],  # Deep Teal
 ]
 
 
@@ -124,7 +124,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
             x=freqs_list,
             y=[0.0] * len(freqs_list),
             mode="lines",
-            line=dict(color="#00ffcc"),
+            line=dict(color="#006655"),
             fill="tonexty",
             name="Magnitude",
         ),
@@ -149,12 +149,12 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     )
 
     fig.update_layout(
-        template="plotly_dark",
+        template="plotly_white",
         margin=dict(l=0, r=0, t=0, b=0),
         height=800,
         showlegend=False,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(255,255,255,0)",
+        plot_bgcolor="rgba(255,255,255,0)",
     )
     fig.update_yaxes(range=[-100, 40], visible=False, row=1, col=1)
     fig.update_yaxes(visible=False, row=2, col=1)
@@ -168,7 +168,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
             dcc.Interval(id="graph-interval", interval=100, n_intervals=0),
         ],
         style={
-            "backgroundColor": "#111111",
+            "backgroundColor": "#FFFFFF",
             "minHeight": "100vh",
             "margin": "0",
             "padding": "0",
