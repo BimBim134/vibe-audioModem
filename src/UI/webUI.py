@@ -27,12 +27,12 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     spectrogram_data = np.full((200, ports.half_fft_size), - 100)
 
     latest_fft = np.zeros(ports.half_fft_size)
+    write_idx = [0]  # circular buffer index
     new_data_flag = [False]  # mutable container avoids nonlocal in callback
     fft_lock = threading.Lock()
 
     def zmq_listener():
         nonlocal latest_fft
-        nonlocal spectrogram_data
         context = zmq.Context()
         socket = context.socket(zmq.SUB)
         socket.connect(f"tcp://localhost:{ports.fft_port}")
@@ -55,8 +55,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                             mid = len(data) // 2
                             latest_fft = data[mid:]
                         latest_fft = 10*np.log(latest_fft)
-                        spectrogram_data = np.roll(spectrogram_data, -1, axis=0)
-                        spectrogram_data[-1, :] = latest_fft
+                        spectrogram_data[write_idx[0], :] = latest_fft
+                        write_idx[0] = (write_idx[0] + 1) % 200
                         new_data_flag[0] = True
                 elif stop_event and stop_event.is_set():
                     break
@@ -135,7 +135,9 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                 return no_update
             new_data_flag[0] = False
             latest_data = latest_fft.tolist()
-            spectro_data = spectrogram_data.tolist()
+            # Reconstruct spectrogram in correct order from circular buffer
+            idx = write_idx[0]
+            spectro_data = np.concatenate([spectrogram_data[idx:], spectrogram_data[:idx]], axis=0).tolist()
         
         patched_fig = Patch()
         patched_fig["data"][1]["y"] = latest_data
