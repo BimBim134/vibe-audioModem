@@ -13,6 +13,7 @@ from src.config import PortsConfig, SignalConfig
 logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
 SPECTROGRAM_DOWNSAMPLE = 4  # Keep 1 bin out of N for the heatmap
+MAX_BATCH_SIZE = 20  # Max FFT rows per batch to prevent huge payloads
 
 def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     """
@@ -23,6 +24,13 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     log.setLevel(logging.ERROR)
 
     app = dash.Dash(__name__, update_title=None, title="Vibe - AudioModem")
+
+    # Cache-busting: prevent browser from caching JS assets
+    @app.server.after_request
+    def add_no_cache_header(response):
+        if response.content_type and 'javascript' in response.content_type:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        return response
 
     freqs = np.linspace(0, sig.nyquist_freq, ports.half_fft_size)
 
@@ -140,7 +148,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         with fft_lock:
             if not fft_batch:
                 return no_update
-            batch = list(fft_batch)
+            # Limit batch size to prevent huge payloads
+            batch = list(fft_batch[-MAX_BATCH_SIZE:])
             fft_batch.clear()
         return batch
 
