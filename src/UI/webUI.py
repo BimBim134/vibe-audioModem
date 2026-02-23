@@ -1,6 +1,6 @@
 import dash
-from dash import dcc, html, Patch, no_update
-from dash.dependencies import Input, Output
+from dash import dcc, html, no_update
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import zmq
@@ -24,11 +24,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
 
     freqs = np.linspace(0, sig.nyquist_freq, ports.half_fft_size)
 
-    spectrogram_data = np.full((200, ports.half_fft_size), - 100)
-
     latest_fft = np.zeros(ports.half_fft_size)
-    write_idx = [0]  # circular buffer index
-    new_data_flag = [False]  # mutable container avoids nonlocal in callback
+    new_data_flag = [False]
     fft_lock = threading.Lock()
 
     def zmq_listener():
@@ -55,8 +52,6 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                             mid = len(data) // 2
                             latest_fft = data[mid:]
                         latest_fft = 10*np.log(latest_fft)
-                        spectrogram_data[write_idx[0], :] = latest_fft
-                        write_idx[0] = (write_idx[0] + 1) % 200
                         new_data_flag[0] = True
                 elif stop_event and stop_event.is_set():
                     break
@@ -72,6 +67,9 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     listener_thread = threading.Thread(target=zmq_listener, name="DashboardZMQListener", daemon=True)
     listener_thread.start()
 
+    # Init spectrogram as nested list for JS compatibility
+    init_spectrogram = [[-100.0] * ports.half_fft_size for _ in range(200)]
+
     # Combined figure with subplots
     fig = make_subplots(
         rows=2, cols=1,
@@ -81,15 +79,17 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         subplot_titles=("Spectroscope", "Spectrogram")
     )
 
+    freqs_list = freqs.tolist()
+
     # Row 1: Spectroscope
     # Trace 0: Invisible baseline
     fig.add_trace(
-        go.Scatter(x=freqs, y=np.full(len(freqs), -100), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False),
+        go.Scatter(x=freqs_list, y=[-100.0]*len(freqs_list), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False),
         row=1, col=1
     )
     # Trace 1: Spectroscope data
     fig.add_trace(
-        go.Scatter(x=freqs, y=np.zeros(len(freqs)), mode='lines', line=dict(color='#00ffcc'), fill='tonexty', name="Magnitude"),
+        go.Scatter(x=freqs_list, y=[0.0]*len(freqs_list), mode='lines', line=dict(color='#00ffcc'), fill='tonexty', name="Magnitude"),
         row=1, col=1
     )
 
@@ -97,8 +97,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     # Trace 2: Heatmap
     fig.add_trace(
         go.Heatmap(
-            z=spectrogram_data,
-            x=freqs,
+            z=init_spectrogram,
+            x=freqs_list,
             colorscale='Viridis',
             zmin=-100,
             zmax=100,
@@ -120,30 +120,57 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
 
     app.layout = html.Div([
         dcc.Graph(id='live-graph', figure=fig, config={'displayModeBar': False}),
+        dcc.Store(id='fft-store'),
+        dcc.Store(id='spectrogram-store', data=init_spectrogram),
         dcc.Interval(
             id='graph-interval',
-            interval=200, # Update interval in milliseconds
+            interval=200,
             n_intervals=0
         ),
     ], style={'backgroundColor': '#111111', 'minHeight': '100vh', 'padding': '20px', 'boxSizing': 'border-box'})
 
-    @app.callback(Output('live-graph', 'figure'),
+    # Server-side: only push the latest FFT row (~2048 floats instead of 200*2048)
+    @app.callback(Output('fft-store', 'data'),
                   [Input('graph-interval', 'n_intervals')])
-    def update_combined_graph(n):
+    def push_latest_fft(n):
         with fft_lock:
             if not new_data_flag[0]:
                 return no_update
             new_data_flag[0] = False
-            latest_data = latest_fft.tolist()
-            # Reconstruct spectrogram in correct order from circular buffer
-            idx = write_idx[0]
-            spectro_data = np.concatenate([spectrogram_data[idx:], spectrogram_data[:idx]], axis=0).tolist()
-        
-        patched_fig = Patch()
-        patched_fig["data"][1]["y"] = latest_data
-        patched_fig["data"][2]["z"] = spectro_data
+            return latest_fft.tolist()
 
-        return patched_fig
+    # Clientside: accumulate spectrogram + update graph directly in browser
+    app.clientside_callback(
+        """
+        function(fftRow, spectrogramData) {
+            if (!fftRow) {
+                return window.dash_clientside.no_update;
+            }
+            
+            // Roll spectrogram: remove first row, append new row
+            spectrogramData.push(fftRow);
+            if (spectrogramData.length > 200) {
+                spectrogramData.shift();
+            }
+            
+            // Find the Plotly graph element inside the Dash wrapper
+            var wrapper = document.getElementById('live-graph');
+            if (wrapper) {
+                var plots = wrapper.getElementsByClassName('js-plotly-plot');
+                var graphEl = (plots.length > 0) ? plots[0] : wrapper;
+                if (graphEl && graphEl.data) {
+                    Plotly.restyle(graphEl, {'y': [fftRow]}, [1]);
+                    Plotly.restyle(graphEl, {'z': [spectrogramData]}, [2]);
+                }
+            }
+            
+            return spectrogramData;
+        }
+        """,
+        Output('spectrogram-store', 'data'),
+        [Input('fft-store', 'data')],
+        [State('spectrogram-store', 'data')]
+    )
 
     logging.info("Starting Dash server...")
     app.run(debug=False, use_reloader=False, port=8050, dev_tools_hot_reload=False)
@@ -151,4 +178,3 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
 if __name__ == '__main__':
     from src.config import DEFAULT_PORTS_CONFIG, DEFAULT_SIGNAL_CONFIG
     start_dashboard(DEFAULT_PORTS_CONFIG, DEFAULT_SIGNAL_CONFIG)
-
