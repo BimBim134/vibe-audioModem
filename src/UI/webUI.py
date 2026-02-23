@@ -124,7 +124,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         dcc.Store(id='spectrogram-store', data=init_spectrogram),
         dcc.Interval(
             id='graph-interval',
-            interval=200,
+            interval=100,
             n_intervals=0
         ),
     ], style={'backgroundColor': '#111111', 'minHeight': '100vh', 'padding': '20px', 'boxSizing': 'border-box'})
@@ -140,33 +140,9 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
             return latest_fft.tolist()
 
     # Clientside: accumulate spectrogram + update graph directly in browser
+    # JS code is in assets/spectrogram.js
     app.clientside_callback(
-        """
-        function(fftRow, spectrogramData) {
-            if (!fftRow) {
-                return window.dash_clientside.no_update;
-            }
-            
-            // Roll spectrogram: remove first row, append new row
-            spectrogramData.push(fftRow);
-            if (spectrogramData.length > 200) {
-                spectrogramData.shift();
-            }
-            
-            // Find the Plotly graph element inside the Dash wrapper
-            var wrapper = document.getElementById('live-graph');
-            if (wrapper) {
-                var plots = wrapper.getElementsByClassName('js-plotly-plot');
-                var graphEl = (plots.length > 0) ? plots[0] : wrapper;
-                if (graphEl && graphEl.data) {
-                    Plotly.restyle(graphEl, {'y': [fftRow]}, [1]);
-                    Plotly.restyle(graphEl, {'z': [spectrogramData]}, [2]);
-                }
-            }
-            
-            return spectrogramData;
-        }
-        """,
+        dash.ClientsideFunction('spectrogram', 'update'),
         Output('spectrogram-store', 'data'),
         [Input('fft-store', 'data')],
         [State('spectrogram-store', 'data')]
