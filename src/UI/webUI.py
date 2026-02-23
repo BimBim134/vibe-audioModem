@@ -54,8 +54,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                             mid = len(data) // 2
                             latest_fft = data[mid:]
                         latest_fft = 10*np.log(latest_fft)
-                        spectrogram_data = np.roll(spectrogram_data, 1, axis=0)
-                        spectrogram_data[0, :] = latest_fft
+                        spectrogram_data = np.roll(spectrogram_data, -1, axis=0)
+                        spectrogram_data[-1, :] = latest_fft
                 elif stop_event and stop_event.is_set():
                     break
             except Exception as e:
@@ -98,6 +98,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
             z=spectrogram_data,
             x=freqs,
             colorscale='Viridis',
+            zmin=-100,
+            zmax=100,
             showscale=False,
             name="Spectrogram"
         ),
