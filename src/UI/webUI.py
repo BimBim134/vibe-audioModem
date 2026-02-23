@@ -12,6 +12,8 @@ from src.config import PortsConfig, SignalConfig
 
 logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
+SPECTROGRAM_DOWNSAMPLE = 4  # Keep 1 bin out of N for the heatmap
+
 def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     """
     Start the Dash dashboard as a standalone process.
@@ -68,7 +70,8 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     listener_thread.start()
 
     # Init spectrogram as nested list for JS compatibility
-    init_spectrogram = [[-100.0] * ports.half_fft_size for _ in range(200)]
+    spectro_bins = ports.half_fft_size // SPECTROGRAM_DOWNSAMPLE
+    init_spectrogram = [[-100.0] * spectro_bins for _ in range(200)]
 
     # Combined figure with subplots
     fig = make_subplots(
@@ -80,6 +83,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     )
 
     freqs_list = freqs.tolist()
+    freqs_downsampled = freqs[::SPECTROGRAM_DOWNSAMPLE].tolist()
 
     # Row 1: Spectroscope
     # Trace 0: Invisible baseline
@@ -98,7 +102,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
     fig.add_trace(
         go.Heatmap(
             z=init_spectrogram,
-            x=freqs_list,
+            x=freqs_downsampled,
             colorscale='Viridis',
             zmin=-100,
             zmax=100,
