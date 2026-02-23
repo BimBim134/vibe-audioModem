@@ -52,7 +52,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
         socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
         logging.info(
-            f"Dashboard: ZMQ Listener started, connecting to port {ports.fft_port}"
+            f"ZMQ Listener started, connecting to port {ports.fft_port}"
         )
 
         # Use stop_event if provided, otherwise check if the thread is still valid
@@ -74,13 +74,13 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
                 elif stop_event and stop_event.is_set():
                     break
             except Exception as e:
-                logging.error(f"Dashboard: Error receiving ZMQ message: {e}")
+                logging.error(f"Error receiving ZMQ message: {e}")
                 if stop_event and stop_event.is_set():
                     break
 
         socket.close()
         context.term()
-        logging.info("Dashboard: ZMQ Listener stopped.")
+        logging.info("ZMQ Listener stopped.")
 
     listener_thread = threading.Thread(
         target=zmq_listener, name="DashboardZMQListener", daemon=True
@@ -93,7 +93,7 @@ def start_dashboard(ports: PortsConfig, sig: SignalConfig, stop_event=None):
 
     # Combined figure with subplots
     fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.01, row_heights=[0.3, 0.7]
+        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0, row_heights=[0.3, 0.7]
     )
 
     freqs_list = freqs.tolist()
