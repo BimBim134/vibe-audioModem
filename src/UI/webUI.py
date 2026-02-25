@@ -59,6 +59,11 @@ async def websocket_endpoint(websocket: WebSocket):
             # Conversion des données reçues (Magnitude brute)
             mag_array = np.frombuffer(raw_data, dtype=np.float32)
 
+            # On ne garde que la partie positive du spectre (la seconde moitié)
+            # car le bloc FFT de GNU Radio est décalé (fftshift=True).
+            half_len = len(mag_array) // 2
+            mag_array = mag_array[half_len:]
+
             # Calcul du dB : 20 * log10(mag)
             db_array = 20 * np.log10(mag_array + 1e-12)
 
