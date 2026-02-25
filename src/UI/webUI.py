@@ -1,3 +1,4 @@
+import sys
 import asyncio
 import zmq
 import zmq.asyncio
@@ -12,7 +13,7 @@ app = FastAPI()
 
 # Configuration
 ZMQ_URL = "tcp://127.0.0.1:5556"
-SPECTROGRAM_REFRESH_RATE = 1.0
+SPECTROGRAM_REFRESH_RATE = 0.1
 
 # 1. On lit le fichier HTML depuis le dossier assets
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +23,7 @@ with open(index_path, "r", encoding="utf-8") as f:
     HTML_PAGE = f.read()
 
 
-# 2. La route HTTP classique : sert la page Web
+# 2. Les routes HTTP
 @app.get("/")
 async def get_webpage():
     return HTMLResponse(HTML_PAGE)
@@ -38,7 +39,7 @@ async def get_stylesheet():
     return FileResponse(os.path.join(current_dir, "assets", "stylesheet.css"))
 
 
-# 3. La route WebSocket : gère le pont ZMQ -> Web en temps réel
+# 3. WebSocket bridge
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -55,17 +56,25 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             raw_data = await sock.recv()
 
-            # Envoi binaire rapide
-            await websocket.send_bytes(b"\x01" + raw_data)
+            # Conversion des données reçues (Magnitude brute)
+            mag_array = np.frombuffer(raw_data, dtype=np.float32)
 
-            # Traitement lent (1Hz)
+            # Calcul du dB : 20 * log10(mag)
+            db_array = 20 * np.log10(mag_array + 1e-12)
+
+            # Message type 0x01: FFT en dB pour le scope
+            await websocket.send_bytes(b"\x01" + db_array.tobytes())
+
+            # Message type 0x02: Normalized FFT (Uint8) pour le waterfall (10Hz)
             now = time.time()
             if now - last_spectro_time >= SPECTROGRAM_REFRESH_RATE:
                 last_spectro_time = now
-                fft_array = np.frombuffer(raw_data, dtype=np.float32)
-                fft_norm = np.clip((fft_array + 100) / 100 * 255, 0, 255).astype(
-                    np.uint8
-                )
+
+                v_min = -120
+                v_max = 0
+                fft_norm = np.clip(
+                    (db_array - v_min) / (v_max - v_min) * 255, 0, 255
+                ).astype(np.uint8)
                 await websocket.send_bytes(b"\x02" + fft_norm.tobytes())
 
     except WebSocketDisconnect:
@@ -75,9 +84,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 def start_dashboard(stop_event=None):
-    """Lancement du serveur unifié."""
-    # Note: On ignore stop_event pour uvicorn car il bloque,
-    # mais le parent s'occupera de tuer le process.
+    """Lancement du serveur."""
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 
 
