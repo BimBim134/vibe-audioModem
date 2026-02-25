@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from gnuradio import digital
 from reedsolo import RSCodec
+import numpy as np
 
 logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
@@ -68,6 +69,27 @@ class PortsConfig:
     fft_size: int
 
     raw_packets_port:int
+
+    @property
+    def half_fft_size(self)->int:
+        """half of self.fft_size"""
+        return self.fft_size // 2
+
+    @property
+    def half_spectrum(self)->slice:
+        """slice object to get only half of the spectrum"""
+        return slice(self.fft_size, None, None)
+    
+    def frequency_array(self, sig:SignalConfig)->np.ndarray:
+        """get frequency array for x-axis of fft display
+
+        Args:
+            Sig (SignalConfig): signal configuration
+
+        Returns:
+            np.ndarray: frequency array
+        """
+        return np.linspace(0, sig.nyquist_freq, self.fft_size // 2)
 
 
 DEFAULT_PACKET_CONFIG = PacketConfig(
