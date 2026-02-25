@@ -66,24 +66,24 @@ def main():
             },
             "name": "AudioInterfaceProcess"
         },
-        {
-            "target": search_for_incomming_transmission,
-            "kwargs": {
-                "ports": DEFAULT_PORTS_CONFIG,
-                "sig": DEFAULT_SIGNAL_CONFIG,
-                "stop_event": stop_event
-            },
-            "name": "PeakDetectorProcess"
-        },
-        {
-            "target": listen_for_packets,
-            "kwargs": {
-                "pkt": DEFAULT_PACKET_CONFIG,
-                "ports": DEFAULT_PORTS_CONFIG,
-                "stop_event": stop_event
-            },
-            "name": "RawPacketDecoderProcess"
-        },
+        # {
+        #     "target": search_for_incomming_transmission,
+        #     "kwargs": {
+        #         "ports": DEFAULT_PORTS_CONFIG,
+        #         "sig": DEFAULT_SIGNAL_CONFIG,
+        #         "stop_event": stop_event
+        #     },
+        #     "name": "PeakDetectorProcess"
+        # },
+        # {
+        #     "target": listen_for_packets,
+        #     "kwargs": {
+        #         "pkt": DEFAULT_PACKET_CONFIG,
+        #         "ports": DEFAULT_PORTS_CONFIG,
+        #         "stop_event": stop_event
+        #     },
+        #     "name": "RawPacketDecoderProcess"
+        # },
     ]
     
     run_processes(process_configs, stop_event)
