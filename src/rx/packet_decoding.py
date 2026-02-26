@@ -55,7 +55,5 @@ def listen_for_packets(
         context.term()
 
 
-logging.info("packet2bin module loaded")
-
 if __name__ == "__main__":
     receveur_paquets(DEFAULT_PACKET_CONFIG)

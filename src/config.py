@@ -108,7 +108,6 @@ DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
 
 DEFAULT_PORTS_CONFIG = PortsConfig(audio_port=5555, fft_port=5556, fft_size=4096, raw_packets_port=5557)
 
-logging.info("config module loaded")
 
 if __name__ == "__main__":
     pass

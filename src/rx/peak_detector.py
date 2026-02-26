@@ -109,7 +109,6 @@ def search_for_incomming_transmission(
                     p.terminate()
                     p.join()
 
-logging.info("peak_detector module loaded")
 
 if __name__ == "__main__":
     pass
