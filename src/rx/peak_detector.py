@@ -2,31 +2,104 @@ import time
 import sys
 import logging
 import multiprocessing
+import copy
 
 import numpy as np
 from scipy.signal import find_peaks
 import zmq
 
-from src.config import SignalConfig, PortsConfig
-from src.config import DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
+from src.config import SignalConfig, PortsConfig, PacketConfig
+from src.config import (
+    DEFAULT_SIGNAL_CONFIG,
+    DEFAULT_PORTS_CONFIG,
+    DEFAULT_PACKET_CONFIG,
+    DEFAULT_DQPSK_CONST,
+)
+from src.rx.demodulator import launch_demodulator
 
 logger = logging.getLogger(__name__)
+
+
+class DemodulatorWorker:
+    """Helper to manage a persistent demodulator process."""
+
+    def __init__(self, worker_id, sig_conf, ports_conf, pkt_conf, constellation):
+        self.worker_id = worker_id
+        self.command_queue = multiprocessing.Queue()
+        self.status_queue = multiprocessing.Queue()
+
+        # Adjust port for this worker so multiple workers don't conflict
+        worker_ports = copy.copy(ports_conf)
+        worker_ports.raw_packets_port += worker_id + 1
+
+        self.process = multiprocessing.Process(
+            target=launch_demodulator,
+            kwargs={
+                "sig": sig_conf,
+                "ports": worker_ports,
+                "pkt": pkt_conf,
+                "constellation": None,  # Pass None to avoid pickling GNU Radio objects
+                "command_queue": self.command_queue,
+                "status_queue": self.status_queue,
+            },
+            name=f"DemodulatorWorker_{worker_id}",
+        )
+        self.process.start()
+        self.active_freq = None
+        self.state = "initializing"  # initializing, ready, running
+        self.missed_frames = 0
+
+    def start_tuning(self, freq):
+        self.active_freq = freq
+        self.state = "running"
+        self.missed_frames = 0
+        self.command_queue.put({"action": "start", "freq": freq})
+
+    def stop_tuning(self):
+        logger.info(
+            "Stopping worker %d (was at %.2f Hz)", self.worker_id, self.active_freq
+        )
+        self.active_freq = None
+        self.state = "ready"
+        self.command_queue.put({"action": "stop"})
+
+    def update_state(self):
+        """Drain status queue to update internal state."""
+        while not self.status_queue.empty():
+            try:
+                status = self.status_queue.get_nowait()
+                if status.get("status") == "ready":
+                    self.state = "ready"
+                elif status.get("status") == "running":
+                    self.state = "running"
+            except:
+                break
+
+    def terminate(self):
+        self.command_queue.put(None)
+        self.process.join(timeout=1.0)
+        if self.process.is_alive():
+            self.process.terminate()
 
 
 def search_for_incomming_transmission(
     ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
     signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    stop_event=None,
+    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
+    constellation=DEFAULT_DQPSK_CONST,
+    stop_event=multiprocessing.Event(),
+    nb_workers: int = 1,
+    persistence: int = 20,
 ):
     logger.info("search_for_incomming_transmission function started")
-    logger.info(ports_conf)
-    logger.info(signal_conf)
+    logger.info("Ports: %s", ports_conf)
+    logger.info("Signal: %s", signal_conf)
+    logger.info("Nb Workers: %d", nb_workers)
+
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
-
-    # Set timeout for recv() to allow checking stop_event
     socket.setsockopt(zmq.RCVTIMEO, 500)
 
     logger.info(f"peak detector subscribed to fft on port {ports_conf.fft_port}")
@@ -34,34 +107,25 @@ def search_for_incomming_transmission(
     half_size = ports_conf.fft_size // 2
     freq_resolution = signal_conf.samp_rate / ports_conf.fft_size
 
-    try:
-        active_demodulators = {}
+    # Pre-spawn workers
+    logger.info("Pre-spawning %d demodulator workers...", nb_workers)
+    workers = [
+        DemodulatorWorker(i, signal_conf, ports_conf, pkt_conf, constellation)
+        for i in range(nb_workers)
+    ]
 
-        while stop_event is None or not stop_event.is_set():
+    try:
+        while not stop_event.is_set():
             try:
                 msg = socket.recv()
             except zmq.Again:
                 continue
 
-            # Cleanup old or finished processes
-            dead_freqs = []
-            for freq, p in active_demodulators.items():
-                if not p.is_alive():
-                    dead_freqs.append(freq)
-
-            for freq in dead_freqs:
-                del active_demodulators[freq]
-                logger.debug(
-                    "Demodulator for %s Hz finished and removed from tracking.", freq
-                )
-
             data = np.frombuffer(msg, dtype=np.float32)
-
             if data.size != ports_conf.fft_size:
                 continue
 
             real_spectrum = data[half_size:]
-
             peaks, properties = find_peaks(
                 real_spectrum,
                 distance=int(signal_conf.baudrate * freq_resolution),
@@ -69,62 +133,60 @@ def search_for_incomming_transmission(
             )
 
             peak_freqs = peaks * freq_resolution
-            peak_amps = properties["prominences"]
+            # peak_amps = properties["prominences"]
 
+            # 1. Update existing running workers state and check for signal loss
+            for worker in workers:
+                worker.update_state()
+                if worker.state == "running":
+                    found = False
+                    for pf in peak_freqs:
+                        if abs(pf - worker.active_freq) < signal_conf.baudrate:
+                            found = True
+                            worker.missed_frames = 0
+                            break
+                    if not found:
+                        worker.missed_frames += 1
+                        if worker.missed_frames > persistence:
+                            worker.stop_tuning()
+
+            # 2. Check detected peaks and dispatch to idle workers
             if len(peak_freqs) > 0:
-                for pf, pa in zip(peak_freqs, peak_amps):
-                    if pf > 200:
+                for pf in peak_freqs:
+                    if pf <= 200:
+                        continue
 
-                        # Debounce check: see if a demodulator is already running near this frequency (tolerance = sig.baudrate)
-                        is_running = False
-                        for active_freq in list(active_demodulators.keys()):
-                            # A DQPSK signal stretches across its baudrate (e.g., 500Hz), so we use that as our tolerance band.
-                            if abs(pf - active_freq) < signal_conf.baudrate:
-                                is_running = True
+                    # Check if any worker is already handling this freq
+                    already_handled = False
+                    for worker in workers:
+                        if (
+                            worker.state == "running"
+                            and abs(pf - worker.active_freq) < signal_conf.baudrate
+                        ):
+                            already_handled = True
+                            break
+
+                    if not already_handled:
+                        # Find an idle worker
+                        for worker in workers:
+                            if worker.state == "ready":
+                                logger.info(
+                                    "Transmission detected at %.2f Hz. Dispatching to worker %d",
+                                    pf,
+                                    worker.worker_id,
+                                )
+                                worker.start_tuning(pf)
                                 break
-
-                        if not is_running:
-                            logger.info(
-                                "Transmission detected at %.2f Hz, with prominence %.2f. Launching Demodulator...",
-                                pf,
-                                pa,
-                            )
-                            from src.rx.demodulator import (
-                                launch_demodulator,
-                            )  # Import here to avoid circular dependencies if any
-
-                            # Allocate a new port so multiple demodulators don't crash
-                            assigned_port = (
-                                ports_conf.raw_packets_port
-                                + len(active_demodulators)
-                                + 1
-                            )
-
-                            p = multiprocessing.Process(
-                                target=launch_demodulator,
-                                kwargs={
-                                    "sig": signal_conf,
-                                    "carrier_frequency": pf,
-                                    "ports": ports_conf,
-                                },
-                                name=f"Demodulator_{int(pf)}Hz",
-                            )
-                            p.start()
-                            active_demodulators[pf] = p
 
     except KeyboardInterrupt:
         logger.info("Peak detector: KeyboardInterrupt received")
     finally:
+        logger.info("Peak detector: cleaning up workers...")
+        for worker in workers:
+            worker.terminate()
         logger.info("Peak detector: closing socket and context")
         socket.close()
         context.term()
-
-        if "active_demodulators" in locals():
-            for freq, p in active_demodulators.items():
-                if p.is_alive():
-                    logger.info("Terminating active demodulator at %s Hz...", freq)
-                    p.terminate()
-                    p.join()
 
 
 if __name__ == "__main__":

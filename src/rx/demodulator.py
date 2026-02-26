@@ -23,6 +23,12 @@ logger = logging.getLogger(__name__)
 
 
 class Demodulator(gr.top_block):
+    def set_carrier_freq(self, freq):
+        """Update the carrier frequency and retune the translating filter."""
+        self.sig.carrier_freq = freq
+        self.freq_xlating_fir_filter_xxx_0.set_center_freq(freq)
+        logger.info("Carrier frequency set to %.2f Hz", freq)
+
     def __init__(
         self,
         pkt: PacketConfig,
@@ -221,27 +227,27 @@ class Demodulator(gr.top_block):
 def launch_demodulator(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    constellation: Any = DEFAULT_DQPSK_CONST,
+    constellation: Any = None,
     carrier_frequency: float | None = None,
     ports: PortsConfig = DEFAULT_PORTS_CONFIG,
+    command_queue=None,
+    status_queue=None,
 ):
     """receives an incomming transmission specified by **pkt**, **sig** and modulated using **constellation** at **carrier_frequency**.
     Outputs results on raw_packet_port defined in **ports**
 
-    Args:
-        pkt (PacketConfig, optional): packet configuration. Defaults to DEFAULT_PACKET_CONFIG.
-        sig (SignalConfig, optional): signal configuration. Defaults to DEFAULT_SIGNAL_CONFIG.
-        constellation (Any, optional): constellation definition. Defaults to DEFAULT_DQPSK_CONST.
-        carrier_frequency (float | None, optionnal): carrier frequency. Defaults to None.
-        ports (PortsConfig, optional): ports configuration. Defaults to DEFAULT_PORTS_CONFIG.
+    In worker mode (command_queue is not None), it waits for frequencies to tune to.
     """
     import copy
 
-    signal_config = sig
+    signal_config = copy.copy(sig)
     ports_config = copy.copy(ports)
 
     if carrier_frequency:
         signal_config.carrier_freq = carrier_frequency
+
+    if constellation is None:
+        constellation = DEFAULT_DQPSK_CONST
 
     tb = Demodulator(pkt, signal_config, constellation, ports_config)
 
@@ -253,11 +259,54 @@ def launch_demodulator(
     signal.signal(signal.SIGINT, sig_handler)
     signal.signal(signal.SIGTERM, sig_handler)
 
-    tb.start()
-    tb.flowgraph_started.set()
-    logger.info("Demodulator started")
+    if command_queue is None:
+        tb.start()
+        tb.flowgraph_started.set()
+        logger.info("Demodulator started (Legacy mode)")
+        tb.wait()
+    else:
+        logger.info("Demodulator worker initialized and ready.")
+        if status_queue:
+            status_queue.put({"status": "ready"})
 
-    tb.wait()
+        while True:
+            # Wait for a frequency or command
+            cmd = command_queue.get()
+            if cmd is None:  # Kill signal
+                logger.info("Demodulator worker received kill signal.")
+                break
+
+            action = cmd.get("action", "start")
+
+            if action == "start":
+                freq = cmd.get("freq")
+                if freq:
+                    tb.set_carrier_freq(freq)
+
+                tb.start()
+                logger.info("Demodulator running for %.2f Hz", freq)
+                if status_queue:
+                    status_queue.put({"status": "running", "freq": freq})
+
+                # Internal loop to wait for stop or kill while running
+                while True:
+                    cmd2 = command_queue.get()
+                    if cmd2 is None:
+                        tb.stop()
+                        tb.wait()
+                        return
+                    if cmd2.get("action") == "stop":
+                        tb.stop()
+                        tb.wait()
+                        logger.info("Demodulator stopped, returning to idle.")
+                        if status_queue:
+                            status_queue.put({"status": "ready"})
+                        break
+            elif action == "stop":
+                tb.stop()
+                tb.wait()
+                if status_queue:
+                    status_queue.put({"status": "ready"})
 
 
 if __name__ == "__main__":

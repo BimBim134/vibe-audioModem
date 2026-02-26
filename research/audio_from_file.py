@@ -80,8 +80,8 @@ def start_audio_interface(
     tb = AudioInterface(signal_conf, ports_conf, file)
     logging.info("audio interface initialized")
 
-    logging.info("Waiting 5 seconds before starting")
-    time.sleep(5)
+    logging.info("Waiting 10 seconds before starting")
+    time.sleep(10)
 
     def sig_handler(sig=None, frame=None):
         logging.info("AudioInterface: SIGINT/SIGTERM received")
