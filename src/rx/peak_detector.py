@@ -13,25 +13,25 @@ from src.config import DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
 logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
 def search_for_incomming_transmission(
-        ports: PortsConfig = DEFAULT_PORTS_CONFIG,
-        sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+        ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
+        signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
         stop_event = None
     ):
     logging.info("search_for_incomming_transmission function started")
-    logging.info(ports)
-    logging.info(sig)
+    logging.info(ports_conf)
+    logging.info(signal_conf)
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.connect(f"tcp://127.0.0.1:{ports.fft_port}")
+    socket.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
     
     # Set timeout for recv() to allow checking stop_event
     socket.setsockopt(zmq.RCVTIMEO, 500) 
     
-    logging.info(f"peak detector subscribed to fft on port {ports.fft_port}")
+    logging.info(f"peak detector subscribed to fft on port {ports_conf.fft_port}")
 
-    half_size = ports.fft_size // 2
-    freq_resolution = sig.samp_rate / ports.fft_size
+    half_size = ports_conf.fft_size // 2
+    freq_resolution = signal_conf.samp_rate / ports_conf.fft_size
 
     try:
         active_demodulators = {}
@@ -54,12 +54,12 @@ def search_for_incomming_transmission(
                 
             data = np.frombuffer(msg, dtype=np.float32)
 
-            if data.size != ports.fft_size:
+            if data.size != ports_conf.fft_size:
                 continue
 
             real_spectrum = data[half_size:]
 
-            peaks, properties = find_peaks(real_spectrum, distance=int(sig.baudrate*freq_resolution), prominence=0.2)
+            peaks, properties = find_peaks(real_spectrum, distance=int(signal_conf.baudrate*freq_resolution), prominence=0.2)
 
             peak_freqs = peaks * freq_resolution
             peak_amps = properties['prominences']
@@ -72,7 +72,7 @@ def search_for_incomming_transmission(
                         is_running = False
                         for active_freq in list(active_demodulators.keys()):
                             # A DQPSK signal stretches across its baudrate (e.g., 500Hz), so we use that as our tolerance band.
-                            if abs(pf - active_freq) < sig.baudrate:
+                            if abs(pf - active_freq) < signal_conf.baudrate:
                                 is_running = True
                                 break
                                 
@@ -81,14 +81,14 @@ def search_for_incomming_transmission(
                             from src.rx.demodulator import launch_demodulator # Import here to avoid circular dependencies if any
                             
                             # Allocate a new port so multiple demodulators don't crash
-                            assigned_port = ports.raw_packets_port + len(active_demodulators) + 1
+                            assigned_port = ports_conf.raw_packets_port + len(active_demodulators) + 1
                             
                             p = multiprocessing.Process(
                                 target=launch_demodulator,
                                 kwargs={
-                                    "sig": sig,
+                                    "sig": signal_conf,
                                     "carrier_frequency": pf,
-                                    "ports": ports,
+                                    "ports": ports_conf,
                                 },
                                 name=f"Demodulator_{int(pf)}Hz"
                             )

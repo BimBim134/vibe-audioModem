@@ -19,6 +19,42 @@ logging.basicConfig(
     level=logging.DEBUG,
 )
 
+AUDIO_INTERFACE = {
+    "target": start_audio_interface,
+    "kwargs": {
+        "signal_conf": DEFAULT_SIGNAL_CONFIG,
+        "ports_conf": DEFAULT_PORTS_CONFIG,
+        "stop_event": stop_event,
+    },
+    "name": "AudioInterfaceProcess",
+}
+
+WEB_UI = {
+    "target": start_dashboard,
+    "kwargs": {"stop_event": stop_event},
+    "name": "WebUIProcess",
+}
+
+PEAK_DETECTOR = {
+    "target": search_for_incomming_transmission,
+    "kwargs": {
+        "signal_conf": DEFAULT_SIGNAL_CONFIG,
+        "ports_conf": DEFAULT_PORTS_CONFIG,
+        "stop_event": stop_event,
+    },
+    "name": "PeakDetectorProcess",
+}
+
+PACKET_DECODER = {
+    "target": listen_for_packets,
+    "kwargs": {
+        "pkt_conf": DEFAULT_PACKET_CONFIG,
+        "ports_conf": DEFAULT_PORTS_CONFIG,
+        "stop_event": stop_event,
+    },
+    "name": "PacketDecoderProcess",
+}
+
 
 def run_processes(process_configs, stop_event, timeout=2.0):
     """
@@ -68,20 +104,10 @@ def main():
     stop_event = multiprocessing.Event()
 
     process_configs = [
-        {
-            "target": start_audio_interface,
-            "kwargs": {
-                "signal_conf": DEFAULT_SIGNAL_CONFIG,
-                "ports_conf": DEFAULT_PORTS_CONFIG,
-                "stop_event": stop_event,
-            },
-            "name": "AudioInterfaceProcess",
-        },
-        {
-            "target": start_dashboard,
-            "kwargs": {"stop_event": stop_event},
-            "name": "WebUIProcess",
-        },
+        AUDIO_INTERFACE,
+        WEB_UI,
+        PEAK_DETECTOR,
+        PACKET_DECODER,
     ]
 
     run_processes(process_configs, stop_event)

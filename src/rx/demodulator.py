@@ -3,6 +3,7 @@ import signal
 import threading
 from typing import Any
 import logging
+import time
 
 import numpy as np
 from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
@@ -33,6 +34,8 @@ class Demodulator(gr.top_block):
         logging.info(pkt)
         logging.info(sig)
         logging.info(ports_conf)
+        
+        self.id = time.asctime()
 
         self.flowgraph_started = threading.Event()
 
@@ -126,6 +129,7 @@ class Demodulator(gr.top_block):
         self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(gr.types.byte_t, 'packet_len')
 
         ## send output packets to zmq sink
+        self.pdu_meta_set_0 = pdu.pdu_meta_set(pmt.intern("key"), pmt.intern(self.id), False)
         self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False)
 
         # Connections
@@ -146,7 +150,8 @@ class Demodulator(gr.top_block):
         self.connect((self.digital_correlate_access_code_xx_ts_0, 0), (self.blocks_repack_bits_bb_0_0, 0))
         self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
         self.connect((self.analog_agc_xx_0, 0), (self.digital_fll_band_edge_cc_0, 0))
-        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, 'pdus'), (self.zeromq_pub_msg_sink_0, 'in'))
+        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_meta_set_0, "pdus"))
+        self.msg_connect((self.pdu_meta_set_0, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
 
 
 def launch_demodulator(

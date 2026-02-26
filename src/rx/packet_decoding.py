@@ -28,23 +28,23 @@ def decode_packet(raw_packet: bytes, pkt: PacketConfig):
 
 
 def listen_for_packets(
-        pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
-        ports: PortsConfig = DEFAULT_PORTS_CONFIG,
+        pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
+        ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
         stop_event = None
     ):
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.bind(f"tcp://*:{ports.raw_packets_port}")
+    socket.bind(f"tcp://*:{ports_conf.raw_packets_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
     socket.setsockopt(zmq.RCVTIMEO, 500)
 
-    logging.info(f"Packet decoder listening for packets on port {ports.raw_packets_port}")
+    logging.info(f"Packet decoder listening for packets on port {ports_conf.raw_packets_port}")
 
     try:
         while stop_event is None or not stop_event.is_set():
             try:
                 msg = socket.recv()
-                logging.debug("Received packet: %s", decode_packet(msg, pkt))
+                logging.debug("Received packet: %s", decode_packet(msg, pkt_conf))
             except zmq.Again:
                 continue
     except KeyboardInterrupt:
