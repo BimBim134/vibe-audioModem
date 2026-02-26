@@ -1,6 +1,7 @@
 import multiprocessing
 import logging
 import time
+import argparse
 
 from src.config import (
     DEFAULT_SIGNAL_CONFIG,
@@ -8,30 +9,45 @@ from src.config import (
     DEFAULT_PACKET_CONFIG,
 )
 from src.rx.audio_interface import start_audio_interface
-
-# from research.audio_from_file import start_audio_interface
+from research.audio_from_file import (
+    start_audio_interface as test_audio_interface,
+)
 from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
 from src.UI.webUI import start_dashboard
 
 logging.basicConfig(
-    format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s",
+    format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s",
     level=logging.DEBUG,
 )
+
+
+STOP_EVENT = multiprocessing.Event()
 
 AUDIO_INTERFACE = {
     "target": start_audio_interface,
     "kwargs": {
         "signal_conf": DEFAULT_SIGNAL_CONFIG,
         "ports_conf": DEFAULT_PORTS_CONFIG,
-        "stop_event": stop_event,
+        "stop_event": STOP_EVENT,
     },
     "name": "AudioInterfaceProcess",
 }
 
+AUDIO_INTERFACE_FROM_FILE = {
+    "target": test_audio_interface,
+    "kwargs": {
+        "signal_conf": DEFAULT_SIGNAL_CONFIG,
+        "ports_conf": DEFAULT_PORTS_CONFIG,
+        "stop_event": STOP_EVENT,
+        "file": "research/test.wav",
+    },
+    "name": "TestAudioInterfaceProcess",
+}
+
 WEB_UI = {
     "target": start_dashboard,
-    "kwargs": {"stop_event": stop_event},
+    "kwargs": {"stop_event": STOP_EVENT},
     "name": "WebUIProcess",
 }
 
@@ -40,7 +56,7 @@ PEAK_DETECTOR = {
     "kwargs": {
         "signal_conf": DEFAULT_SIGNAL_CONFIG,
         "ports_conf": DEFAULT_PORTS_CONFIG,
-        "stop_event": stop_event,
+        "stop_event": STOP_EVENT,
     },
     "name": "PeakDetectorProcess",
 }
@@ -50,7 +66,7 @@ PACKET_DECODER = {
     "kwargs": {
         "pkt_conf": DEFAULT_PACKET_CONFIG,
         "ports_conf": DEFAULT_PORTS_CONFIG,
-        "stop_event": stop_event,
+        "stop_event": STOP_EVENT,
     },
     "name": "PacketDecoderProcess",
 }
@@ -75,6 +91,7 @@ def run_processes(process_configs, stop_event, timeout=2.0):
             name=config.get("name", "Process"),
         )
         processes.append(p)
+        logging.info("Starting process: %s", config.get("name", "Process"))
         p.start()
 
     try:
@@ -82,11 +99,11 @@ def run_processes(process_configs, stop_event, timeout=2.0):
         while all(p.is_alive() for p in processes):
             time.sleep(0.1)
 
-        logging.info("Main: A process ended. Signaling remaining processes to stop...")
+        logging.info("A process ended. Signaling remaining processes to stop...")
         stop_event.set()
 
     except KeyboardInterrupt:
-        logging.info("Main: KeyboardInterrupt received, signaling processes to stop...")
+        logging.info("KeyboardInterrupt received, signaling processes to stop...")
         stop_event.set()
     finally:
         # Give processes some time to exit gracefully
@@ -96,24 +113,26 @@ def run_processes(process_configs, stop_event, timeout=2.0):
         # Force terminate if still alive
         for p in processes:
             if p.is_alive():
-                logging.warning("Main: %s still alive, terminating...", p.name)
+                logging.warning("%s still alive, terminating...", p.name)
                 p.terminate()
 
 
-def main():
-    stop_event = multiprocessing.Event()
-
+def main(test: bool = False):
+    logging.info("test mode: %s", test)
     process_configs = [
-        AUDIO_INTERFACE,
-        WEB_UI,
+        AUDIO_INTERFACE_FROM_FILE if test else AUDIO_INTERFACE,
+        # WEB_UI,
         PEAK_DETECTOR,
         PACKET_DECODER,
     ]
 
-    run_processes(process_configs, stop_event)
+    run_processes(process_configs, STOP_EVENT)
 
     logging.info("Shutdown complete.")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test", action="store_true")
+    args = parser.parse_args()
+    main(test=args.test)
