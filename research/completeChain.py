@@ -27,7 +27,7 @@ import threading
 
 from src.config import PacketConfig, SignalConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
-from src.bin2packet import prepare_data
+from src.tx.bin2packet import prepare_data
 
 
 class completeChain(gr.top_block, Qt.QWidget):
