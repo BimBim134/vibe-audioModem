@@ -1,18 +1,33 @@
 import sys
 import asyncio
+import time
+import os
+import logging
+
 import zmq
 import zmq.asyncio
 import numpy as np
-import time
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
-import os
+
+from src.config import (
+    DEFAULT_SIGNAL_CONFIG,
+    DEFAULT_PORTS_CONFIG,
+    DEFAULT_PACKET_CONFIG,
+)
+from src.config import (
+    SignalConfig,
+    PortsConfig,
+    PacketConfig,
+)
+
+logging.basicConfig(format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
+
 
 app = FastAPI()
 
 # Configuration
-ZMQ_URL = "tcp://127.0.0.1:5556"
 SPECTROGRAM_REFRESH_RATE = 0.1
 
 # 1. On lit le fichier HTML depuis le dossier assets
@@ -41,13 +56,18 @@ async def get_stylesheet():
 
 # 3. WebSocket bridge
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+    ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
+    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
+):
     await websocket.accept()
     print("Client web connecté.")
 
     ctx = zmq.asyncio.Context.instance()
     sock = ctx.socket(zmq.SUB)
-    sock.connect(ZMQ_URL)
+    sock.connect(ports_conf.fft_port)
     sock.setsockopt(zmq.SUBSCRIBE, b"")
 
     last_spectro_time = 0.0
@@ -61,8 +81,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # On ne garde que la partie positive du spectre (la seconde moitié)
             # car le bloc FFT de GNU Radio est décalé (fftshift=True).
-            half_len = len(mag_array) // 2
-            mag_array = mag_array[half_len:]
+            mag_array = mag_array[ports_conf.half_spectrum]
 
             # Calcul du dB : 20 * log10(mag)
             db_array = 20 * np.log10(mag_array + 1e-12)

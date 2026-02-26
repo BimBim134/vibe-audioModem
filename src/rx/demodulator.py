@@ -4,6 +4,7 @@ import threading
 from typing import Any
 import logging
 import time
+import pmt
 
 import numpy as np
 from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
@@ -13,7 +14,7 @@ from gnuradio.fft import window
 from src.config import PacketConfig, SignalConfig, PortsConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST, DEFAULT_PORTS_CONFIG
 
-logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
 
 
 class Demodulator(gr.top_block):
@@ -129,7 +130,7 @@ class Demodulator(gr.top_block):
         self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(gr.types.byte_t, 'packet_len')
 
         ## send output packets to zmq sink
-        self.pdu_meta_set_0 = pdu.pdu_meta_set(pmt.intern("key"), pmt.intern(self.id), False)
+        self.pdu_meta_set_0 = pdu.pdu_set(pmt.intern("key"), pmt.intern(self.id))
         self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False)
 
         # Connections

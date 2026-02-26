@@ -10,7 +10,8 @@ import zmq
 from src.config import SignalConfig, PortsConfig
 from src.config import DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
 
-logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
+
 
 def search_for_incomming_transmission(
         ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
