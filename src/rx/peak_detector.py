@@ -3,6 +3,7 @@ import sys
 import logging
 import multiprocessing
 import copy
+import os
 
 import numpy as np
 from scipy.signal import find_peaks
@@ -100,7 +101,7 @@ def search_for_incomming_transmission(
     socket = context.socket(zmq.SUB)
     socket.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
-    socket.setsockopt(zmq.RCVTIMEO, 500)
+    socket.setsockopt(zmq.RCVTIMEO, 100)
 
     logger.info(f"peak detector subscribed to fft on port {ports_conf.fft_port}")
 
@@ -128,7 +129,7 @@ def search_for_incomming_transmission(
             real_spectrum = data[half_size:]
             peaks, properties = find_peaks(
                 real_spectrum,
-                distance=int(signal_conf.baudrate * freq_resolution),
+                distance=max(1, int(signal_conf.baudrate / freq_resolution)),
                 prominence=0.2,
             )
 
