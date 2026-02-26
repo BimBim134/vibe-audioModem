@@ -12,16 +12,24 @@ from gnuradio.filter import firdes, hilbert_fc, freq_xlating_fir_filter_ccc
 from gnuradio.fft import window
 
 from src.config import PacketConfig, SignalConfig, PortsConfig
-from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST, DEFAULT_PORTS_CONFIG
+from src.config import (
+    DEFAULT_PACKET_CONFIG,
+    DEFAULT_SIGNAL_CONFIG,
+    DEFAULT_DQPSK_CONST,
+    DEFAULT_PORTS_CONFIG,
+)
 
-logging.basicConfig(format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class Demodulator(gr.top_block):
-    def __init__(self, pkt: PacketConfig,
-                 sig: SignalConfig,
-                 constellation: Any,
-                 ports_conf: PortsConfig):
+    def __init__(
+        self,
+        pkt: PacketConfig,
+        sig: SignalConfig,
+        constellation: Any,
+        ports_conf: PortsConfig,
+    ):
         """main Demodulator class
 
         Args:
@@ -31,11 +39,11 @@ class Demodulator(gr.top_block):
             ports_conf(PortsConfig): ports configuration
         """
         gr.top_block.__init__(self, "Demodulator master", catch_exceptions=False)
-        logging.info("Demodulator class instanciated")
-        logging.info(pkt)
-        logging.info(sig)
-        logging.info(ports_conf)
-        
+        logger.info("Demodulator class instanciated")
+        logger.info(pkt)
+        logger.info(sig)
+        logger.info(ports_conf)
+
         self.id = time.asctime()
 
         self.flowgraph_started = threading.Event()
@@ -45,27 +53,38 @@ class Demodulator(gr.top_block):
         self.sig = sig
         self.const_definition = constellation
         self.freq_deviation = 100 / self.sig.samp_rate
-        self.decimation = int(self.sig.sps/8)
+        self.decimation = int(self.sig.sps / 8)
         self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_lms(
             self.const_definition, 0.001
         ).base()
-        self.freq_deviation = 100/self.sig.samp_rate
+        self.freq_deviation = 100 / self.sig.samp_rate
 
         ## digital communication variables
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
-        self.cc_dec = fec.cc_decoder.make(8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True)
+        self.cc_dec = fec.cc_decoder.make(
+            8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True
+        )
 
         ## ports configuration
         self.ports = ports_conf
 
         # Blocks
         # self.audio_source_0 = audio.source(self.sig.samp_rate, '', True)
-        self.audio_source_0 = zeromq.sub_source(gr.sizeof_float, 1, f'tcp://127.0.0.1:{self.ports.audio_port}', 100, False, (-1), '', False)
+        self.audio_source_0 = zeromq.sub_source(
+            gr.sizeof_float,
+            1,
+            f"tcp://127.0.0.1:{self.ports.audio_port}",
+            100,
+            False,
+            (-1),
+            "",
+            False,
+        )
         ## signal preprocessing
         ### frequency shift
-        self.hilbert_fc_0 = hilbert_fc(65, window.WIN_HAMMING, 6.76) # float -> complex
+        self.hilbert_fc_0 = hilbert_fc(65, window.WIN_HAMMING, 6.76)  # float -> complex
         self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_ccc(
             self.decimation,
             firdes.complex_band_pass(
@@ -88,20 +107,22 @@ class Demodulator(gr.top_block):
         ## symbol synchronization
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
             digital.TED_GARDNER,
-            (self.sig.sps/self.decimation),
+            (self.sig.sps / self.decimation),
             0.045,
-            (1/np.sqrt(2)),
+            (1 / np.sqrt(2)),
             1.0,
             1.5,
             3,
             self.const_definition,
             digital.IR_PFB_NO_MF,
             128,
-            )
+        )
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
             15, 3, self.variable_adaptive_algorithm_0, True, [], "corr_est"
         )
-        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation)
+        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
+            self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
+        )
 
         ## constellation decoding
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
@@ -111,7 +132,9 @@ class Demodulator(gr.top_block):
 
         ## convolutionnal error correction
         ### go from [0,1] to [-1, 1]
-        self.blocks_unpack_k_bits_bb_0_0 = blocks.unpack_k_bits_bb(self.const_definition.bits_per_symbol())
+        self.blocks_unpack_k_bits_bb_0_0 = blocks.unpack_k_bits_bb(
+            self.const_definition.bits_per_symbol()
+        )
         self.blocks_uchar_to_float_0_0_0 = blocks.uchar_to_float()
         self.blocks_multiply_const_xx_1_0_0 = blocks.multiply_const_ff(2, 1)
         self.blocks_add_const_vxx_0_0_0 = blocks.add_const_ff((-1))
@@ -125,34 +148,74 @@ class Demodulator(gr.top_block):
         )
 
         ## frame synchronization
-        self.digital_correlate_access_code_xx_ts_0 = digital.correlate_access_code_bb_ts(self.access_key, 3, 'packet_len')
-        self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(1, 8, "packet_len", True, gr.GR_MSB_FIRST)
-        self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(gr.types.byte_t, 'packet_len')
+        self.digital_correlate_access_code_xx_ts_0 = (
+            digital.correlate_access_code_bb_ts(self.access_key, 3, "packet_len")
+        )
+        self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(
+            1, 8, "packet_len", True, gr.GR_MSB_FIRST
+        )
+        self.pdu_tagged_stream_to_pdu_0 = pdu.tagged_stream_to_pdu(
+            gr.types.byte_t, "packet_len"
+        )
 
         ## send output packets to zmq sink
         self.pdu_meta_set_0 = pdu.pdu_set(pmt.intern("key"), pmt.intern(self.id))
-        self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False)
+        self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(
+            f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False
+        )
 
         # Connections
         self.connect((self.audio_source_0, 0), (self.hilbert_fc_0, 0))
         self.connect((self.hilbert_fc_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
-        self.connect((self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
-        self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0))
-        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_constellation_receiver_cb_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
+        self.connect(
+            (self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0)
+        )
+        self.connect(
+            (self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0)
+        )
+        self.connect(
+            (self.digital_linear_equalizer_0, 0),
+            (self.digital_constellation_receiver_cb_0, 0),
+        )
+        self.connect(
+            (self.digital_constellation_receiver_cb_0, 0),
+            (self.digital_diff_decoder_bb_0, 0),
+        )
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
         self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
-        self.connect((self.blocks_uchar_to_float_0_0_0, 0), (self.blocks_multiply_const_xx_1_0_0, 0))
-        self.connect((self.blocks_multiply_const_xx_1_0_0, 0), (self.blocks_add_const_vxx_0_0_0, 0))
-        self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
-        self.connect((self.fec_extended_decoder_0, 0), (self.digital_correlate_access_code_xx_ts_0, 0))
-        self.connect((self.digital_correlate_access_code_xx_ts_0, 0), (self.blocks_repack_bits_bb_0_0, 0))
-        self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
+        self.connect(
+            (self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0)
+        )
+        self.connect(
+            (self.blocks_uchar_to_float_0_0_0, 0),
+            (self.blocks_multiply_const_xx_1_0_0, 0),
+        )
+        self.connect(
+            (self.blocks_multiply_const_xx_1_0_0, 0),
+            (self.blocks_add_const_vxx_0_0_0, 0),
+        )
+        self.connect(
+            (self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0)
+        )
+        self.connect(
+            (self.fec_extended_decoder_0, 0),
+            (self.digital_correlate_access_code_xx_ts_0, 0),
+        )
+        self.connect(
+            (self.digital_correlate_access_code_xx_ts_0, 0),
+            (self.blocks_repack_bits_bb_0_0, 0),
+        )
+        self.connect(
+            (self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0)
+        )
         self.connect((self.analog_agc_xx_0, 0), (self.digital_fll_band_edge_cc_0, 0))
-        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_meta_set_0, "pdus"))
-        self.msg_connect((self.pdu_meta_set_0, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
+        self.msg_connect(
+            (self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_meta_set_0, "pdus")
+        )
+        self.msg_connect(
+            (self.pdu_meta_set_0, "pdus"), (self.zeromq_pub_msg_sink_0, "in")
+        )
 
 
 def launch_demodulator(
@@ -173,6 +236,7 @@ def launch_demodulator(
         ports (PortsConfig, optional): ports configuration. Defaults to DEFAULT_PORTS_CONFIG.
     """
     import copy
+
     signal_config = sig
     ports_config = copy.copy(ports)
 
@@ -191,7 +255,7 @@ def launch_demodulator(
 
     tb.start()
     tb.flowgraph_started.set()
-    logging.info("Demodulator started")
+    logger.info("Demodulator started")
 
     tb.wait()
 

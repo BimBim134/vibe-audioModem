@@ -16,10 +16,7 @@ from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
 from src.UI.webUI import start_dashboard
 
-logging.basicConfig(
-    format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s",
-    level=logging.DEBUG,
-)
+logger = logging.getLogger(__name__)
 
 
 STOP_EVENT = multiprocessing.Event()
@@ -91,7 +88,7 @@ def run_processes(process_configs, stop_event, timeout=2.0):
             name=config.get("name", "Process"),
         )
         processes.append(p)
-        logging.info("Starting process: %s", config.get("name", "Process"))
+        logger.info("Starting process: %s", config.get("name", "Process"))
         p.start()
 
     try:
@@ -99,11 +96,11 @@ def run_processes(process_configs, stop_event, timeout=2.0):
         while all(p.is_alive() for p in processes):
             time.sleep(0.1)
 
-        logging.info("A process ended. Signaling remaining processes to stop...")
+        logger.info("A process ended. Signaling remaining processes to stop...")
         stop_event.set()
 
     except KeyboardInterrupt:
-        logging.info("KeyboardInterrupt received, signaling processes to stop...")
+        logger.info("KeyboardInterrupt received, signaling processes to stop...")
         stop_event.set()
     finally:
         # Give processes some time to exit gracefully
@@ -113,12 +110,12 @@ def run_processes(process_configs, stop_event, timeout=2.0):
         # Force terminate if still alive
         for p in processes:
             if p.is_alive():
-                logging.warning("%s still alive, terminating...", p.name)
+                logger.warning("%s still alive, terminating...", p.name)
                 p.terminate()
 
 
 def main(test: bool = False):
-    logging.info("test mode: %s", test)
+    logger.info("test mode: %s", test)
     process_configs = [
         AUDIO_INTERFACE_FROM_FILE if test else AUDIO_INTERFACE,
         # WEB_UI,
@@ -128,7 +125,7 @@ def main(test: bool = False):
 
     run_processes(process_configs, STOP_EVENT)
 
-    logging.info("Shutdown complete.")
+    logger.info("Shutdown complete.")
 
 
 if __name__ == "__main__":

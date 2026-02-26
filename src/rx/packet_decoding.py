@@ -6,8 +6,7 @@ from reedsolo import ReedSolomonError
 from src.config import PacketConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_PORTS_CONFIG, PortsConfig
 
-logging.basicConfig(format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
-
+logger = logging.getLogger(__name__)
 
 
 def decode_packet(raw_packet: bytes, pkt: PacketConfig):
@@ -29,29 +28,31 @@ def decode_packet(raw_packet: bytes, pkt: PacketConfig):
 
 
 def listen_for_packets(
-        pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
-        ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
-        stop_event = None
-    ):
+    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
+    ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
+    stop_event=None,
+):
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.bind(f"tcp://*:{ports_conf.raw_packets_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
     socket.setsockopt(zmq.RCVTIMEO, 500)
 
-    logging.info(f"Packet decoder listening for packets on port {ports_conf.raw_packets_port}")
+    logger.info(
+        f"Packet decoder listening for packets on port {ports_conf.raw_packets_port}"
+    )
 
     try:
         while stop_event is None or not stop_event.is_set():
             try:
                 msg = socket.recv()
-                logging.debug("Received packet: %s", decode_packet(msg, pkt_conf))
+                logger.debug("Received packet: %s", decode_packet(msg, pkt_conf))
             except zmq.Again:
                 continue
     except KeyboardInterrupt:
         pass
     finally:
-        logging.info("Packet decoder: closing socket and context")
+        logger.info("Packet decoder: closing socket and context")
         socket.close()
         context.term()
 

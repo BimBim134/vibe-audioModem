@@ -9,10 +9,20 @@ from gnuradio import digital
 from reedsolo import RSCodec
 import numpy as np
 
-logging.basicConfig(
-    format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s",
-    level=logging.DEBUG,
-)
+
+def setup_logging(level=logging.DEBUG):
+    """
+    Configure logging for the entire application.
+    This can be called safely multiple times, but the first call will set the configuration.
+    """
+    logging.basicConfig(
+        format="%(asctime)s: %(levelname)s: %(processName)s: %(message)s",
+        level=level,
+    )
+
+
+# Automatically setup logging when config is imported
+setup_logging()
 
 
 @dataclass
