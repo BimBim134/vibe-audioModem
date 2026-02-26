@@ -67,7 +67,7 @@ async def websocket_endpoint(
 
     ctx = zmq.asyncio.Context.instance()
     sock = ctx.socket(zmq.SUB)
-    sock.connect(ports_conf.fft_port)
+    sock.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
     sock.setsockopt(zmq.SUBSCRIBE, b"")
 
     last_spectro_time = 0.0
