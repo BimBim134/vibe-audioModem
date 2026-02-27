@@ -94,7 +94,7 @@ def run_processes(process_configs, stop_event, timeout=2.0):
     try:
         # Keep the main process alive until any process exits or interrupt occurs
         while all(p.is_alive() for p in processes):
-            time.sleep(0.1)
+            time.sleep(0.2)
 
         logger.info("A process ended. Signaling remaining processes to stop...")
         stop_event.set()
