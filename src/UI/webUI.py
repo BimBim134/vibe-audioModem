@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Configuration
-SPECTROGRAM_REFRESH_RATE = 0.1
+SPECTROGRAM_REFRESH_RATE = 20
 
 # 1. On lit le fichier HTML depuis le dossier assets
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -54,6 +54,22 @@ async def get_stylesheet():
 
 
 # 3. WebSocket bridge
+async def listen_to_zmq(sock, websocket, prefix, transform=None):
+    try:
+        while True:
+            raw_data = await sock.recv()
+            if transform:
+                data = transform(raw_data)
+                if data is not None:
+                    await websocket.send_bytes(prefix + data.tobytes())
+            else:
+                await websocket.send_bytes(prefix + raw_data)
+    except Exception as e:
+        logger.error(f"Error in listen_to_zmq ({prefix}): {e}")
+    finally:
+        sock.close()
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -65,49 +81,64 @@ async def websocket_endpoint(
     logger.info("Client web connecté.")
 
     ctx = zmq.asyncio.Context.instance()
-    sock = ctx.socket(zmq.SUB)
-    sock.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
-    sock.setsockopt(zmq.SUBSCRIBE, b"")
+
+    # FFT Socket
+    fft_sock = ctx.socket(zmq.SUB)
+    fft_sock.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
+    fft_sock.setsockopt(zmq.SUBSCRIBE, b"")
+
+    # Constellation Socket
+    const_sock = ctx.socket(zmq.SUB)
+    const_sock.connect(f"tcp://127.0.0.1:{ports_conf.constellation_port}")
+    const_sock.setsockopt(zmq.SUBSCRIBE, b"")
 
     last_spectro_time = 0.0
 
+    async def fft_handler():
+        nonlocal last_spectro_time
+        try:
+            while True:
+                raw_data = await fft_sock.recv()
+                mag_array = np.frombuffer(raw_data, dtype=np.float32)
+
+                if len(mag_array) != ports_conf.fft_size:
+                    mag_array = mag_array[-ports_conf.fft_size :]
+
+                mag_array = mag_array[ports_conf.half_fft_size :]
+                db_array = 20 * np.log10(mag_array + 1e-12)
+
+                # Type 0x01: FFT dB
+                await websocket.send_bytes(b"\x01" + db_array.tobytes())
+
+                # Type 0x02: Waterfall (Uint8)
+                now = time.time()
+                if now - last_spectro_time >= 1 / SPECTROGRAM_REFRESH_RATE:
+                    last_spectro_time = now
+                    v_min, v_max = -80, 80
+                    fft_norm = np.clip(
+                        (db_array - v_min) / (v_max - v_min) * 255, 0, 255
+                    ).astype(np.uint8)
+                    await websocket.send_bytes(b"\x02" + fft_norm.tobytes())
+        except Exception as e:
+            logger.error(f"Error in fft_handler: {e}")
+
+    async def constellation_handler():
+        try:
+            while True:
+                raw_data = await const_sock.recv()
+                # Points are complex64 (2x float32)
+                # We forward them directly as bytes with prefix 0x03
+                await websocket.send_bytes(b"\x03" + raw_data)
+        except Exception as e:
+            logger.error(f"Error in constellation_handler: {e}")
+
     try:
-        while True:
-            raw_data = await sock.recv()
-
-            # Conversion des données reçues (Magnitude brute)
-            mag_array = np.frombuffer(raw_data, dtype=np.float32)
-
-            # Résilience : si on reçoit plus d'une FFT (ex: deux messages concaténés), on ne garde que la dernière
-            if len(mag_array) != ports_conf.fft_size:
-                mag_array = mag_array[-ports_conf.fft_size :]
-
-            # On ne garde que la partie positive du spectre (la seconde moitié)
-            # car le bloc FFT de GNU Radio est décalé (fftshift=True).
-            mag_array = mag_array[ports_conf.half_fft_size :]
-
-            # Calcul du dB : 20 * log10(mag)
-            db_array = 20 * np.log10(mag_array + 1e-12)
-
-            # Message type 0x01: FFT en dB pour le scope
-            await websocket.send_bytes(b"\x01" + db_array.tobytes())
-
-            # Message type 0x02: Normalized FFT (Uint8) pour le waterfall (10Hz)
-            now = time.time()
-            if now - last_spectro_time >= SPECTROGRAM_REFRESH_RATE:
-                last_spectro_time = now
-
-                v_min = -120
-                v_max = 0
-                fft_norm = np.clip(
-                    (db_array - v_min) / (v_max - v_min) * 255, 0, 255
-                ).astype(np.uint8)
-                await websocket.send_bytes(b"\x02" + fft_norm.tobytes())
-
+        await asyncio.gather(fft_handler(), constellation_handler())
     except WebSocketDisconnect:
         logger.info("Client web déconnecté.")
     finally:
-        sock.close()
+        fft_sock.close()
+        const_sock.close()
 
 
 def start_dashboard(stop_event=None):
