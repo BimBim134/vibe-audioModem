@@ -165,7 +165,7 @@ class Demodulator(gr.top_block):
         )
 
         ## send output packets to zmq sink
-        self.pdu_meta_set_0 = pdu.pdu_set(pmt.intern("key"), pmt.intern(self.id))
+        # self.pdu_set = pdu.pdu_set(k=pmt.intern(self.id), v=pmt.intern("value"))
         self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(
             f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False
         )
@@ -174,54 +174,23 @@ class Demodulator(gr.top_block):
         self.connect((self.audio_source_0, 0), (self.hilbert_fc_0, 0))
         self.connect((self.hilbert_fc_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
-        self.connect(
-            (self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0)
-        )
-        self.connect(
-            (self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0)
-        )
-        self.connect(
-            (self.digital_linear_equalizer_0, 0),
-            (self.digital_constellation_receiver_cb_0, 0),
-        )
-        self.connect(
-            (self.digital_constellation_receiver_cb_0, 0),
-            (self.digital_diff_decoder_bb_0, 0),
-        )
+        self.connect((self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
+        self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0))
+        self.connect((self.digital_linear_equalizer_0, 0),(self.digital_constellation_receiver_cb_0, 0),)
+        self.connect((self.digital_constellation_receiver_cb_0, 0),(self.digital_diff_decoder_bb_0, 0),)
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
         self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
-        self.connect(
-            (self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0)
-        )
-        self.connect(
-            (self.blocks_uchar_to_float_0_0_0, 0),
-            (self.blocks_multiply_const_xx_1_0_0, 0),
-        )
-        self.connect(
-            (self.blocks_multiply_const_xx_1_0_0, 0),
-            (self.blocks_add_const_vxx_0_0_0, 0),
-        )
-        self.connect(
-            (self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0)
-        )
-        self.connect(
-            (self.fec_extended_decoder_0, 0),
-            (self.digital_correlate_access_code_xx_ts_0, 0),
-        )
-        self.connect(
-            (self.digital_correlate_access_code_xx_ts_0, 0),
-            (self.blocks_repack_bits_bb_0_0, 0),
-        )
-        self.connect(
-            (self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0)
-        )
+        self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
+        self.connect((self.blocks_uchar_to_float_0_0_0, 0),(self.blocks_multiply_const_xx_1_0_0, 0),)
+        self.connect((self.blocks_multiply_const_xx_1_0_0, 0),(self.blocks_add_const_vxx_0_0_0, 0),)
+        self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
+        self.connect((self.fec_extended_decoder_0, 0),(self.digital_correlate_access_code_xx_ts_0, 0),)
+        self.connect((self.digital_correlate_access_code_xx_ts_0, 0),(self.blocks_repack_bits_bb_0_0, 0),)
+        self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
         self.connect((self.analog_agc_xx_0, 0), (self.digital_fll_band_edge_cc_0, 0))
-        self.msg_connect(
-            (self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_meta_set_0, "pdus")
-        )
-        self.msg_connect(
-            (self.pdu_meta_set_0, "pdus"), (self.zeromq_pub_msg_sink_0, "in")
-        )
+        # self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
+        # self.msg_connect((self.pdu_set, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
+        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
 
 
 def launch_demodulator(
