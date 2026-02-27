@@ -80,11 +80,11 @@ async def websocket_endpoint(
 
             # Résilience : si on reçoit plus d'une FFT (ex: deux messages concaténés), on ne garde que la dernière
             if len(mag_array) != ports_conf.fft_size:
-            mag_array = mag_array[ports_conf.half_fft_size :]
+                mag_array = mag_array[-ports_conf.fft_size :]
 
             # On ne garde que la partie positive du spectre (la seconde moitié)
             # car le bloc FFT de GNU Radio est décalé (fftshift=True).
-            mag_array = mag_array[ports_conf.half_spectrum]
+            mag_array = mag_array[ports_conf.half_fft_size :]
 
             # Calcul du dB : 20 * log10(mag)
             db_array = 20 * np.log10(mag_array + 1e-12)
