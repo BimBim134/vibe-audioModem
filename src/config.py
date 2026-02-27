@@ -16,7 +16,7 @@ def setup_logging(level=logging.DEBUG):
     This can be called safely multiple times, but the first call will set the configuration.
     """
     logging.basicConfig(
-        format="%(asctime)s: %(levelname)s: %(processName)s: %(message)s",
+        format="%(asctime)s: %(processName)s: %(message)s",
         level=level,
     )
 
