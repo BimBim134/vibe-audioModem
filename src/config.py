@@ -85,6 +85,7 @@ class PortsConfig:
     fft_size: int
 
     raw_packets_port: int
+    constellation_port: int
 
     @property
     def half_fft_size(self) -> int:
@@ -107,7 +108,11 @@ DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
 DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
 
 DEFAULT_PORTS_CONFIG = PortsConfig(
-    audio_port=5555, fft_port=5556, fft_size=4096, raw_packets_port=5557
+    audio_port=5555,
+    fft_port=5556,
+    fft_size=4096,
+    raw_packets_port=5557,
+    constellation_port=5559,
 )
 
 

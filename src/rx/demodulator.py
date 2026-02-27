@@ -129,6 +129,9 @@ class Demodulator(gr.top_block):
         self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
             self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
         )
+        self.blocks_null_sink_0_1 = blocks.null_sink(gr.sizeof_float*1)
+        self.blocks_null_sink_0_0 = blocks.null_sink(gr.sizeof_float*1)
+        self.blocks_null_sink_0 = blocks.null_sink(gr.sizeof_float*1)
 
         ## constellation decoding
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
@@ -170,6 +173,19 @@ class Demodulator(gr.top_block):
             f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False
         )
 
+        ## send constellation points to zmq sink
+        self.zeromq_pub_sink_0 = zeromq.pub_sink(
+            gr.sizeof_gr_complex,
+            1,
+            f"tcp://127.0.0.1:{self.ports.constellation_port}",
+            0,
+            False,
+            (-1),
+            "",
+            True,
+            True,
+        )
+
         # Connections
         self.connect((self.audio_source_0, 0), (self.hilbert_fc_0, 0))
         self.connect((self.hilbert_fc_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
@@ -177,7 +193,11 @@ class Demodulator(gr.top_block):
         self.connect((self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
         self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0))
         self.connect((self.digital_linear_equalizer_0, 0),(self.digital_constellation_receiver_cb_0, 0),)
-        self.connect((self.digital_constellation_receiver_cb_0, 0),(self.digital_diff_decoder_bb_0, 0),)
+        self.connect((self.digital_constellation_receiver_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
+        self.connect((self.digital_constellation_receiver_cb_0, 1), (self.blocks_null_sink_0, 0))
+        self.connect((self.digital_constellation_receiver_cb_0, 2), (self.blocks_null_sink_0_0, 0))
+        self.connect((self.digital_constellation_receiver_cb_0, 3), (self.blocks_null_sink_0_1, 0))
+        self.connect((self.digital_constellation_receiver_cb_0, 4), (self.zeromq_pub_sink_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
         self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
@@ -190,7 +210,7 @@ class Demodulator(gr.top_block):
         self.connect((self.analog_agc_xx_0, 0), (self.digital_fll_band_edge_cc_0, 0))
         # self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
         # self.msg_connect((self.pdu_set, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
-        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
+        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"),(self.zeromq_pub_msg_sink_0, "in"),)
 
 
 def launch_demodulator(
