@@ -78,6 +78,10 @@ async def websocket_endpoint(
             # Conversion des données reçues (Magnitude brute)
             mag_array = np.frombuffer(raw_data, dtype=np.float32)
 
+            # Résilience : si on reçoit plus d'une FFT (ex: deux messages concaténés), on ne garde que la dernière
+            if len(mag_array) != ports_conf.fft_size:
+            mag_array = mag_array[ports_conf.half_fft_size :]
+
             # On ne garde que la partie positive du spectre (la seconde moitié)
             # car le bloc FFT de GNU Radio est décalé (fftshift=True).
             mag_array = mag_array[ports_conf.half_spectrum]
