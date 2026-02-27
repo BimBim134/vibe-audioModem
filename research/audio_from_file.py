@@ -14,7 +14,7 @@ from gnuradio import zeromq
 
 from src.config import SignalConfig, PortsConfig, DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
 
-logging.basicConfig(format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class AudioInterface(gr.top_block):
 
@@ -28,9 +28,9 @@ class AudioInterface(gr.top_block):
         """
         gr.top_block.__init__(self, "Audio interface", catch_exceptions=True)
         self.flowgraph_started = threading.Event()
-        logging.info("AudioInterface class instanciated")
-        logging.info(sig)
-        logging.info(ports)
+        logger.info("AudioInterface class instanciated")
+        logger.info(sig)
+        logger.info(ports)
 
         # Variables
         self.sig = sig
@@ -39,9 +39,33 @@ class AudioInterface(gr.top_block):
         # Blocks
         ## audio broadcasting
         self.audio_source = blocks.wavfile_source(str(file), False)
-        self.blocks_throttle2_0 = blocks.throttle( gr.sizeof_float*1, self.sig.samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * self.sig.samp_rate) if "auto" == "time" else int(0.1), 1) )
+        self.blocks_throttle2_0 = blocks.throttle(
+            gr.sizeof_float * 1,
+            self.sig.samp_rate,
+            True,
+            (
+                0
+                if "auto" == "auto"
+                else max(
+                    (
+                        int(float(0.1) * self.sig.samp_rate)
+                        if "auto" == "time"
+                        else int(0.1)
+                    ),
+                    1,
+                )
+            ),
+        )
         self.zeromq_pub_sink_audio = zeromq.pub_sink(
-            gr.sizeof_float, 1, f"tcp://*:{self.ports.audio_port}", 0, False, (-1), "", True, True,
+            gr.sizeof_float,
+            1,
+            f"tcp://*:{self.ports.audio_port}",
+            0,
+            False,
+            (-1),
+            "",
+            True,
+            True,
         )
 
         ## fft computing and broadcasting
@@ -78,13 +102,13 @@ def start_audio_interface(
         fft_size (int, optional): fft windows size. Defaults to 2028.
     """
     tb = AudioInterface(signal_conf, ports_conf, file)
-    logging.info("audio interface initialized")
+    logger.info("audio interface initialized")
 
-    logging.info("Waiting 10 seconds before starting")
+    logger.info("Waiting 10 seconds before starting")
     time.sleep(10)
 
     def sig_handler(sig=None, frame=None):
-        logging.info("AudioInterface: SIGINT/SIGTERM received")
+        logger.info("SIGINT/SIGTERM received")
         tb.stop()
         tb.wait()
         sys.exit(0)
@@ -96,7 +120,7 @@ def start_audio_interface(
         def monitor_stop_event():
             while True:
                 if stop_event.is_set():
-                    logging.info("AudioInterface: stop_event set, stopping flowgraph")
+                    logger.info("stop_event set, stopping flowgraph")
                     tb.stop()
                     break
                 time.sleep(0.1)
@@ -105,11 +129,11 @@ def start_audio_interface(
         monitor_thread.start()
 
     tb.start()
-    logging.info("audio interface started")
+    logger.info("audio interface started")
     tb.flowgraph_started.set()
 
     tb.wait()
-    logging.info("audio interface stopped")
+    logger.info("audio interface stopped")
 
 if __name__ == "__main__":
     pass
