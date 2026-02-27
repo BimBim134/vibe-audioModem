@@ -22,8 +22,7 @@ from src.config import (
     PacketConfig,
 )
 
-logging.basicConfig(format="%(asctime)s: %(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
-
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -63,7 +62,7 @@ async def websocket_endpoint(
     pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
 ):
     await websocket.accept()
-    print("Client web connecté.")
+    logger.info("Client web connecté.")
 
     ctx = zmq.asyncio.Context.instance()
     sock = ctx.socket(zmq.SUB)
@@ -102,7 +101,7 @@ async def websocket_endpoint(
                 await websocket.send_bytes(b"\x02" + fft_norm.tobytes())
 
     except WebSocketDisconnect:
-        print("Client web déconnecté.")
+        logger.info("Client web déconnecté.")
     finally:
         sock.close()
 
