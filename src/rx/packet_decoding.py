@@ -46,7 +46,6 @@ def listen_for_packets(
         while stop_event is None or not stop_event.is_set():
             try:
                 msg = socket.recv()
-                logger.debug("Received packet: %s", msg)
                 logger.debug("Received packet: %s", decode_packet(msg, pkt_conf))
             except zmq.Again:
                 continue

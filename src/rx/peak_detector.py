@@ -29,15 +29,11 @@ class DemodulatorWorker:
         self.command_queue = multiprocessing.Queue()
         self.status_queue = multiprocessing.Queue()
 
-        # Adjust port for this worker so multiple workers don't conflict
-        worker_ports = copy.copy(ports_conf)
-        worker_ports.raw_packets_port += worker_id + 1
-
         self.process = multiprocessing.Process(
             target=launch_demodulator,
             kwargs={
                 "sig": sig_conf,
-                "ports": worker_ports,
+                "ports": ports_conf,
                 "pkt": pkt_conf,
                 "constellation": None,  # Pass None to avoid pickling GNU Radio objects
                 "command_queue": self.command_queue,
