@@ -126,7 +126,7 @@ def search_for_incomming_transmission(
             peaks, properties = find_peaks(
                 real_spectrum,
                 distance=max(1, int(signal_conf.baudrate / freq_resolution)),
-                prominence=0.2,
+                prominence=10,
             )
 
             peak_freqs = peaks * freq_resolution
@@ -150,7 +150,7 @@ def search_for_incomming_transmission(
             # 2. Check detected peaks and dispatch to idle workers
             if len(peak_freqs) > 0:
                 for pf in peak_freqs:
-                    if pf <= 200:
+                    if pf <= 1000:
                         continue
 
                     # Check if any worker is already handling this freq
