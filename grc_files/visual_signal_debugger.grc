@@ -119,7 +119,7 @@ blocks:
     marker9: '0'
     name: '""'
     nconnections: '1'
-    size: '1024'
+    size: '64'
     style1: '0'
     style10: '0'
     style2: '0'
@@ -193,7 +193,7 @@ blocks:
     fftsize: '1024'
     freqhalf: 'False'
     grid: 'False'
-    gui_hint: 0,0
+    gui_hint: 1,0
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -366,9 +366,9 @@ blocks:
     comment: ''
     fc: '0'
     fftsize: '1024'
-    freqhalf: 'True'
+    freqhalf: 'False'
     grid: 'False'
-    gui_hint: 1,0
+    gui_hint: 0,0
     int_max: '10'
     int_min: '-140'
     label1: ''
