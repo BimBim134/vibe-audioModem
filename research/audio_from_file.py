@@ -105,7 +105,7 @@ def start_audio_interface(
     logger.info("audio interface initialized")
 
     logger.info("Waiting 10 seconds before starting")
-    time.sleep(10)
+    time.sleep(5)
 
     def sig_handler(sig=None, frame=None):
         logger.info("SIGINT/SIGTERM received")
