@@ -238,17 +238,20 @@ def launch_demodulator(
     if constellation is None:
         constellation = DEFAULT_DQPSK_CONST
 
-    tb = Demodulator(pkt, signal_config, constellation, ports_config)
+    current_tb = [None]
 
     def sig_handler(sig=None, frame=None):
-        tb.stop()
-        tb.wait()
+        if current_tb[0] is not None:
+            current_tb[0].stop()
+            current_tb[0].wait()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, sig_handler)
     signal.signal(signal.SIGTERM, sig_handler)
 
     if command_queue is None:
+        tb = Demodulator(pkt, signal_config, constellation, ports_config)
+        current_tb[0] = tb
         tb.start()
         tb.flowgraph_started.set()
         logger.info("Demodulator started (Legacy mode)")
@@ -270,7 +273,12 @@ def launch_demodulator(
             if action == "start":
                 freq = cmd.get("freq")
                 if freq:
-                    tb.set_carrier_freq(freq)
+                    # Update frequency before instantiating
+                    signal_config.carrier_freq = freq
+
+                # Create a fresh Demodulator to ensure clean algorithm state
+                tb = Demodulator(pkt, signal_config, constellation, ports_config)
+                current_tb[0] = tb
 
                 tb.start()
                 logger.info("Demodulator running for %.2f Hz", freq)
@@ -287,13 +295,17 @@ def launch_demodulator(
                     if cmd2.get("action") == "stop":
                         tb.stop()
                         tb.wait()
+                        current_tb[0] = None  # Allow garbage collection
+                        del tb  # Force immediate destruction and ZMQ unbound
                         logger.info("Demodulator stopped, returning to idle.")
                         if status_queue:
                             status_queue.put({"status": "ready"})
                         break
             elif action == "stop":
-                tb.stop()
-                tb.wait()
+                if current_tb[0] is not None:
+                    current_tb[0].stop()
+                    current_tb[0].wait()
+                    current_tb[0] = None
                 if status_queue:
                     status_queue.put({"status": "ready"})
 
