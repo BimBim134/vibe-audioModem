@@ -59,7 +59,7 @@ class Demodulator(gr.top_block):
         self.sig = sig
         self.const_definition = constellation
         self.freq_deviation = 100 / self.sig.samp_rate
-        self.decimation = int(self.sig.sps / 8)
+        self.decimation = int(self.sig.sps / 10)
         self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_lms(
             self.const_definition, 0.05
         ).base()
