@@ -61,7 +61,7 @@ class Demodulator(gr.top_block):
         self.freq_deviation = 100 / self.sig.samp_rate
         self.decimation = int(self.sig.sps / 8)
         self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_lms(
-            self.const_definition, 0.001
+            self.const_definition, 0.05
         ).base()
         self.freq_deviation = 100 / self.sig.samp_rate
 
@@ -114,20 +114,20 @@ class Demodulator(gr.top_block):
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
             digital.TED_GARDNER,
             (self.sig.sps / self.decimation),
-            0.045,
+            0.08,
             (1 / np.sqrt(2)),
             1.0,
             1.5,
-            3,
+            5,
             self.const_definition,
             digital.IR_PFB_NO_MF,
             128,
         )
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
-            15, 3, self.variable_adaptive_algorithm_0, True, [], "corr_est"
+            7, 5, self.variable_adaptive_algorithm_0, True, [], "corr_est"
         )
         self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
-            self.const_definition, 0.06, (-self.freq_deviation), self.freq_deviation
+            self.const_definition, 0.08, (-self.freq_deviation), self.freq_deviation
         )
         self.blocks_null_sink_0_1 = blocks.null_sink(gr.sizeof_float*1)
         self.blocks_null_sink_0_0 = blocks.null_sink(gr.sizeof_float*1)
