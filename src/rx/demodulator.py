@@ -50,7 +50,7 @@ class Demodulator(gr.top_block):
         logger.info(sig)
         logger.info(ports_conf)
 
-        self.id = time.asctime()
+        self.id = str(int(time.time()))
 
         self.flowgraph_started = threading.Event()
 
@@ -168,7 +168,7 @@ class Demodulator(gr.top_block):
         )
 
         ## send output packets to zmq sink
-        # self.pdu_set = pdu.pdu_set(k=pmt.intern(self.id), v=pmt.intern("value"))
+        self.pdu_set = pdu.pdu_set(k=pmt.intern("demodulator_id"), v=pmt.intern(self.id))
         self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(
             f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False
         )
@@ -208,9 +208,9 @@ class Demodulator(gr.top_block):
         self.connect((self.digital_correlate_access_code_xx_ts_0, 0),(self.blocks_repack_bits_bb_0_0, 0),)
         self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
         self.connect((self.analog_agc_xx_0, 0), (self.digital_fll_band_edge_cc_0, 0))
-        # self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
-        # self.msg_connect((self.pdu_set, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
-        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"),(self.zeromq_pub_msg_sink_0, "in"),)
+        self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
+        self.msg_connect((self.pdu_set, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
+        # self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"),(self.zeromq_pub_msg_sink_0, "in"),)
 
 
 def launch_demodulator(

@@ -1,7 +1,9 @@
 import zmq
 import logging
+import pmt
 
 from reedsolo import ReedSolomonError
+import numpy as np
 
 from src.config import PacketConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_PORTS_CONFIG, PortsConfig
@@ -10,8 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def decode_packet(raw_packet: bytes, pkt: PacketConfig):
-    payload = raw_packet[10:]
-
+    payload = raw_packet[1].tobytes()
     try:
         decoded_payload = pkt.rsc_codec.decode(payload)[0]
     except ReedSolomonError:
@@ -46,7 +47,8 @@ def listen_for_packets(
         while stop_event is None or not stop_event.is_set():
             try:
                 msg = socket.recv()
-                logger.debug("Received packet: %s", decode_packet(msg, pkt_conf))
+                payload = pmt.to_python(pmt.deserialize_str(msg))
+                logger.debug("Received packet from demodulator %s: %s", payload[0]["demodulator_id"], decode_packet(payload, pkt_conf))
             except zmq.Again:
                 continue
     except KeyboardInterrupt:
