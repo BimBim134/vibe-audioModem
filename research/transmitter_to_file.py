@@ -19,7 +19,7 @@ class Transmitter(gr.top_block):
         pkt: PacketConfig,
         sig: SignalConfig,
         constellation:Any,
-        output_file: str|Path = "test.wav"
+        output_file: str|Path = "research/test.wav"
     ):
         """main transmitter class
 
