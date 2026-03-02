@@ -89,7 +89,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3512, 704.0]
+    coordinate: [3984, 664.0]
     rotation: 0
     state: enabled
 - name: cc_enc
@@ -146,7 +146,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1928, 872.0]
+    coordinate: [2400, 832.0]
     rotation: 0
     state: enabled
 - name: hdr_format
@@ -211,7 +211,22 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1592, 888.0]
+    coordinate: [2064, 848.0]
+    rotation: 0
+    state: enabled
+- name: variable_modulate_vector_0
+  id: variable_modulate_vector
+  parameters:
+    comment: ''
+    data: '[225, 90, 232, 147]'
+    mod: digital.generic_mod(constellation=const_definition, differential=True, samples_per_symbol=sps,
+      pre_diff_code=True, excess_bw=0.35, verbose=False, log=False, truncate=True)
+    taps: '[1]'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1704, 904.0]
     rotation: 0
     state: enabled
 - name: analog_agc_xx_0
@@ -288,7 +303,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3344, 936.0]
+    coordinate: [3816, 896.0]
     rotation: 0
     state: enabled
 - name: blocks_complex_to_real_0
@@ -362,7 +377,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3152, 936.0]
+    coordinate: [3624, 896.0]
     rotation: 0
     state: enabled
 - name: blocks_null_sink_0
@@ -379,7 +394,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2224, 976.0]
+    coordinate: [2696, 936.0]
     rotation: 0
     state: enabled
 - name: blocks_null_sink_0_0
@@ -396,7 +411,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2224, 1008.0]
+    coordinate: [2696, 968.0]
     rotation: 0
     state: enabled
 - name: blocks_null_sink_0_1
@@ -413,7 +428,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2224, 1040.0]
+    coordinate: [2696, 1000.0]
     rotation: 0
     state: enabled
 - name: blocks_repack_bits_bb_0_0
@@ -433,7 +448,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3992, 928.0]
+    coordinate: [4464, 888.0]
     rotation: 0
     state: enabled
 - name: blocks_repack_bits_bb_1_0
@@ -566,7 +581,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2984, 944.0]
+    coordinate: [3456, 904.0]
     rotation: 0
     state: enabled
 - name: blocks_unpack_k_bits_bb_0
@@ -598,7 +613,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2792, 936.0]
+    coordinate: [3264, 896.0]
     rotation: 0
     state: enabled
 - name: channels_channel_model_0
@@ -661,7 +676,27 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1968, 1100.0]
+    coordinate: [2440, 1064.0]
+    rotation: 0
+    state: enabled
+- name: digital_corr_est_cc_0
+  id: digital_corr_est_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    mark_delay: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    sps: '4'
+    symbols: variable_modulate_vector_0
+    threshold: '0.9'
+    threshold_method: digital.THRESHOLD_ABSOLUTE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1696, 1008.0]
     rotation: 0
     state: enabled
 - name: digital_correlate_access_code_xx_ts_0
@@ -680,9 +715,31 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3736, 920.0]
+    coordinate: [4208, 880.0]
     rotation: 0
     state: enabled
+- name: digital_decision_feedback_equalizer_0
+  id: digital_decision_feedback_equalizer
+  parameters:
+    adapt_after_training: 'True'
+    affinity: ''
+    alg: variable_adaptive_algorithm_0
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_taps_fwd: '5'
+    num_taps_rev: '3'
+    sps: '3'
+    training_sequence: '[ ]'
+    training_start_tag: corr_est
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2088, 1112.0]
+    rotation: 0
+    state: disabled
 - name: digital_diff_decoder_bb_0
   id: digital_diff_decoder_bb
   parameters:
@@ -697,7 +754,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2344, 928.0]
+    coordinate: [2816, 888.0]
     rotation: 0
     state: enabled
 - name: digital_fll_band_edge_cc_0
@@ -731,14 +788,14 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     num_taps: '15'
-    sps: '3'
+    sps: '1'
     training_sequence: '[ ]'
     training_start_tag: corr_est
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1624, 1036.0]
+    coordinate: [2096, 1000.0]
     rotation: 0
     state: enabled
 - name: digital_map_bb_0
@@ -754,7 +811,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2584, 936.0]
+    coordinate: [3056, 896.0]
     rotation: 0
     state: enabled
 - name: digital_protocol_formatter_bb_0
@@ -787,7 +844,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     nfilters: '128'
-    osps: '3'
+    osps: '1'
     pfb_mf_taps: ''
     resamp_type: digital.IR_PFB_NO_MF
     sps: sps/decimation
@@ -818,7 +875,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [3512, 912.0]
+    coordinate: [3984, 872.0]
     rotation: 0
     state: enabled
 - name: fec_extended_encoder_0
@@ -857,7 +914,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [400, 1180.0]
+    coordinate: [400, 1024.0]
     rotation: 0
     state: enabled
 - name: hilbert_fc_0
@@ -905,7 +962,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [4184, 936.0]
+    coordinate: [4656, 896.0]
     rotation: 0
     state: enabled
 - name: qtgui_const_sink_x_0_2_1
@@ -997,7 +1054,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1328, 872.0]
+    coordinate: [1360, 880.0]
     rotation: 180
     state: disabled
 - name: qtgui_const_sink_x_0_2_1_0
@@ -1089,7 +1146,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2088, 1260.0]
+    coordinate: [2560, 1224.0]
     rotation: 180
     state: enabled
 - name: qtgui_const_sink_x_0_2_2
@@ -1181,7 +1238,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1592, 816.0]
+    coordinate: [2064, 776.0]
     rotation: 180
     state: disabled
 - name: qtgui_freq_sink_x_0
@@ -1521,7 +1578,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [4440, 928.0]
+    coordinate: [4912, 888.0]
     rotation: 0
     state: enabled
 
@@ -1555,7 +1612,11 @@ connections:
 - [digital_constellation_receiver_cb_0, '2', blocks_null_sink_0_0, '0']
 - [digital_constellation_receiver_cb_0, '3', blocks_null_sink_0_1, '0']
 - [digital_constellation_receiver_cb_0, '4', qtgui_const_sink_x_0_2_1_0, '0']
+- [digital_corr_est_cc_0, '0', digital_decision_feedback_equalizer_0, '0']
+- [digital_corr_est_cc_0, '0', digital_linear_equalizer_0, '0']
 - [digital_correlate_access_code_xx_ts_0, '0', blocks_repack_bits_bb_0_0, '0']
+- [digital_decision_feedback_equalizer_0, '0', digital_constellation_receiver_cb_0,
+  '0']
 - [digital_diff_decoder_bb_0, '0', digital_map_bb_0, '0']
 - [digital_fll_band_edge_cc_0, '0', digital_symbol_sync_xx_0, '0']
 - [digital_fll_band_edge_cc_0, '0', qtgui_freq_sink_x_0, '1']
@@ -1563,7 +1624,8 @@ connections:
 - [digital_linear_equalizer_0, '0', qtgui_const_sink_x_0_2_2, '0']
 - [digital_map_bb_0, '0', blocks_unpack_k_bits_bb_0_0, '0']
 - [digital_protocol_formatter_bb_0, '0', blocks_tagged_stream_mux_0, '0']
-- [digital_symbol_sync_xx_0, '0', digital_linear_equalizer_0, '0']
+- [digital_symbol_sync_xx_0, '0', digital_corr_est_cc_0, '0']
+- [digital_symbol_sync_xx_0, '0', digital_decision_feedback_equalizer_0, '0']
 - [digital_symbol_sync_xx_0, '0', qtgui_const_sink_x_0_2_1, '0']
 - [fec_extended_decoder_0, '0', digital_correlate_access_code_xx_ts_0, '0']
 - [fec_extended_encoder_0, '0', blocks_repack_bits_bb_1_0, '0']

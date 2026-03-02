@@ -59,15 +59,18 @@ class Demodulator(gr.top_block):
         self.sig = sig
         self.const_definition = constellation
         self.freq_deviation = 100 / self.sig.samp_rate
-        self.decimation = int(self.sig.sps / 10)
-        self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_lms(
-            self.const_definition, 0.05
+        self.decimation = int(self.sig.sps / 8)
+
+        self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_cma(
+            self.const_definition, 0.01, 2*np.sqrt(2)
         ).base()
         self.freq_deviation = 100 / self.sig.samp_rate
 
         ## digital communication variables
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
+        self.access_key_int = list(int(self.access_key[i:i+8], 2) for i in range(0, len(self.access_key), 8))
+        self.variable_modulate_vector_0 = digital.modulate_vector_bc(digital.generic_mod(constellation=self.const_definition, differential=True, samples_per_symbol=self.sig.sps, pre_diff_code=True, excess_bw=0.35, verbose=False, log=False, truncate=True).to_basic_block(), self.access_key_int, [1])
         self.hdr_format = digital.header_format_default(self.access_key, 0)
         self.cc_dec = fec.cc_decoder.make(
             8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True
@@ -90,7 +93,7 @@ class Demodulator(gr.top_block):
         )
         ## signal preprocessing
         ### frequency shift
-        self.hilbert_fc_0 = hilbert_fc(65, window.WIN_HAMMING, 6.76)  # float -> complex
+        self.hilbert_fc_0 = hilbert_fc(127, window.WIN_HAMMING, 6.76)  # float -> complex
         self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_ccc(
             self.decimation,
             firdes.complex_band_pass(
@@ -98,34 +101,54 @@ class Demodulator(gr.top_block):
                 self.sig.samp_rate,
                 -self.sig.samp_rate / (2 * self.decimation),
                 self.sig.samp_rate / (2 * self.decimation),
-                10,
+                31,
             ),
             self.sig.carrier_freq,
             self.sig.samp_rate,
         )
         ### Automatic Gain Control
-        self.analog_agc_xx_0 = analog.agc_cc((1e-4), np.sqrt(2), 1.0, 10)
+        self.analog_agc_xx_0 = analog.agc_cc((1e-3), np.sqrt(2), 1.0, 10)
         ### Coarse frequency correction
         self.digital_fll_band_edge_cc_0 = digital.fll_band_edge_cc(
             (self.sig.sps / self.decimation), 0.35, 44, (1e-3)
         )
 
         ## symbol synchronization
+        nfilts = 128
+        sps_resamp = self.sig.sps / self.decimation
+        # Generate RRC taps for the PFB Matched Filter
+        self.symbol_sync_taps = firdes.root_raised_cosine(
+            nfilts,
+            nfilts,
+            1.0,
+            0.35,
+            11 * nfilts
+        )
+
+
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
             digital.TED_GARDNER,
-            (self.sig.sps / self.decimation),
+            sps_resamp,
             0.08,
             (1 / np.sqrt(2)),
             1.0,
             1.5,
-            5,
+            1,
             self.const_definition,
-            digital.IR_PFB_NO_MF,
-            128,
+            digital.IR_PFB_MF,
+            nfilts,
+            self.symbol_sync_taps,
         )
+
+        # Correlation-based symbol timing recovery
+        self.digital_corr_est_cc_0 = digital.corr_est_cc(self.variable_modulate_vector_0, 4, 0, 0.9, digital.THRESHOLD_ABSOLUTE)
+
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
-            7, 5, self.variable_adaptive_algorithm_0, True, [], "corr_est"
+            15, 1, self.variable_adaptive_algorithm_0, True, [], "corr_est"
         )
+
+        # TODO :implement decision feedback equalizer
+        # self.digital_linear_equalizer_0 = digital.decision_feedback_equalizer(11, 7, 3, self.variable_adaptive_algorithm_0, True, [ ], 'corr_est')
         self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
             self.const_definition, 0.08, (-self.freq_deviation), self.freq_deviation
         )
@@ -191,7 +214,8 @@ class Demodulator(gr.top_block):
         self.connect((self.hilbert_fc_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
         self.connect((self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
-        self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_linear_equalizer_0, 0))
+        self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_corr_est_cc_0, 0))
+        self.connect((self.digital_corr_est_cc_0, 0), (self.digital_linear_equalizer_0, 0))
         self.connect((self.digital_linear_equalizer_0, 0),(self.digital_constellation_receiver_cb_0, 0),)
         self.connect((self.digital_constellation_receiver_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
         self.connect((self.digital_constellation_receiver_cb_0, 1), (self.blocks_null_sink_0, 0))
