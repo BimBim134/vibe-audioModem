@@ -849,7 +849,7 @@ blocks:
     resamp_type: digital.IR_MMSE_8TAP
     sps: sps/decimation
     ted_gain: '1.0'
-    ted_type: digital.TED_GARDNER
+    ted_type: digital.TED_EARLY_LATE
     type: cc
   states:
     bus_sink: false

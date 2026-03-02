@@ -106,10 +106,10 @@ class Demodulator(gr.top_block):
             self.sig.samp_rate,
         )
         ### Automatic Gain Control
-        self.analog_agc_xx_0 = analog.agc_cc((1e-3), np.sqrt(2), 1.0, 10)
+        self.analog_agc_xx_0 = analog.agc_cc((1e-2), np.sqrt(2), 1.0, 10)
         ### Coarse frequency correction
         self.digital_fll_band_edge_cc_0 = digital.fll_band_edge_cc(
-            (self.sig.sps / self.decimation), 0.35, 44, (1e-3)
+            (self.sig.sps / self.decimation), 0.35, 11, (1e-3)
         )
 
         ## symbol synchronization
@@ -125,7 +125,7 @@ class Demodulator(gr.top_block):
         )
 
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
-            digital.TED_GARDNER,
+            digital.TED_EARLY_LATE,
             sps_resamp,
             0.08,
             (1 / np.sqrt(2)),
@@ -160,12 +160,16 @@ class Demodulator(gr.top_block):
             self.reference_symbols, 1, 0, 0.9, digital.THRESHOLD_ABSOLUTE
         )
 
-        self.digital_linear_equalizer_0 = digital.linear_equalizer(
-            15, 1, self.variable_adaptive_algorithm_0, False, [], "corr_est"
+        # Decision feedback equalizer
+        self.digital_linear_equalizer_0 = digital.decision_feedback_equalizer(
+            11,
+            7,
+            1,
+            self.variable_adaptive_algorithm_0,
+            True,
+            self.reference_symbols,
+            "corr_est"
         )
-
-        # TODO :implement decision feedback equalizer
-        # self.digital_linear_equalizer_0 = digital.decision_feedback_equalizer(11, 7, 3, self.variable_adaptive_algorithm_0, True, [ ], 'corr_est')
         self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
             self.const_definition, 0.08, (-self.freq_deviation), self.freq_deviation
         )
