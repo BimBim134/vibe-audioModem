@@ -64,13 +64,12 @@ class Demodulator(gr.top_block):
         self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_cma(
             self.const_definition, 0.01, 2*np.sqrt(2)
         ).base()
+
         self.freq_deviation = 100 / self.sig.samp_rate
 
         ## digital communication variables
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
-        self.access_key_int = list(int(self.access_key[i:i+8], 2) for i in range(0, len(self.access_key), 8))
-        self.variable_modulate_vector_0 = digital.modulate_vector_bc(digital.generic_mod(constellation=self.const_definition, differential=True, samples_per_symbol=self.sig.sps, pre_diff_code=True, excess_bw=0.35, verbose=False, log=False, truncate=True).to_basic_block(), self.access_key_int, [1])
         self.hdr_format = digital.header_format_default(self.access_key, 0)
         self.cc_dec = fec.cc_decoder.make(
             8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True
@@ -125,7 +124,6 @@ class Demodulator(gr.top_block):
             11 * nfilts
         )
 
-
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
             digital.TED_GARDNER,
             sps_resamp,
@@ -140,11 +138,30 @@ class Demodulator(gr.top_block):
             self.symbol_sync_taps,
         )
 
+        # Manual DQPSK reference symbol generation (1 SPS)
+        # 32 bits to 16 symbols
+        access_key_symbols = [int(self.access_key[i:i+2], 2) for i in range(0, len(self.access_key), 2)]
+        
+        # Get constellation mapping and points
+        mapping = self.const_definition.pre_diff_code()
+        points = self.const_definition.points()
+        
+        # Handle Gray-coding, Differential encoding and Mapping
+        curr_state = 0
+        self.reference_symbols = []
+        for s in access_key_symbols:
+            gray_sym = mapping[s]
+            curr_state = (gray_sym + curr_state) % 4
+            self.reference_symbols.append(points[curr_state])
+
         # Correlation-based symbol timing recovery
-        self.digital_corr_est_cc_0 = digital.corr_est_cc(self.variable_modulate_vector_0, 4, 0, 0.9, digital.THRESHOLD_ABSOLUTE)
+        # Use sps=1 because we're after the symbol sync block
+        self.digital_corr_est_cc_0 = digital.corr_est_cc(
+            self.reference_symbols, 1, 0, 0.9, digital.THRESHOLD_ABSOLUTE
+        )
 
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
-            15, 1, self.variable_adaptive_algorithm_0, True, [], "corr_est"
+            15, 1, self.variable_adaptive_algorithm_0, False, [], "corr_est"
         )
 
         # TODO :implement decision feedback equalizer
