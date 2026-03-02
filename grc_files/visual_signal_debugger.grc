@@ -71,7 +71,7 @@ blocks:
     ffactor: '0.99'
     modulus: '2'
     step_size: '.0001'
-    type: nlms
+    type: lms
   states:
     bus_sink: false
     bus_source: false

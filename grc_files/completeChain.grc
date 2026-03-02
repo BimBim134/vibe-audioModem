@@ -226,7 +226,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1704, 904.0]
+    coordinate: [1688, 888.0]
     rotation: 0
     state: enabled
 - name: analog_agc_xx_0
@@ -691,7 +691,7 @@ blocks:
     sps: '4'
     symbols: variable_modulate_vector_0
     threshold: '0.9'
-    threshold_method: digital.THRESHOLD_ABSOLUTE
+    threshold_method: digital.THRESHOLD_DYNAMIC
   states:
     bus_sink: false
     bus_source: false
@@ -846,7 +846,7 @@ blocks:
     nfilters: '128'
     osps: '1'
     pfb_mf_taps: ''
-    resamp_type: digital.IR_PFB_NO_MF
+    resamp_type: digital.IR_MMSE_8TAP
     sps: sps/decimation
     ted_gain: '1.0'
     ted_type: digital.TED_GARDNER
