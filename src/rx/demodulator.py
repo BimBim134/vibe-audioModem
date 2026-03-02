@@ -160,15 +160,9 @@ class Demodulator(gr.top_block):
             self.reference_symbols, 1, 0, 0.9, digital.THRESHOLD_ABSOLUTE
         )
 
-        # Decision feedback equalizer
-        self.digital_linear_equalizer_0 = digital.decision_feedback_equalizer(
-            11,
-            7,
-            1,
-            self.variable_adaptive_algorithm_0,
-            True,
-            self.reference_symbols,
-            "corr_est"
+        # linear equalizer
+        self.digital_linear_equalizer_0 = digital.linear_equalizer(
+            15, 1, self.variable_adaptive_algorithm_0, False, [], "corr_est"
         )
         self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
             self.const_definition, 0.08, (-self.freq_deviation), self.freq_deviation
