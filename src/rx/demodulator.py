@@ -8,7 +8,7 @@ import pmt
 
 import numpy as np
 from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
-from gnuradio.filter import firdes, hilbert_fc, freq_xlating_fir_filter_ccc
+from gnuradio.filter import firdes, freq_xlating_fir_filter_fcc
 from gnuradio.fft import window
 
 from src.config import PacketConfig, SignalConfig, PortsConfig
@@ -91,16 +91,19 @@ class Demodulator(gr.top_block):
             False,
         )
         ## signal preprocessing
-        ### frequency shift
-        self.hilbert_fc_0 = hilbert_fc(127, window.WIN_HAMMING, 6.76)  # float -> complex
-        self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_ccc(
+        ### Frequency-translating filter: real float input → complex baseband output.
+        ### This replaces the previous hilbert_fc + freq_xlating_fir_filter_ccc pair.
+        ### The fcc variant natively multiplies by exp(-j·2π·fc·n) and low-pass-filters
+        ### in one step, so the DSB-SC mirror image at -2fc is rejected by the LPF
+        ### instead of relying on an imperfect Hilbert transform.
+        self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_fcc(
             self.decimation,
-            firdes.complex_band_pass(
+            firdes.low_pass(
                 1,
                 self.sig.samp_rate,
-                -self.sig.samp_rate / (2 * self.decimation),
-                self.sig.samp_rate / (2 * self.decimation),
-                31,
+                self.sig.samp_rate / (2 * self.decimation),  # cutoff at Nyquist of decimated rate
+                500,                                          # transition width in Hz
+                window.WIN_HAMMING,
             ),
             self.sig.carrier_freq,
             self.sig.samp_rate,
@@ -164,12 +167,26 @@ class Demodulator(gr.top_block):
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
             15, 1, self.variable_adaptive_algorithm_0, False, [], "corr_est"
         )
-        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
-            self.const_definition, 0.08, (-self.freq_deviation), self.freq_deviation
+        ## Pure hard-decision slicer — no internal Costas/phase-tracking loop.
+        ## Frequency is handled by FLL (coarse) and symbol timing by symbol_sync.
+        ## A second phase-feedback loop (constellation_receiver_cb) would fight
+        ## the FLL, causing phase jitter visible as angular scatter on the constellation.
+        self.digital_constellation_decoder_cb_0 = digital.constellation_decoder_cb(
+            self.const_definition
         )
-        self.blocks_null_sink_0_1 = blocks.null_sink(gr.sizeof_float*1)
-        self.blocks_null_sink_0_0 = blocks.null_sink(gr.sizeof_float*1)
-        self.blocks_null_sink_0 = blocks.null_sink(gr.sizeof_float*1)
+        ## Costas loop: fine residual phase correction after the FLL.
+        ## FLL (coarse) and Costas loop (fine) operate at different bandwidths
+        ## so they don't fight each other. Loop BW=0.01 keeps it slow enough
+        ## not to disturb the FLL, while still tracking slow phase drift.
+        ## 4th-order loop matches QPSK/DQPSK 4-fold phase symmetry.
+        self.digital_costas_loop_cc_0 = digital.costas_loop_cc(0.01, 4, False)
+        ## Null sinks for fll_band_edge_cc output ports 1/2/3 (freq err, phase err, error)
+        ## and costas_loop_cc output port 1 (error signal).
+        ## GNU Radio requires all output ports to be connected.
+        self.blocks_null_sink_0 = blocks.null_sink(gr.sizeof_float * 1)
+        self.blocks_null_sink_0_0 = blocks.null_sink(gr.sizeof_float * 1)
+        self.blocks_null_sink_0_1 = blocks.null_sink(gr.sizeof_float * 1)
+        self.blocks_null_sink_0_2 = blocks.null_sink(gr.sizeof_float * 1)  # costas error
 
         ## constellation decoding
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
@@ -225,18 +242,21 @@ class Demodulator(gr.top_block):
         )
 
         # Connections
-        self.connect((self.audio_source_0, 0), (self.hilbert_fc_0, 0))
-        self.connect((self.hilbert_fc_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
+        self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
         self.connect((self.digital_fll_band_edge_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
+        self.connect((self.digital_fll_band_edge_cc_0, 1), (self.blocks_null_sink_0, 0))    # freq error
+        self.connect((self.digital_fll_band_edge_cc_0, 2), (self.blocks_null_sink_0_0, 0))  # phase error
+        self.connect((self.digital_fll_band_edge_cc_0, 3), (self.blocks_null_sink_0_1, 0))  # raw error
         self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_corr_est_cc_0, 0))
         self.connect((self.digital_corr_est_cc_0, 0), (self.digital_linear_equalizer_0, 0))
-        self.connect((self.digital_linear_equalizer_0, 0),(self.digital_constellation_receiver_cb_0, 0),)
-        self.connect((self.digital_constellation_receiver_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 1), (self.blocks_null_sink_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 2), (self.blocks_null_sink_0_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 3), (self.blocks_null_sink_0_1, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 4), (self.zeromq_pub_sink_0, 0))
+        # Costas loop: fine phase correction after equalizer
+        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_costas_loop_cc_0, 0))
+        self.connect((self.digital_costas_loop_cc_0, 1), (self.blocks_null_sink_0_2, 0))  # costas error
+        # Tap costas output for constellation display (phase-corrected symbols)
+        self.connect((self.digital_costas_loop_cc_0, 0), (self.zeromq_pub_sink_0, 0))
+        self.connect((self.digital_costas_loop_cc_0, 0), (self.digital_constellation_decoder_cb_0, 0))
+        self.connect((self.digital_constellation_decoder_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
         self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
