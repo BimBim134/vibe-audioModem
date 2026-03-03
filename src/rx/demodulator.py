@@ -61,8 +61,13 @@ class Demodulator(gr.top_block):
         self.freq_deviation = 100 / self.sig.samp_rate
         self.decimation = int(self.sig.sps / 8)
 
+        # CMA equalizer configuration:
+        #  - modulus R²=1.0 matches constellation_dqpsk() unit-circle points (|s|=1).
+        #    Old value 2√2≈2.83 was wrong — it drove amplitude to √2.83≈1.68 instead of 1.
+        #  - mu=0.001: step size reduced from 0.01 to avoid tap bounce at SPS=1
+        #    (no oversampling means noisier error signal).
         self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_cma(
-            self.const_definition, 0.01, 2*np.sqrt(2)
+            self.const_definition, 0.001, 1.0
         ).base()
 
         self.freq_deviation = 100 / self.sig.samp_rate
@@ -109,7 +114,7 @@ class Demodulator(gr.top_block):
             self.sig.samp_rate,
         )
         ### Automatic Gain Control
-        self.analog_agc_xx_0 = analog.agc_cc((1e-2), np.sqrt(2), 1.0, 10)
+        self.analog_agc_xx_0 = analog.agc_cc((1e-2), np.sqrt(2), 1.0, 100)
         ### No separate FLL: constellation_receiver_cb's internal Costas loop
         ### is the sole phase/frequency tracking stage, eliminating loop competition.
 
@@ -132,7 +137,7 @@ class Demodulator(gr.top_block):
             (1 / np.sqrt(2)),
             1.0,
             1.5,
-            1,
+            2,                         # OSPS=2: fractionally-spaced output for the equalizer
             self.const_definition,
             digital.IR_PFB_MF,
             nfilts,
@@ -155,15 +160,21 @@ class Demodulator(gr.top_block):
             curr_state = (gray_sym + curr_state) % 4
             self.reference_symbols.append(points[curr_state])
 
-        # Correlation-based symbol timing recovery
-        # Use sps=1 because we're after the symbol sync block
+        # Upsample reference symbols to 2 SPS to match symbol_sync OSPS=2
+        # Each complex point is repeated twice (nearest-neighbour upsampling).
+        reference_symbols_2sps = np.repeat(self.reference_symbols, 2)
+
+        # Correlation-based frame detection at 2 SPS
         self.digital_corr_est_cc_0 = digital.corr_est_cc(
-            self.reference_symbols, 1, 0, 0.9, digital.THRESHOLD_ABSOLUTE
+            reference_symbols_2sps, 2, 0, 0.9, digital.THRESHOLD_ABSOLUTE
         )
 
-        # linear equalizer
+        # Fractionally-spaced linear equalizer at 2 SPS.
+        # linear_equalizer decimates internally by sps, so output is 1 SPS
+        # going into constellation_receiver_cb. 9 taps @ 2SPS = 4.5 symbol periods
+        # of coverage -- enough for audio low-pass ringing without fitting noise.
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
-            15, 1, self.variable_adaptive_algorithm_0, False, [], "corr_est"
+            9, 2, self.variable_adaptive_algorithm_0, False, [], "corr_est"
         )
         ## constellation_receiver_cb is the single phase/frequency tracking stage.
         ## No competing FLL upstream means the Costas loop inside this block
