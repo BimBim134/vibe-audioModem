@@ -61,11 +61,6 @@ class Demodulator(gr.top_block):
         self.freq_deviation = 100 / self.sig.samp_rate
         self.decimation = int(self.sig.sps / 8)
 
-        # CMA equalizer configuration:
-        #  - modulus R²=1.0 matches constellation_dqpsk() unit-circle points (|s|=1).
-        #    Old value 2√2≈2.83 was wrong — it drove amplitude to √2.83≈1.68 instead of 1.
-        #  - mu=0.001: step size reduced from 0.01 to avoid tap bounce at SPS=1
-        #    (no oversampling means noisier error signal).
         self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_cma(
             self.const_definition, 0.001, 1.0
         ).base()
@@ -97,47 +92,38 @@ class Demodulator(gr.top_block):
         )
         ## signal preprocessing
         ### Frequency-translating filter: real float input → complex baseband output.
-        ### This replaces the previous hilbert_fc + freq_xlating_fir_filter_ccc pair.
-        ### The fcc variant natively multiplies by exp(-j·2π·fc·n) and low-pass-filters
-        ### in one step, so the DSB-SC mirror image at -2fc is rejected by the LPF
-        ### instead of relying on an imperfect Hilbert transform.
         self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_fcc(
             self.decimation,
             firdes.low_pass(
                 1,
                 self.sig.samp_rate,
-                self.sig.samp_rate / (2 * self.decimation),  # cutoff at Nyquist of decimated rate
-                500,                                          # transition width in Hz
+                self.sig.samp_rate
+                / (2 * self.decimation),  # cutoff at Nyquist of decimated rate
+                500,  # transition width in Hz
                 window.WIN_HAMMING,
             ),
             self.sig.carrier_freq,
             self.sig.samp_rate,
         )
         ### Automatic Gain Control
-        self.analog_agc_xx_0 = analog.agc_cc((1e-2), np.sqrt(2), 1.0, 100)
-        ### No separate FLL: constellation_receiver_cb's internal Costas loop
-        ### is the sole phase/frequency tracking stage, eliminating loop competition.
+        self.analog_agc_xx_0 = analog.agc_cc((1e-2), 1.0, 1.0, 100)
 
         ## symbol synchronization
         nfilts = 128
         sps_resamp = self.sig.sps / self.decimation
         # Generate RRC taps for the PFB Matched Filter
         self.symbol_sync_taps = firdes.root_raised_cosine(
-            nfilts,
-            nfilts,
-            1.0,
-            0.35,
-            11 * nfilts
+            nfilts, nfilts, 1.0, 0.35, 11 * nfilts
         )
 
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
-            digital.TED_EARLY_LATE,
+            digital.TED_GARDNER,
             sps_resamp,
             0.08,
             (1 / np.sqrt(2)),
             1.0,
             1.5,
-            2,                         # OSPS=2: fractionally-spaced output for the equalizer
+            1,  # osps=1: output 1 sample per symbol
             self.const_definition,
             digital.IR_PFB_MF,
             nfilts,
@@ -146,12 +132,15 @@ class Demodulator(gr.top_block):
 
         # Manual DQPSK reference symbol generation (1 SPS)
         # 32 bits to 16 symbols
-        access_key_symbols = [int(self.access_key[i:i+2], 2) for i in range(0, len(self.access_key), 2)]
-        
+        access_key_symbols = [
+            int(self.access_key[i : i + 2], 2)
+            for i in range(0, len(self.access_key), 2)
+        ]
+
         # Get constellation mapping and points
         mapping = self.const_definition.pre_diff_code()
         points = self.const_definition.points()
-        
+
         # Handle Gray-coding, Differential encoding and Mapping
         curr_state = 0
         self.reference_symbols = []
@@ -160,35 +149,25 @@ class Demodulator(gr.top_block):
             curr_state = (gray_sym + curr_state) % 4
             self.reference_symbols.append(points[curr_state])
 
-        # Upsample reference symbols to 2 SPS to match symbol_sync OSPS=2
-        # Each complex point is repeated twice (nearest-neighbour upsampling).
-        reference_symbols_2sps = np.repeat(self.reference_symbols, 2)
-
-        # Correlation-based frame detection at 2 SPS
+        # Correlation-based frame detection at 1 SPS (matching symbol_sync osps=1)
         self.digital_corr_est_cc_0 = digital.corr_est_cc(
-            reference_symbols_2sps, 2, 0, 0.9, digital.THRESHOLD_ABSOLUTE
+            self.reference_symbols, 1, 0, 0.9, digital.THRESHOLD_ABSOLUTE
         )
 
-        # Fractionally-spaced linear equalizer at 2 SPS.
-        # linear_equalizer decimates internally by sps, so output is 1 SPS
-        # going into constellation_receiver_cb. 9 taps @ 2SPS = 4.5 symbol periods
-        # of coverage -- enough for audio low-pass ringing without fitting noise.
+        # Fractionally-spaced linear equalizer at 1 SPS.
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
-            9, 2, self.variable_adaptive_algorithm_0, False, [], "corr_est"
+            9, 1, self.variable_adaptive_algorithm_0, True, [], "corr_est"
         )
-        ## constellation_receiver_cb is the single phase/frequency tracking stage.
-        ## No competing FLL upstream means the Costas loop inside this block
-        ## can converge cleanly without fighting another feedback loop.
-        ## Port 0: decoded bytes  Port 1-3: error signals (null-sinked)
-        ## Port 4: soft complex symbols sent to ZMQ for constellation display.
-        self.digital_constellation_receiver_cb_0 = digital.constellation_receiver_cb(
-            self.const_definition, 0.08, (-self.freq_deviation), self.freq_deviation
+        ## Costas loop for carrier phase/frequency recovery (matches reference QPSK modem design)
+        self.digital_costas_loop_cc_0 = digital.costas_loop_cc(
+            0.0628,  # loop bandwidth (phase_bw)
+            4,  # order: 4 for QPSK/DQPSK
+            False,
         )
-        ## Null sinks for constellation_receiver_cb output ports 1/2/3 (error signals).
-        ## GNU Radio requires all output ports to be connected.
-        self.blocks_null_sink_0 = blocks.null_sink(gr.sizeof_float * 1)
-        self.blocks_null_sink_0_0 = blocks.null_sink(gr.sizeof_float * 1)
-        self.blocks_null_sink_0_1 = blocks.null_sink(gr.sizeof_float * 1)
+        ## Hard-decision constellation decoder (stateless, no competing PLL)
+        self.digital_constellation_decoder_cb_0 = digital.constellation_decoder_cb(
+            self.const_definition
+        )
 
         ## constellation decoding
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
@@ -225,7 +204,9 @@ class Demodulator(gr.top_block):
         )
 
         ## send output packets to zmq sink
-        self.pdu_set = pdu.pdu_set(k=pmt.intern("demodulator_id"), v=pmt.intern(self.id))
+        self.pdu_set = pdu.pdu_set(
+            k=pmt.intern("demodulator_id"), v=pmt.intern(self.id)
+        )
         self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(
             f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False
         )
@@ -246,28 +227,24 @@ class Demodulator(gr.top_block):
         # Connections
         self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
-        # AGC feeds directly into symbol_sync — no FLL competing with constellation_receiver_cb
         self.connect((self.analog_agc_xx_0, 0), (self.digital_symbol_sync_xx_0, 0))
         self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_corr_est_cc_0, 0))
         self.connect((self.digital_corr_est_cc_0, 0), (self.digital_linear_equalizer_0, 0))
-        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_constellation_receiver_cb_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 1), (self.blocks_null_sink_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 2), (self.blocks_null_sink_0_0, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 3), (self.blocks_null_sink_0_1, 0))
-        self.connect((self.digital_constellation_receiver_cb_0, 4), (self.zeromq_pub_sink_0, 0))
+        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_costas_loop_cc_0, 0))
+        self.connect((self.digital_costas_loop_cc_0, 0),(self.digital_constellation_decoder_cb_0, 0),)
+        self.connect((self.digital_constellation_decoder_cb_0, 0),(self.digital_diff_decoder_bb_0, 0),)
+        self.connect((self.digital_costas_loop_cc_0, 0), (self.zeromq_pub_sink_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
         self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
         self.connect((self.blocks_uchar_to_float_0_0_0, 0),(self.blocks_multiply_const_xx_1_0_0, 0),)
         self.connect((self.blocks_multiply_const_xx_1_0_0, 0),(self.blocks_add_const_vxx_0_0_0, 0),)
         self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
-        self.connect((self.fec_extended_decoder_0, 0),(self.digital_correlate_access_code_xx_ts_0, 0),)
+        self.connect((self.fec_extended_decoder_0, 0),(self.digital_correlate_access_code_xx_ts_0, 0))
         self.connect((self.digital_correlate_access_code_xx_ts_0, 0),(self.blocks_repack_bits_bb_0_0, 0),)
         self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
         self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
         self.msg_connect((self.pdu_set, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
-        # self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"),(self.zeromq_pub_msg_sink_0, "in"),)
 
 
 def launch_demodulator(
