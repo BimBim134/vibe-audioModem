@@ -118,9 +118,23 @@ def listen_for_packets(
                 result = decode_packet(payload, pkt_conf)
                 
                 if isinstance(result, dict):
-                    logger.info(f"Successfully reassembled message from {result.get('sender_name', 'unknown')}: {result}")
+                    logger.info(
+                        f"Successfully reassembled message from {result.get('sender_name', 'unknown')}: {result}"
+                    )
+                    if result.get("type") == "raw_string":
+                        sender_name = result.get("sender_name", "unknown")
+                        # PMT to_python returns a numpy array for buffers/blobs
+                        # We must convert it to bytes before decoding to string
+                        data = result.get("data")
+                        if isinstance(data, np.ndarray):
+                            message_str = data.tobytes().decode("utf-8")
+                        else:
+                            message_str = str(data)
+                        logger.info(f"Message from {sender_name}: {message_str}")
                 else:
-                    logger.debug(f"Packet result from {payload[0]['demodulator_id']}: {result}")
+                    logger.debug(
+                        f"Packet result from {payload[0]['demodulator_id']}: {result}"
+                    )
                     
             except zmq.Again:
                 continue
