@@ -13,6 +13,10 @@ from src.config import (
 )
 from src.tx.transmitter import send_data
 
+from typing import Any
+import logging
+logger = logging.getLogger(__name__)
+
 class ZMQWorker(QtCore.QObject):
     data_received = QtCore.Signal(np.ndarray)
 
@@ -23,7 +27,7 @@ class ZMQWorker(QtCore.QObject):
 
     @QtCore.Slot()
     def run(self):
-        print(f"ZMQWorker starting on port {self.port}...")
+        logger.info(f"ZMQWorker starting on port {self.port}...")
         context = zmq.Context()
         socket = context.socket(zmq.SUB)
         socket.setsockopt(zmq.RCVTIMEO, 1000)  # 1s timeout
@@ -31,9 +35,9 @@ class ZMQWorker(QtCore.QObject):
             socket.set_hwm(100)
             socket.connect(f"tcp://127.0.0.1:{self.port}")
             socket.setsockopt_string(zmq.SUBSCRIBE, "")
-            print(f"ZMQWorker connected to port {self.port}")
+            logger.info(f"ZMQWorker connected to port {self.port}")
         except Exception as e:
-            print(f"ZMQ Connection Error: {e}")
+            logger.info(f"ZMQ Connection Error: {e}")
             return
         
         while self.running:
@@ -45,15 +49,15 @@ class ZMQWorker(QtCore.QObject):
             except zmq.Again:
                 continue
             except zmq.ZMQError as e:
-                print(f"ZMQ Error: {e}")
+                logger.info(f"ZMQ Error: {e}")
                 break
             except Exception as e:
-                print(f"Unexpected Error in ZMQWorker: {e}")
+                logger.info(f"Unexpected Error in ZMQWorker: {e}")
                 break
         
         socket.close()
         context.term()
-        print("ZMQWorker stopped")
+        logger.info("ZMQWorker stopped")
 
     def stop(self):
         self.running = False
@@ -61,7 +65,7 @@ class ZMQWorker(QtCore.QObject):
 class TransmitWorker(QtCore.QObject):
     finished = QtCore.Signal()
 
-    def __init__(self, message: bytes, signal_conf: SignalConfig, pkt_conf: PacketConfig):
+    def __init__(self, message: Any, signal_conf: SignalConfig, pkt_conf: PacketConfig):
         super().__init__()
         self.message = message
         self.signal_conf = signal_conf
@@ -70,11 +74,11 @@ class TransmitWorker(QtCore.QObject):
     @QtCore.Slot()
     def run(self):
         try:
-            print(f"TransmitWorker starting transmission of {len(self.message)} bytes...")
+            logger.info(f"TransmitWorker starting transmission of {len(self.message)} bytes...")
             send_data(self.message, pkt=self.pkt_conf, sig=self.signal_conf, handle_signals=False)
-            print("TransmitWorker finished transmission")
+            logger.info("TransmitWorker finished transmission")
         except Exception as e:
-            print(f"Transmission Error: {e}")
+            logger.info(f"Transmission Error: {e}")
         finally:
             self.finished.emit()
 
@@ -95,7 +99,7 @@ class MainWindow(QtWidgets.QMainWindow):
         loader = QtUiTools.QUiLoader()
         ui_file = QtCore.QFile("/home/bimbim/Codes/vibe-audioModem/src/UI/pyqt/main_window.ui")
         if not ui_file.open(QtCore.QFile.ReadOnly):
-            print(f"Could not open UI file: {ui_file.errorString()}")
+            logger.info(f"Could not open UI file: {ui_file.errorString()}")
             return
         
         # Load the UI into a separate widget first
@@ -103,7 +107,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ui_file.close()
         
         if not self.ui_widget:
-            print("Failed to load UI widget")
+            logger.info("Failed to load UI widget")
             return
 
         # Set the loaded UI widget as the central widget
@@ -161,9 +165,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.send_button = self.ui_widget.findChild(QtWidgets.QPushButton, "SendButton")
         if self.send_button and self.message_edit:
             self.send_button.clicked.connect(self.start_transmission)
-            print("SendButton and MessageEdit connected")
+            logger.info("SendButton and MessageEdit connected")
         else:
-            print("Warning: SendButton or MessageEdit not found in UI")
+            logger.info("Warning: SendButton or MessageEdit not found in UI")
 
         # ZMQ Threading
         self.thread = QtCore.QThread()
@@ -208,16 +212,15 @@ class MainWindow(QtWidgets.QMainWindow):
         message_text = self.message_edit.toPlainText()
         if not message_text:
             return
-        
-        message_bytes = message_text.encode('utf-8')
-        print(f"Starting transmission: {message_text}")
+
+        logger.info(f"Starting transmission: {message_text}")
         
         # Disable button during transmission to avoid multiple overlapping transmissions
         self.send_button.setEnabled(False)
         
         # Create thread and worker
         self.transmit_thread = QtCore.QThread()
-        self.transmit_worker = TransmitWorker(message_bytes, self.signal_conf, self.pkt_conf)
+        self.transmit_worker = TransmitWorker(message_text, self.signal_conf, self.pkt_conf)
         self.transmit_worker.moveToThread(self.transmit_thread)
         
         # Connect signals
