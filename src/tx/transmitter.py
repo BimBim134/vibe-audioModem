@@ -19,7 +19,8 @@ class Transmitter(gr.top_block):
         input_data: Any,
         pkt: PacketConfig,
         sig: SignalConfig,
-        constellation:Any
+        constellation:Any,
+        sender_name: str = "defaut"
     ):
         """main transmitter class
 
@@ -27,6 +28,8 @@ class Transmitter(gr.top_block):
             input_data (Any): input data
             pkt (PacketConfig): packet description
             sig (SignalConfig): signal description
+            constellation (Any): constellation definition
+            sender_name (str): name of the sender
         """
         gr.top_block.__init__(self, "Transmitter", catch_exceptions=True)
         self.flowgraph_started = threading.Event()
@@ -38,7 +41,7 @@ class Transmitter(gr.top_block):
 
         ## digital communication variables
         self.pkt = pkt
-        self.input_file = prepare_data(input_data, pkt)
+        self.input_file = prepare_data(input_data, pkt, sender_name=sender_name)
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
         len_after_mux = pkt.total_packets_len + len(self.access_key) // 8 + 4
@@ -123,9 +126,10 @@ def send_data(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     constellation: Any = DEFAULT_DQPSK_CONST,
+    sender_name: str = "defaut",
     handle_signals: bool = True,
 ):
-    tb = Transmitter(input_data, pkt, sig, constellation)
+    tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name)
 
     if handle_signals:
         def sig_handler(sig=None, frame=None):

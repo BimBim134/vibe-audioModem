@@ -113,17 +113,18 @@ class MessageZMQWorker(QtCore.QObject):
 class TransmitWorker(QtCore.QObject):
     finished = QtCore.Signal()
 
-    def __init__(self, message: Any, signal_conf: SignalConfig, pkt_conf: PacketConfig):
+    def __init__(self, message: Any, signal_conf: SignalConfig, pkt_conf: PacketConfig, sender_name: str = "defaut"):
         super().__init__()
         self.message = message
         self.signal_conf = signal_conf
         self.pkt_conf = pkt_conf
-
+        self.sender_name = sender_name
+ 
     @QtCore.Slot()
     def run(self):
         try:
-            logger.info(f"TransmitWorker starting transmission of {len(self.message)} bytes...")
-            send_data(self.message, pkt=self.pkt_conf, sig=self.signal_conf, handle_signals=False)
+            logger.info(f"TransmitWorker starting transmission of {len(self.message)} bytes as '{self.sender_name}'...")
+            send_data(self.message, pkt=self.pkt_conf, sig=self.signal_conf, sender_name=self.sender_name, handle_signals=False)
             logger.info("TransmitWorker finished transmission")
         except Exception as e:
             logger.info(f"Transmission Error: {e}")
@@ -213,7 +214,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.send_button = self.ui_widget.findChild(QtWidgets.QPushButton, "SendButton")
         self.messages_boards = self.ui_widget.findChild(QtWidgets.QPlainTextEdit, "MessagesBoards")
         self.carrier_freq_spin = self.ui_widget.findChild(QtWidgets.QDoubleSpinBox, "CarrierFrequency")
-
+        self.sender_name_edit = self.ui_widget.findChild(QtWidgets.QLineEdit, "senderName")
+ 
         if self.carrier_freq_spin:
             self.carrier_freq_spin.setValue(self.signal_conf.carrier_freq)
             self.carrier_freq_spin.valueChanged.connect(self.update_carrier_freq)
@@ -302,13 +304,15 @@ class MainWindow(QtWidgets.QMainWindow):
         message_text = self.message_edit.toPlainText()
         if not message_text:
             return
-
-        logger.info(f"Starting transmission: {message_text}")
-
+ 
+        sender_name = self.sender_name_edit.text() if self.sender_name_edit else "Me"
+ 
+        logger.info(f"Starting transmission: {message_text} (Sender: {sender_name})")
+ 
         # Display sent message in the UI
         if self.messages_boards:
             date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            header = f"* {date_str} - {self.signal_conf.carrier_freq:.1f}Hz - Me"
+            header = f"* {date_str} - {self.signal_conf.carrier_freq:.1f}Hz - {sender_name}"
             self.messages_boards.appendPlainText(f"{header}\n{message_text}\n")
         
         # Disable button during transmission to avoid multiple overlapping transmissions
@@ -316,7 +320,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Create thread and worker
         self.transmit_thread = QtCore.QThread()
-        self.transmit_worker = TransmitWorker(message_text, self.signal_conf, self.pkt_conf)
+        self.transmit_worker = TransmitWorker(message_text, self.signal_conf, self.pkt_conf, sender_name=sender_name)
         self.transmit_worker.moveToThread(self.transmit_thread)
         
         # Connect signals
