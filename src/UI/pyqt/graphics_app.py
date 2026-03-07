@@ -17,6 +17,9 @@ from typing import Any
 import logging
 logger = logging.getLogger(__name__)
 
+from datetime import datetime
+import pmt
+
 class ZMQWorker(QtCore.QObject):
     data_received = QtCore.Signal(np.ndarray)
 
@@ -61,6 +64,51 @@ class ZMQWorker(QtCore.QObject):
 
     def stop(self):
         self.running = False
+
+
+class MessageZMQWorker(QtCore.QObject):
+    """Worker to receive reassembled messages from the packet decoder."""
+    message_received = QtCore.Signal(dict)
+
+    def __init__(self, ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG):
+        super().__init__()
+        self.port = ports_conf.messages_port
+        self.running = True
+
+    @QtCore.Slot()
+    def run(self):
+        logger.info(f"MessageZMQWorker starting on port {self.port}...")
+        context = zmq.Context()
+        socket = context.socket(zmq.SUB)
+        socket.setsockopt(zmq.RCVTIMEO, 1000)
+        try:
+            socket.connect(f"tcp://127.0.0.1:{self.port}")
+            socket.setsockopt_string(zmq.SUBSCRIBE, "")
+            logger.info(f"MessageZMQWorker connected to port {self.port}")
+        except Exception as e:
+            logger.info(f"MessageZMQ Connection Error: {e}")
+            return
+
+        while self.running:
+            try:
+                received = socket.recv()
+                # The packet decoder sends serialized PMT strings
+                payload = pmt.to_python(pmt.deserialize_str(received))
+                if isinstance(payload, dict):
+                    self.message_received.emit(payload)
+            except zmq.Again:
+                continue
+            except Exception as e:
+                logger.info(f"Error in MessageZMQWorker: {e}")
+                break
+        
+        socket.close()
+        context.term()
+        logger.info("MessageZMQWorker stopped")
+
+    def stop(self):
+        self.running = False
+
 
 class TransmitWorker(QtCore.QObject):
     finished = QtCore.Signal()
@@ -109,7 +157,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.ui_widget:
             logger.info("Failed to load UI widget")
             return
-
+ 
         # Set the loaded UI widget as the central widget
         self.setCentralWidget(self.ui_widget)
         self.setWindowTitle("Vibe Audio Modem - Signal Debugger")
@@ -160,22 +208,53 @@ class MainWindow(QtWidgets.QMainWindow):
             # Map pixels to Hz explicitly via setRect now that the image is populated
             self.img.setRect(QtCore.QRectF(0, 0, self.samp_rate / 2.0, self.waterfall_rows))
 
-        # Find and setup Send Button and Message Edit
+        # Find and setup UI components
         self.message_edit = self.ui_widget.findChild(QtWidgets.QTextEdit, "MessageEdit")
         self.send_button = self.ui_widget.findChild(QtWidgets.QPushButton, "SendButton")
+        self.messages_boards = self.ui_widget.findChild(QtWidgets.QPlainTextEdit, "MessagesBoards")
+
         if self.send_button and self.message_edit:
             self.send_button.clicked.connect(self.start_transmission)
             logger.info("SendButton and MessageEdit connected")
         else:
             logger.info("Warning: SendButton or MessageEdit not found in UI")
 
-        # ZMQ Threading
+        # ZMQ Threading for Waterfall/Spectrum
         self.thread = QtCore.QThread()
         self.worker = ZMQWorker(ports_conf=self.ports_conf)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.data_received.connect(self.update_plots)
         self.thread.start()
+
+        # ZMQ Threading for Reassembled Messages
+        self.msg_thread = QtCore.QThread()
+        self.msg_worker = MessageZMQWorker(ports_conf=self.ports_conf)
+        self.msg_worker.moveToThread(self.msg_thread)
+        self.msg_thread.started.connect(self.msg_worker.run)
+        self.msg_worker.message_received.connect(self.display_received_message)
+        self.msg_thread.start()
+
+    @QtCore.Slot(dict)
+    def display_received_message(self, payload):
+        """Format and display a message received from the packet decoder."""
+        if not self.messages_boards:
+            return
+
+        date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sender = payload.get("sender_name", "unknown")
+        # Note: We don't have the frequency in the PDU metadata yet, but we can add a placeholder
+        # or just omit it if not available.
+        freq = "RX" 
+        
+        data = payload.get("data")
+        if isinstance(data, np.ndarray):
+            msg_content = data.tobytes().decode("utf-8", errors="replace")
+        else:
+            msg_content = str(data)
+
+        header = f"* {date_str} - {freq} - {sender}"
+        self.messages_boards.appendPlainText(f"{header}\n{msg_content}\n")
 
     @QtCore.Slot(np.ndarray)
     def update_plots(self, data):
@@ -214,6 +293,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         logger.info(f"Starting transmission: {message_text}")
+
+        # Display sent message in the UI
+        if self.messages_boards:
+            date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            header = f"* {date_str} - TX - Me"
+            self.messages_boards.appendPlainText(f"{header}\n{message_text}\n")
         
         # Disable button during transmission to avoid multiple overlapping transmissions
         self.send_button.setEnabled(False)
@@ -240,6 +325,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.stop()
         self.thread.quit()
         self.thread.wait()
+
+        self.msg_worker.stop()
+        self.msg_thread.quit()
+        self.msg_thread.wait()
+        
         event.accept()
 
 def run_graphics_app(
