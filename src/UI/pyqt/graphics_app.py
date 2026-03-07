@@ -17,7 +17,6 @@ class ZMQWorker(QtCore.QObject):
         super().__init__()
         self.port = ports_conf.fft_port
         self.running = True
-        self.packet_count = 0
 
     @QtCore.Slot()
     def run(self):
@@ -39,9 +38,6 @@ class ZMQWorker(QtCore.QObject):
                 message = socket.recv()
                 data = np.frombuffer(message, dtype=np.float32)
                 if len(data) > 0:
-                    self.packet_count += 1
-                    if self.packet_count % 100 == 0:
-                        print(f"ZMQWorker received {self.packet_count} packets of size {len(data)}")
                     self.data_received.emit(data)
             except zmq.Again:
                 continue
@@ -97,34 +93,43 @@ class MainWindow(QtWidgets.QMainWindow):
             self.spectroscope_layout.addWidget(self.spectroscope_plot)
             self.spectrum_curve = self.spectroscope_plot.plot(pen='y')
             self.spectroscope_plot.setLogMode(x=False, y=False)
-            self.spectroscope_plot.setYRange(-100, 20)
+            self.spectroscope_plot.setYRange(-50, 50)
             self.spectroscope_plot.setLabel('left', 'Amplitude', units='dB')
             self.spectroscope_plot.setLabel('bottom', 'Frequency', units='Hz')
 
         # Find and setup Pyqtgraph Spectrogram (Waterfall)
         self.spectrogram_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "spectrogramPlaceholder")
+        
+        # Waterfall rolling buffer
+        self.n_fft = self.ports_conf.fft_size
+        self.display_size = self.n_fft // 2
+        self.waterfall_rows = 200
+        self.waterfall_data = np.zeros((self.waterfall_rows, self.display_size), dtype=np.float32)
+
+        # FFT Setup
+        self.samp_rate = self.signal_conf.samp_rate
+        # Frequency axis in Hz (0 to Fs/2)
+        self.freq_axis = np.linspace(0, self.samp_rate / 2.0, self.display_size)
+
         if self.spectrogram_placeholder:
             self.spectrogram_layout = QtWidgets.QVBoxLayout(self.spectrogram_placeholder)
             self.spectrogram_canvas = pg.GraphicsLayoutWidget()
             self.spectrogram_layout.addWidget(self.spectrogram_canvas)
             self.spectrogram_plot = self.spectrogram_canvas.addPlot(title="Waterfall")
-            self.img = pg.ImageItem()
+            
+            # Initialize with data so it has the correct width right away
+            self.img = pg.ImageItem(image=self.waterfall_data.T)
             self.spectrogram_plot.addItem(self.img)
+            self.spectrogram_plot.setLabel('bottom', 'Frequency', units='Hz')
+            self.spectrogram_plot.setLabel('left', 'Time', units='frames')
             
             # Setup Colormap/Colorbar
             colormap = pg.colormap.get('viridis')
-            self.bar = pg.ColorBarItem(values=(-100, 20), colorMap=colormap)
+            self.bar = pg.ColorBarItem(values=(-50, 50), colorMap=colormap)
             self.bar.setImageItem(self.img)
 
-        # Waterfall rolling buffer
-        self.n_fft = self.ports_conf.fft_size
-        self.waterfall_rows = 200
-        self.waterfall_data = np.zeros((self.waterfall_rows, self.n_fft))
-
-        # FFT Setup
-        self.samp_rate = self.signal_conf.samp_rate
-        # GNU Radio FFT magnitude is usually the full spectrum (0 to Fs)
-        self.freq_axis = np.linspace(0, self.samp_rate, self.n_fft)
+            # Map pixels to Hz explicitly via setRect now that the image is populated
+            self.img.setRect(QtCore.QRectF(0, 0, self.samp_rate / 2.0, self.waterfall_rows))
 
         # ZMQ Threading
         self.thread = QtCore.QThread()
@@ -137,13 +142,21 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot(np.ndarray)
     def update_plots(self, data):
         # data is already magnitude from GNU Radio (fft_size elements)
-        if len(data) != self.n_fft:
-            # If we get multiple vectors or partial ones, skip or handle
-            if len(data) % self.n_fft == 0:
-                data = data[-self.n_fft:]
-            else:
-                return
+        # Shift=True in GNU Radio means DC is at center
+        if len(data) == self.n_fft:
+            # Take the positive frequency part (second half)
+            data = data[self.n_fft // 2:]
+        elif len(data) % self.n_fft == 0:
+            # Handle multiple vectors
+            data = data[-self.n_fft:]
+            data = data[self.n_fft // 2:]
+        else:
+            return
             
+        # Ensure we have the correct size for plotting
+        if len(data) != self.display_size:
+            return
+
         # Convert to dB
         mag_db = 20 * np.log10(data + 1e-10)
 
