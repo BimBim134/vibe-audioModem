@@ -17,7 +17,7 @@ def decode_packet(raw_packet: bytes, pkt: PacketConfig):
         decoded_payload = pkt.rsc_codec.decode(payload)[0]
     except ReedSolomonError:
         logger.error("Data corrupted")
-        logger.error("Raw packet: %s", raw_packet)
+        logger.debug("Raw packet: %s", raw_packet)
         return "data corrupted"
 
     packet_len = decoded_payload[0]
@@ -27,7 +27,9 @@ def decode_packet(raw_packet: bytes, pkt: PacketConfig):
     elif packet_len == 255:
         return "postamble"
     else:
-        return decoded_payload[1 : packet_len + 1]
+        raw_payload = pmt.to_python(pmt.deserialize_str(decoded_payload[1 : packet_len + 1]))
+
+        return raw_payload
 
 
 def listen_for_packets(
@@ -48,8 +50,8 @@ def listen_for_packets(
     try:
         while stop_event is None or not stop_event.is_set():
             try:
-                msg = socket.recv()
-                payload = pmt.to_python(pmt.deserialize_str(msg))
+                received = socket.recv()
+                payload = pmt.to_python(pmt.deserialize_str(received))
                 logger.debug("Received packet from demodulator %s: %s", payload[0]["demodulator_id"], decode_packet(payload, pkt_conf))
             except zmq.Again:
                 continue
@@ -62,4 +64,4 @@ def listen_for_packets(
 
 
 if __name__ == "__main__":
-    receveur_paquets(DEFAULT_PACKET_CONFIG)
+    listen_for_packets(DEFAULT_PACKET_CONFIG)
