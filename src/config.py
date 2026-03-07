@@ -87,6 +87,8 @@ class PortsConfig:
     raw_packets_port: int
     constellation_port: int
 
+    messages_port: int
+
     @property
     def half_fft_size(self) -> int:
         """half of self.fft_size"""
@@ -113,6 +115,7 @@ DEFAULT_PORTS_CONFIG = PortsConfig(
     fft_size=4096,
     raw_packets_port=5557,
     constellation_port=5559,
+    messages_port=5558,
 )
 
 
