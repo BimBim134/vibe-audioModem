@@ -16,6 +16,8 @@ def decode_packet(raw_packet: bytes, pkt: PacketConfig):
     try:
         decoded_payload = pkt.rsc_codec.decode(payload)[0]
     except ReedSolomonError:
+        logger.error("Data corrupted")
+        logger.error("Raw packet: %s", raw_packet)
         return "data corrupted"
 
     packet_len = decoded_payload[0]
