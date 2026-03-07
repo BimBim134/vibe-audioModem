@@ -57,6 +57,10 @@ QT_DEBUGGER = {
 
 QT_GRAPHICS_APP = {
     "target": run_graphics_app,
+    "kwargs": {
+        "signal_conf": DEFAULT_SIGNAL_CONFIG,
+        "ports_conf": DEFAULT_PORTS_CONFIG,
+    },
     "name": "qtGraphicsAppProcess",
 }
 

@@ -3,39 +3,72 @@ import numpy as np
 import zmq
 from PySide6 import QtWidgets, QtCore, QtUiTools
 import pyqtgraph as pg
+from src.config import (
+    DEFAULT_SIGNAL_CONFIG,
+    DEFAULT_PORTS_CONFIG,
+    PortsConfig,
+    SignalConfig,
+)
 
 class ZMQWorker(QtCore.QObject):
     data_received = QtCore.Signal(np.ndarray)
 
-    def __init__(self, port=5555):
+    def __init__(self, ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG):
         super().__init__()
-        self.port = port
+        self.port = ports_conf.fft_port
         self.running = True
+        self.packet_count = 0
 
     @QtCore.Slot()
     def run(self):
+        print(f"ZMQWorker starting on port {self.port}...")
         context = zmq.Context()
         socket = context.socket(zmq.SUB)
-        socket.connect(f"tcp://127.0.0.1:{self.port}")
-        socket.setsockopt_string(zmq.SUBSCRIBE, "")
+        socket.setsockopt(zmq.RCVTIMEO, 1000)  # 1s timeout
+        try:
+            socket.set_hwm(100)
+            socket.connect(f"tcp://127.0.0.1:{self.port}")
+            socket.setsockopt_string(zmq.SUBSCRIBE, "")
+            print(f"ZMQWorker connected to port {self.port}")
+        except Exception as e:
+            print(f"ZMQ Connection Error: {e}")
+            return
         
         while self.running:
             try:
-                # Expecting float32 data from GNU Radio
                 message = socket.recv()
                 data = np.frombuffer(message, dtype=np.float32)
                 if len(data) > 0:
+                    self.packet_count += 1
+                    if self.packet_count % 100 == 0:
+                        print(f"ZMQWorker received {self.packet_count} packets of size {len(data)}")
                     self.data_received.emit(data)
-            except Exception as e:
+            except zmq.Again:
+                continue
+            except zmq.ZMQError as e:
                 print(f"ZMQ Error: {e}")
                 break
+            except Exception as e:
+                print(f"Unexpected Error in ZMQWorker: {e}")
+                break
+        
+        socket.close()
+        context.term()
+        print("ZMQWorker stopped")
 
     def stop(self):
         self.running = False
 
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(
+        self,
+        signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+        ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
+    ):
         super().__init__()
+        
+        self.signal_conf = signal_conf
+        self.ports_conf = ports_conf
         
         # Load UI
         loader = QtUiTools.QUiLoader()
@@ -84,17 +117,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.bar.setImageItem(self.img)
 
         # Waterfall rolling buffer
-        self.n_fft = 1024
+        self.n_fft = self.ports_conf.fft_size
         self.waterfall_rows = 200
         self.waterfall_data = np.zeros((self.waterfall_rows, self.n_fft))
 
         # FFT Setup
-        self.samp_rate = 48000
-        self.freq_axis = np.fft.rfftfreq(self.n_fft, 1.0/self.samp_rate)
+        self.samp_rate = self.signal_conf.samp_rate
+        # GNU Radio FFT magnitude is usually the full spectrum (0 to Fs)
+        self.freq_axis = np.linspace(0, self.samp_rate, self.n_fft)
 
         # ZMQ Threading
         self.thread = QtCore.QThread()
-        self.worker = ZMQWorker()
+        self.worker = ZMQWorker(ports_conf=self.ports_conf)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.data_received.connect(self.update_plots)
@@ -102,17 +136,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.Slot(np.ndarray)
     def update_plots(self, data):
-        # Ensure we have enough data for FFT
-        if len(data) < self.n_fft:
-            return
+        # data is already magnitude from GNU Radio (fft_size elements)
+        if len(data) != self.n_fft:
+            # If we get multiple vectors or partial ones, skip or handle
+            if len(data) % self.n_fft == 0:
+                data = data[-self.n_fft:]
+            else:
+                return
             
-        # Take the last n_fft samples
-        chunk = data[-self.n_fft:]
-        
-        # Compute FFT
-        win = np.hanning(self.n_fft)
-        fft_data = np.fft.rfft(chunk * win)
-        mag_db = 20 * np.log10(np.abs(fft_data) + 1e-10)
+        # Convert to dB
+        mag_db = 20 * np.log10(data + 1e-10)
 
         # Update Spectroscope
         self.spectrum_curve.setData(self.freq_axis, mag_db)
@@ -121,7 +154,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.waterfall_data = np.roll(self.waterfall_data, -1, axis=0)
         self.waterfall_data[-1, :] = mag_db
         self.img.setImage(self.waterfall_data.T, autoLevels=False)
-        self.img.setLevels([-100, 20])
+        self.img.setLevels([-100, 40]) # Adjusted levels
 
     def closeEvent(self, event):
         self.worker.stop()
@@ -129,9 +162,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread.wait()
         event.accept()
 
-def run_graphics_app():
+def run_graphics_app(
+    signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
+    ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
+):
     app = QtWidgets.QApplication(sys.argv)
-    window = MainWindow()
+    window = MainWindow(signal_conf=signal_conf, ports_conf=ports_conf)
     window.show()
     sys.exit(app.exec())
 
