@@ -3,7 +3,7 @@ import signal
 import threading
 from typing import Any
 import logging
-import time
+from datetime import datetime
 import pmt
 
 import numpy as np
@@ -50,7 +50,7 @@ class Demodulator(gr.top_block):
         logger.info(sig)
         logger.info(ports_conf)
 
-        self.id = str(int(time.time()))
+        self.id = datetime.now().isoformat()
 
         self.flowgraph_started = threading.Event()
 
