@@ -212,6 +212,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.message_edit = self.ui_widget.findChild(QtWidgets.QTextEdit, "MessageEdit")
         self.send_button = self.ui_widget.findChild(QtWidgets.QPushButton, "SendButton")
         self.messages_boards = self.ui_widget.findChild(QtWidgets.QPlainTextEdit, "MessagesBoards")
+        self.carrier_freq_spin = self.ui_widget.findChild(QtWidgets.QDoubleSpinBox, "CarrierFrequency")
+
+        if self.carrier_freq_spin:
+            self.carrier_freq_spin.setValue(self.signal_conf.carrier_freq)
+            self.carrier_freq_spin.valueChanged.connect(self.update_carrier_freq)
+            logger.info(f"CarrierFrequency spinbox connected (initial: {self.signal_conf.carrier_freq})")
 
         if self.send_button and self.message_edit:
             self.send_button.clicked.connect(self.start_transmission)
@@ -234,6 +240,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.msg_thread.started.connect(self.msg_worker.run)
         self.msg_worker.message_received.connect(self.display_received_message)
         self.msg_thread.start()
+
+    @QtCore.Slot(float)
+    def update_carrier_freq(self, value):
+        """Update the signal configuration with the new carrier frequency."""
+        self.signal_conf.carrier_freq = value
+        logger.info(f"Carrier frequency updated to {value} Hz")
 
     @QtCore.Slot(dict)
     def display_received_message(self, payload):
