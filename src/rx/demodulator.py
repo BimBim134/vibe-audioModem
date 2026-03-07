@@ -79,7 +79,6 @@ class Demodulator(gr.top_block):
         self.ports = ports_conf
 
         # Blocks
-        # self.audio_source_0 = audio.source(self.sig.samp_rate, '', True)
         self.audio_source_0 = zeromq.sub_source(
             gr.sizeof_float,
             1,
@@ -97,9 +96,8 @@ class Demodulator(gr.top_block):
             firdes.low_pass(
                 1,
                 self.sig.samp_rate,
-                self.sig.samp_rate
-                / (2 * self.decimation),  # cutoff at Nyquist of decimated rate
-                500,  # transition width in Hz
+                self.sig.samp_rate / (2 * self.decimation),
+                500,
                 window.WIN_HAMMING,
             ),
             self.sig.carrier_freq,
@@ -123,7 +121,7 @@ class Demodulator(gr.top_block):
             (1 / np.sqrt(2)),
             1.0,
             1.5,
-            1,  # osps=1: output 1 sample per symbol
+            1,
             self.const_definition,
             digital.IR_PFB_MF,
             nfilts,
