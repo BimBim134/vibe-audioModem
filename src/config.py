@@ -95,7 +95,7 @@ class PortsConfig:
 
 DEFAULT_PACKET_CONFIG = PacketConfig(
     total_packets_len=255,
-    preamble_packets=3,
+    preamble_packets=1,
     postamble_packets=1,  # serve as EOF flag
     error_correction_len=12,
 )

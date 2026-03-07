@@ -44,7 +44,7 @@ class Transmitter(gr.top_block):
 
         # Blocks
         ## file source
-        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file)
+        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file, True)
 
         ## protocol layer
         self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len")
@@ -113,8 +113,6 @@ class Transmitter(gr.top_block):
         nb_symbols_transmitted = nb_bits_transmitted / self.const_definition.bits_per_symbol()
         
         audio_samples_to_transmit = int(nb_symbols_transmitted * self.sig.sps)
-        audio_samples_to_transmit += self.sig.beeper_nb_sample
-        audio_samples_to_transmit += int(0.1 * audio_samples_to_transmit) # some extra margin (+10% samples)
         return audio_samples_to_transmit
 
 
