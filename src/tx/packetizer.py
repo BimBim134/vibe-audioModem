@@ -110,7 +110,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
     return np.frombuffer(flattened, dtype=np.uint8)
 
 
-def import_file_from_path(filepath: Path) -> bytes:
+def import_file_from_path(filepath: Path, sender_name:str) -> bytes:
     """opens a file from path
 
     Args:
@@ -122,19 +122,19 @@ def import_file_from_path(filepath: Path) -> bytes:
     with open(filepath, "rb") as f:
         input_file = f.read()
     input_file = np.frombuffer(input_file, dtype=np.uint8)
-    payload = pmt.to_pmt({"type": "file", "path": str(filepath), "data": input_file})
+    payload = pmt.to_pmt({"sender_name": sender_name, "type": "file", "path": str(filepath), "data": input_file})
     output = pmt.serialize_str(payload)
     return output
 
 
 @singledispatch
-def prepare_data(input_data, pkt: config.PacketConfig) -> np.ndarray:
+def prepare_data(input_data, pkt: config.PacketConfig, sender_name:str="default") -> np.ndarray:
     """generic function to prepare bytes from input data"""
     raise NotImplementedError
 
 
 @prepare_data.register
-def _(input_data: Path, pkt: config.PacketConfig) -> np.ndarray:
+def _(input_data: Path, pkt: config.PacketConfig, sender_name:str="defaut") -> np.ndarray:
     """prepare data from filepath
 
     Args:
@@ -145,13 +145,13 @@ def _(input_data: Path, pkt: config.PacketConfig) -> np.ndarray:
         bytes: packetized and error encoded file
     """
     logger.info(f"loading data from path: {input_data}")
-    file = import_file_from_path(input_data)
+    file = import_file_from_path(input_data, sender_name)
     logger.info(f"loaded {len(file)} bytes")
     return payload_to_encoded_packet(file, pkt)
 
 
 @prepare_data.register
-def _(input_data: bytes, pkt: config.PacketConfig) -> np.ndarray:
+def _(input_data: bytes, pkt: config.PacketConfig, sender_name:str="defaut") -> np.ndarray:
     """prepare data from bytes
 
     Args:
@@ -163,13 +163,13 @@ def _(input_data: bytes, pkt: config.PacketConfig) -> np.ndarray:
     """
     logger.info(f"loading data as bytes (len={len(input_data)})")
     input_data = np.frombuffer(input_data, dtype=np.uint8)
-    payload = pmt.to_pmt({"type": "raw_bytes", "data": input_data})
+    payload = pmt.to_pmt({"sender_name": sender_name, "type": "raw_bytes", "data": input_data})
     output = pmt.serialize_str(payload)
     return payload_to_encoded_packet(output, pkt)
 
 
 @prepare_data.register
-def _(input_data: str, pkt: config.PacketConfig) -> np.ndarray:
+def _(input_data: str, pkt: config.PacketConfig, sender_name:str="defaut") -> np.ndarray:
     """prepare data from bytes
 
     Args:
@@ -182,7 +182,7 @@ def _(input_data: str, pkt: config.PacketConfig) -> np.ndarray:
     input_data = input_data.encode("utf-8")
     logger.info(f"loading data as string (len={len(input_data)})")
     input_data = np.frombuffer(input_data, dtype=np.uint8)
-    payload = pmt.to_pmt({"type": "raw_string", "data": input_data})
+    payload = pmt.to_pmt({"sender_name": sender_name, "type": "raw_string", "data": input_data})
     output = pmt.serialize_str(payload)
     return payload_to_encoded_packet(output, pkt)
 
