@@ -14,7 +14,7 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="GlobalContainer">
-   <layout class="QHBoxLayout" name="horizontalLayout">
+   <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1">
     <item>
      <widget class="QFrame" name="SignalVisualizationContainer">
       <property name="frameShape">
@@ -23,7 +23,7 @@
       <property name="frameShadow">
        <enum>QFrame::Plain</enum>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QGridLayout" name="gridLayout">
        <property name="leftMargin">
         <number>5</number>
        </property>
@@ -36,7 +36,7 @@
        <property name="bottomMargin">
         <number>5</number>
        </property>
-       <item>
+       <item row="0" column="0">
         <widget class="QWidget" name="spectroscopePlaceholder" native="true">
          <property name="minimumSize">
           <size>
@@ -46,7 +46,10 @@
          </property>
         </widget>
        </item>
-       <item>
+       <item row="0" column="1">
+        <widget class="QWidget" name="constellationDiagramPlaceholder" native="true"/>
+       </item>
+       <item row="1" column="0" colspan="2">
         <widget class="QWidget" name="spectrogramPlaceholder" native="true">
          <property name="minimumSize">
           <size>
@@ -99,7 +102,7 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>752</width>
+            <width>426</width>
             <height>730</height>
            </rect>
           </property>

@@ -110,6 +110,50 @@ class MessageZMQWorker(QtCore.QObject):
         self.running = False
 
 
+class ConstellationZMQWorker(QtCore.QObject):
+    """Worker to receive constellation points (complex numbers) from the demodulator."""
+    data_received = QtCore.Signal(np.ndarray)
+
+    def __init__(self, ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG):
+        super().__init__()
+        self.port = ports_conf.constellation_port
+        self.running = True
+
+    @QtCore.Slot()
+    def run(self):
+        logger.info(f"ConstellationZMQWorker starting on port {self.port}...")
+        context = zmq.Context()
+        socket = context.socket(zmq.SUB)
+        socket.setsockopt(zmq.RCVTIMEO, 1000)
+        try:
+            socket.connect(f"tcp://127.0.0.1:{self.port}")
+            socket.setsockopt_string(zmq.SUBSCRIBE, "")
+            logger.info(f"ConstellationZMQWorker connected to port {self.port}")
+        except Exception as e:
+            logger.info(f"ConstellationZMQ Connection Error: {e}")
+            return
+
+        while self.running:
+            try:
+                message = socket.recv()
+                # Data is gr.sizeof_gr_complex (complex64)
+                data = np.frombuffer(message, dtype=np.complex64)
+                if len(data) > 0:
+                    self.data_received.emit(data)
+            except zmq.Again:
+                continue
+            except Exception as e:
+                logger.info(f"Error in ConstellationZMQWorker: {e}")
+                break
+        
+        socket.close()
+        context.term()
+        logger.info("ConstellationZMQWorker stopped")
+
+    def stop(self):
+        self.running = False
+
+
 class TransmitWorker(QtCore.QObject):
     finished = QtCore.Signal()
 
@@ -172,6 +216,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.spectrum_curve = self.spectroscope_plot.plot(pen='y')
             self.spectroscope_plot.setLogMode(x=False, y=False)
             self.spectroscope_plot.setYRange(-50, 50)
+            self.spectroscope_plot.setXRange(0, 5000)
             self.spectroscope_plot.setLabel('left', 'Amplitude', units='dB')
             self.spectroscope_plot.setLabel('bottom', 'Frequency', units='Hz')
 
@@ -215,7 +260,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.messages_boards = self.ui_widget.findChild(QtWidgets.QPlainTextEdit, "MessagesBoards")
         self.carrier_freq_spin = self.ui_widget.findChild(QtWidgets.QDoubleSpinBox, "CarrierFrequency")
         self.sender_name_edit = self.ui_widget.findChild(QtWidgets.QLineEdit, "senderName")
- 
+        self.constellation_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "constellationDiagramPlaceholder")
+
+        if self.constellation_placeholder:
+            self.constellation_layout = QtWidgets.QVBoxLayout(self.constellation_placeholder)
+            self.constellation_plot = pg.PlotWidget(title="Constellation Diagram")
+            self.constellation_layout.addWidget(self.constellation_plot)
+            
+            self.constellation_scatter = pg.ScatterPlotItem(size=5, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 0, 200))
+            self.constellation_plot.addItem(self.constellation_scatter)
+            
+            self.constellation_plot.setXRange(-2, 2)
+            self.constellation_plot.setYRange(-2, 2)
+            self.constellation_plot.setLabel('left', 'Quadrature (Q)')
+            self.constellation_plot.setLabel('bottom', 'In-phase (I)')
+            self.constellation_plot.showGrid(x=True, y=True)
+            self.constellation_plot.setAspectLocked(True)
+
+            # Buffer for points
+            self.const_buffer_size = 512
+            self.const_points_i = np.zeros(self.const_buffer_size)
+            self.const_points_q = np.zeros(self.const_buffer_size)
+
         if self.carrier_freq_spin:
             self.carrier_freq_spin.setValue(self.signal_conf.carrier_freq)
             self.carrier_freq_spin.valueChanged.connect(self.update_carrier_freq)
@@ -242,6 +308,37 @@ class MainWindow(QtWidgets.QMainWindow):
         self.msg_thread.started.connect(self.msg_worker.run)
         self.msg_worker.message_received.connect(self.display_received_message)
         self.msg_thread.start()
+
+        # ZMQ Threading for Constellation
+        self.const_thread = QtCore.QThread()
+        self.const_worker = ConstellationZMQWorker(ports_conf=self.ports_conf)
+        self.const_worker.moveToThread(self.const_thread)
+        self.const_thread.started.connect(self.const_worker.run)
+        self.const_worker.data_received.connect(self.update_constellation)
+        self.const_thread.start()
+
+    @QtCore.Slot(np.ndarray)
+    def update_constellation(self, data):
+        """Update the constellation scatter plot."""
+        if not self.constellation_placeholder:
+            return
+
+        # data is complex64
+        i_data = data.real
+        q_data = data.imag
+
+        # Update rolling buffer
+        n_new = len(data)
+        if n_new >= self.const_buffer_size:
+            self.const_points_i = i_data[-self.const_buffer_size:]
+            self.const_points_q = q_data[-self.const_buffer_size:]
+        else:
+            self.const_points_i = np.roll(self.const_points_i, -n_new)
+            self.const_points_q = np.roll(self.const_points_q, -n_new)
+            self.const_points_i[-n_new:] = i_data
+            self.const_points_q[-n_new:] = q_data
+
+        self.constellation_scatter.setData(self.const_points_i, self.const_points_q)
 
     @QtCore.Slot(float)
     def update_carrier_freq(self, value):
@@ -344,6 +441,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.msg_worker.stop()
         self.msg_thread.quit()
         self.msg_thread.wait()
+
+        self.const_worker.stop()
+        self.const_thread.quit()
+        self.const_thread.wait()
         
         event.accept()
 
