@@ -39,7 +39,8 @@ class Transmitter(gr.top_block):
         self.input_file = prepare_data(input_data, pkt)
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
-        self.cc_enc = fec.cc_encoder_make(pkt.total_packets_len, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
+        len_after_mux = pkt.total_packets_len + len(self.access_key) // 8 + 4
+        self.cc_enc = fec.cc_encoder_make(len_after_mux * 8, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
 
         # Blocks
         ## file source
@@ -99,12 +100,8 @@ class Transmitter(gr.top_block):
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_stream_mux_0, 0))
 
     def get_nb_of_audio_samples(self) -> int:
-        """ calculate the correct number of audio sample to transmit 
-        * nb_bits_transmitted = (total file length + access keys + packet_len tags) * rate FEC
-        * nb_symbols_transmitted = nb_bits_transmitted / bits_per_symbol
-        * audio_samples_to_transmit = nb_symbols_transmitted * samples_per_symbol
-        * audio_samples_to_transmit += beeper_samples
-        * audio_samples_to_transmit += int(0.1 * audio_samples_to_transmit) # some extra margin (+10% samples)
+        """ calculate the correct number of audio sample to transmit
+        
         Returns:
             int: number of audio sample to transmit
         """
