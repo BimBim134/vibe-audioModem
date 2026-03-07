@@ -7,7 +7,7 @@ from pathlib import Path
 from gnuradio import blocks, digital, fec, gr, audio, analog
 import numpy as np
 
-from src.tx.bin2packet import prepare_data
+from src.tx.packetizer import prepare_data
 from src.config import PacketConfig, SignalConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
 

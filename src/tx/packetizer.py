@@ -10,7 +10,7 @@ import pmt
 
 import src.config as config
 
-logging.basicConfig(format="%(levelname)s: %(processName)s: %(module)s: %(funcName)s: %(message)s", level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def split_payload_into_packet(
     payload: bytes, pkt: config.PacketConfig
@@ -66,7 +66,6 @@ def generate_dummy_packet(pkt: config.PacketConfig, mode:str="preamble") -> byte
         bytes: dummy packet
     """
     data = token_bytes(pkt.data_chunck_len)
-    logging.debug(f"generating dummy packet as {mode}")
     if mode == "preamble":
         data_len_flag = (0).to_bytes()
     else:
@@ -93,7 +92,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
         for data_chunck in split_payload_into_packet(payload, pkt)
     ]
 
-    logging.info(f"splitted data into {len(packets)} packets")
+    logger.info(f"splitted data into {len(packets)} packets")
 
     # add preamble and postamble
     preamble = [
@@ -106,7 +105,7 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
     # chain everything together
     flattened = b"".join(chain(preamble, packets, postamble))
 
-    logging.info(f"payload generated (len={len(flattened)})")
+    logger.info(f"payload generated (len={len(flattened)})")
 
     return np.frombuffer(flattened, dtype=np.uint8)
 
@@ -123,7 +122,7 @@ def import_file_from_path(filepath: Path) -> bytes:
     with open(filepath, "rb") as f:
         input_file = f.read()
     input_file = np.frombuffer(input_file, dtype=np.uint8)
-    payload = pmt.to_pmt({"path": str(filepath), "data": input_file})
+    payload = pmt.to_pmt({"type": "file", "path": str(filepath), "data": input_file})
     output = pmt.serialize_str(payload)
     return output
 
@@ -145,9 +144,9 @@ def _(input_data: Path, pkt: config.PacketConfig) -> np.ndarray:
     Returns:
         bytes: packetized and error encoded file
     """
-    logging.info(f"loading data from path: {input_data}")
+    logger.info(f"loading data from path: {input_data}")
     file = import_file_from_path(input_data)
-    logging.info(f"loaded {len(file)} bytes")
+    logger.info(f"loaded {len(file)} bytes")
     return payload_to_encoded_packet(file, pkt)
 
 
@@ -162,8 +161,30 @@ def _(input_data: bytes, pkt: config.PacketConfig) -> np.ndarray:
     Returns:
         bytes: packetized and error encoded file
     """
-    logging.info(f"loading data as bytes (len={len(input_data)})")
-    return payload_to_encoded_packet(input_data, pkt)
+    logger.info(f"loading data as bytes (len={len(input_data)})")
+    input_data = np.frombuffer(input_data, dtype=np.uint8)
+    payload = pmt.to_pmt({"type": "raw_bytes", "data": input_data})
+    output = pmt.serialize_str(payload)
+    return payload_to_encoded_packet(output, pkt)
+
+
+@prepare_data.register
+def _(input_data: str, pkt: config.PacketConfig) -> np.ndarray:
+    """prepare data from bytes
+
+    Args:
+        input_data (str): string
+        pkt (config.PacketConfig): packet configuration
+
+    Returns:
+        bytes: packetized and error encoded file
+    """
+    input_data = input_data.encode("utf-8")
+    logger.info(f"loading data as string (len={len(input_data)})")
+    input_data = np.frombuffer(input_data, dtype=np.uint8)
+    payload = pmt.to_pmt({"type": "raw_string", "data": input_data})
+    output = pmt.serialize_str(payload)
+    return payload_to_encoded_packet(output, pkt)
 
 
 def _export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) -> None:
@@ -175,7 +196,7 @@ def _export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) ->
         filepath (Path): output file path
     """
     data = prepare_data(input_data, pkt)
-    logging.debug(f"exported data to: {filepath}")
+    logger.debug(f"exported data to: {filepath}")
     with filepath.open("wb") as f:
         f.write(data)
 
@@ -188,8 +209,8 @@ if __name__ == "__main__":
     packets = prepare_data(TEST_PAYLOAD, conf)
     assert len(packets) % conf.total_packets_len == 0
 
-    _export_to_bin(
-        Path("C:/Users/microbimbim/Codes/vibe-audioModem/research/conjecture.txt"),
-        conf,
-        Path("research/test_payload_packetized.bin"),
-    )
+    # _export_to_bin(
+    #     Path("C:/Users/microbimbim/Codes/vibe-audioModem/research/conjecture.txt"),
+    #     conf,
+    #     Path("research/test_payload_packetized.bin"),
+    # )
