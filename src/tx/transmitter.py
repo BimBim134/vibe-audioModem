@@ -103,6 +103,7 @@ class Transmitter(gr.top_block):
         * nb_bits_transmitted = (total file length + access keys + packet_len tags) * rate FEC
         * nb_symbols_transmitted = nb_bits_transmitted / bits_per_symbol
         * audio_samples_to_transmit = nb_symbols_transmitted * samples_per_symbol
+        * audio_samples_to_transmit += beeper_samples
         * audio_samples_to_transmit += int(0.1 * audio_samples_to_transmit) # some extra margin (+10% samples)
         Returns:
             int: number of audio sample to transmit
@@ -115,6 +116,7 @@ class Transmitter(gr.top_block):
         nb_symbols_transmitted = nb_bits_transmitted / self.const_definition.bits_per_symbol()
         
         audio_samples_to_transmit = int(nb_symbols_transmitted * self.sig.sps)
+        audio_samples_to_transmit += self.sig.beeper_nb_sample
         audio_samples_to_transmit += int(0.1 * audio_samples_to_transmit) # some extra margin (+10% samples)
         return audio_samples_to_transmit
 
