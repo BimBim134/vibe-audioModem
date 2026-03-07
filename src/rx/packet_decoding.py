@@ -58,6 +58,23 @@ class PacketReassembler:
 reassemblers = {}
 
 def decode_packet(payload: list, pkt: PacketConfig):
+    """
+    Decodes a single raw packet and routes it to the appropriate reassembler.
+
+    This function performs the transition from raw ZMQ-received PDUs to stateful
+    message reassembly. It handles multiple demodulator sources simultaneously.
+
+    Args:
+        payload (list): A list containing metadata and raw bytes:
+            [{"demodulator_id": str, ...}, np.ndarray]
+        pkt (PacketConfig): Configuration object containing the RS codec.
+
+    Returns:
+        Union[dict, str]: 
+            - A dictionary if a full PMT message was successfully reassembled.
+            - A status string ("preamble", "collecting", "postamble", "data corrupted", etc.)
+              indicating the current state of reassembly for this source.
+    """
     demod_id = payload[0]["demodulator_id"]
     raw_packet_data = payload[1].tobytes()
 
