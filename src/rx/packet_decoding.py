@@ -99,14 +99,23 @@ def listen_for_packets(
     stop_event=None,
 ):
     context = zmq.Context()
+    
+    # Socket for receiving raw packets from demodulators
     socket = context.socket(zmq.SUB)
     # The decoder binds, and multiple demodulator workers connect to it.
     socket.bind(f"tcp://*:{ports_conf.raw_packets_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
     socket.setsockopt(zmq.RCVTIMEO, 500)
 
+    # Socket for forwarding successfully reassembled messages
+    msg_pub_socket = context.socket(zmq.PUB)
+    msg_pub_socket.bind(f"tcp://*:{ports_conf.messages_port}")
+
     logger.info(
         f"Packet decoder listening for packets (binding) on port {ports_conf.raw_packets_port}"
+    )
+    logger.info(
+        f"Packet decoder publishing reassembled messages on port {ports_conf.messages_port}"
     )
 
     try:
@@ -131,6 +140,9 @@ def listen_for_packets(
                         else:
                             message_str = str(data)
                         logger.info(f"Message from {sender_name}: {message_str}")
+                        
+                        # Forward the original result dict as a PMT message
+                        msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
                 else:
                     logger.debug(
                         f"Packet result from {payload[0]['demodulator_id']}: {result}"
@@ -145,8 +157,9 @@ def listen_for_packets(
     except KeyboardInterrupt:
         pass
     finally:
-        logger.info("Packet decoder: closing socket and context")
+        logger.info("Packet decoder: closing sockets and context")
         socket.close()
+        msg_pub_socket.close()
         context.term()
 
 

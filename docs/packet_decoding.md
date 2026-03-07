@@ -73,5 +73,6 @@ sequenceDiagram
 - **RS Decoding**: Each raw packet is first passed through a Reed-Solomon decoder ($n=255, k=243, t=6$).
 - **Multi-Source Support**: The decoder maintains a dictionary of `PacketReassembler` instances, keyed by `demodulator_id`. This allows interleaved packets from different sources to be reassembled correctly.
 - **Deserialization**: Once a postamble is received, the entire buffer is passed to `pmt.deserialize_str` and then converted to a Python dictionary using `pmt.to_python`.
-- **ZMQ Architecture**: The `Packet Decoder` binds to the ZMQ port (`SUB`), while the `Demodulator` workers connect to it. This allows a single decoder to aggregate packets from multiple transient workers.
+- **ZMQ Architecture**: The `Packet Decoder` binds to the ZMQ port (`SUB`), while the `Demodulator` workers connect to it. Additionally, it binds a `PUB` socket to the `messages_port` (5558) to forward reassembled application messages.
+- **Message Forwarding**: Successfully reassembled messages of type `raw_string` are serialized back into PMT strings and published to the message port for downstream consumption.
 - **Data Type Handling**: Python's `pmt.to_python` returns data buffers as `numpy.ndarray`. The decoder logic converts these back to `bytes` via `.tobytes()` before performing UTF-8 string decoding to ensure compatibility.
