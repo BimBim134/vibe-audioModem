@@ -16,6 +16,7 @@ from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
 from src.UI.webUI.webUI import start_dashboard
 from src.UI.pyqt.visual_signal_debugger import run_visual_debugger
+from src.UI.pyqt.graphics_app import run_graphics_app
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,11 @@ WEB_UI = {
 QT_DEBUGGER = {
     "target": run_visual_debugger,
     "name": "qtSignalDebuggerProcess",
+}
+
+QT_GRAPHICS_APP = {
+    "target": run_graphics_app,
+    "name": "qtGraphicsAppProcess",
 }
 
 PEAK_DETECTOR = {
@@ -125,7 +131,8 @@ def main(test: bool = False):
     process_configs = [
         AUDIO_INTERFACE_FROM_FILE if test else AUDIO_INTERFACE,
         # WEB_UI,
-        QT_DEBUGGER,
+        # QT_DEBUGGER,
+        QT_GRAPHICS_APP,
         PEAK_DETECTOR,
         PACKET_DECODER,
     ]
