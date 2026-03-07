@@ -243,9 +243,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sender = payload.get("sender_name", "unknown")
-        # Note: We don't have the frequency in the PDU metadata yet, but we can add a placeholder
-        # or just omit it if not available.
-        freq = "RX" 
+        carrier_freq = payload.get("carrier_freq")
+        freq = f"{carrier_freq:.1f}Hz" if carrier_freq else "RX"
         
         data = payload.get("data")
         if isinstance(data, np.ndarray):
@@ -297,7 +296,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Display sent message in the UI
         if self.messages_boards:
             date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            header = f"* {date_str} - TX - Me"
+            header = f"* {date_str} - {self.signal_conf.carrier_freq:.1f}Hz - Me"
             self.messages_boards.appendPlainText(f"{header}\n{message_text}\n")
         
         # Disable button during transmission to avoid multiple overlapping transmissions

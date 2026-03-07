@@ -16,19 +16,21 @@ class PacketReassembler:
     def __init__(self):
         self.buffer = bytearray()
         self.state = "IDLE"
+        self.frequency = 0.0
         self.reset()
 
     def reset(self):
         self.buffer = bytearray()
         self.state = "IDLE"
 
-    def process_packet(self, decoded_payload: bytes):
+    def process_packet(self, decoded_payload: bytes, frequency: float = 0.0):
         packet_len = decoded_payload[0]
         logger.debug(f"Processing packet with len flag: {packet_len}")
 
         if packet_len == 0:
             logger.info("Preamble detected, starting reassembly")
             self.reset()
+            self.frequency = frequency
             self.state = "COLLECTING"
             return "preamble"
         elif packet_len == 255:
@@ -36,6 +38,8 @@ class PacketReassembler:
                 logger.info(f"Postamble detected, reassembling {len(self.buffer)} bytes")
                 try:
                     raw_payload = pmt.to_python(pmt.deserialize_str(bytes(self.buffer)))
+                    if isinstance(raw_payload, dict):
+                        raw_payload["carrier_freq"] = self.frequency
                     self.reset()
                     return raw_payload
                 except Exception as e:
@@ -75,7 +79,9 @@ def decode_packet(payload: list, pkt: PacketConfig):
             - A status string ("preamble", "collecting", "postamble", "data corrupted", etc.)
               indicating the current state of reassembly for this source.
     """
-    demod_id = payload[0]["demodulator_id"]
+    metadata = payload[0]
+    demod_id = metadata["demodulator_id"]
+    carrier_freq = metadata.get("carrier_freq", 0.0)
     raw_packet_data = payload[1].tobytes()
 
     if demod_id not in reassemblers:
@@ -90,7 +96,7 @@ def decode_packet(payload: list, pkt: PacketConfig):
         reassembler.reset()
         return "data corrupted"
 
-    return reassembler.process_packet(decoded_payload)
+    return reassembler.process_packet(decoded_payload, carrier_freq)
 
 
 def listen_for_packets(
