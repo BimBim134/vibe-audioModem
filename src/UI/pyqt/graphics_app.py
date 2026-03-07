@@ -6,9 +6,12 @@ import pyqtgraph as pg
 from src.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
+    DEFAULT_PACKET_CONFIG,
     PortsConfig,
     SignalConfig,
+    PacketConfig,
 )
+from src.tx.transmitter import send_data
 
 class ZMQWorker(QtCore.QObject):
     data_received = QtCore.Signal(np.ndarray)
@@ -55,16 +58,38 @@ class ZMQWorker(QtCore.QObject):
     def stop(self):
         self.running = False
 
+class TransmitWorker(QtCore.QObject):
+    finished = QtCore.Signal()
+
+    def __init__(self, message: bytes, signal_conf: SignalConfig, pkt_conf: PacketConfig):
+        super().__init__()
+        self.message = message
+        self.signal_conf = signal_conf
+        self.pkt_conf = pkt_conf
+
+    @QtCore.Slot()
+    def run(self):
+        try:
+            print(f"TransmitWorker starting transmission of {len(self.message)} bytes...")
+            send_data(self.message, pkt=self.pkt_conf, sig=self.signal_conf, handle_signals=False)
+            print("TransmitWorker finished transmission")
+        except Exception as e:
+            print(f"Transmission Error: {e}")
+        finally:
+            self.finished.emit()
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(
         self,
         signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
         ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
+        pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
     ):
         super().__init__()
         
         self.signal_conf = signal_conf
         self.ports_conf = ports_conf
+        self.pkt_conf = pkt_conf
         
         # Load UI
         loader = QtUiTools.QUiLoader()
@@ -131,6 +156,15 @@ class MainWindow(QtWidgets.QMainWindow):
             # Map pixels to Hz explicitly via setRect now that the image is populated
             self.img.setRect(QtCore.QRectF(0, 0, self.samp_rate / 2.0, self.waterfall_rows))
 
+        # Find and setup Send Button and Message Edit
+        self.message_edit = self.ui_widget.findChild(QtWidgets.QTextEdit, "MessageEdit")
+        self.send_button = self.ui_widget.findChild(QtWidgets.QPushButton, "SendButton")
+        if self.send_button and self.message_edit:
+            self.send_button.clicked.connect(self.start_transmission)
+            print("SendButton and MessageEdit connected")
+        else:
+            print("Warning: SendButton or MessageEdit not found in UI")
+
         # ZMQ Threading
         self.thread = QtCore.QThread()
         self.worker = ZMQWorker(ports_conf=self.ports_conf)
@@ -169,6 +203,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.img.setImage(self.waterfall_data.T, autoLevels=False)
         self.img.setLevels([-100, 40]) # Adjusted levels
 
+    @QtCore.Slot()
+    def start_transmission(self):
+        message_text = self.message_edit.toPlainText()
+        if not message_text:
+            return
+        
+        message_bytes = message_text.encode('utf-8')
+        print(f"Starting transmission: {message_text}")
+        
+        # Disable button during transmission to avoid multiple overlapping transmissions
+        self.send_button.setEnabled(False)
+        
+        # Create thread and worker
+        self.transmit_thread = QtCore.QThread()
+        self.transmit_worker = TransmitWorker(message_bytes, self.signal_conf, self.pkt_conf)
+        self.transmit_worker.moveToThread(self.transmit_thread)
+        
+        # Connect signals
+        self.transmit_thread.started.connect(self.transmit_worker.run)
+        self.transmit_worker.finished.connect(self.transmit_thread.quit)
+        self.transmit_worker.finished.connect(self.transmit_worker.deleteLater)
+        self.transmit_thread.finished.connect(self.transmit_thread.deleteLater)
+        self.transmit_thread.finished.connect(lambda: self.send_button.setEnabled(True))
+        
+        # Clear message edit
+        self.message_edit.clear()
+        
+        # Start thread
+        self.transmit_thread.start()
+
     def closeEvent(self, event):
         self.worker.stop()
         self.thread.quit()
@@ -178,9 +242,10 @@ class MainWindow(QtWidgets.QMainWindow):
 def run_graphics_app(
     signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
+    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
 ):
     app = QtWidgets.QApplication(sys.argv)
-    window = MainWindow(signal_conf=signal_conf, ports_conf=ports_conf)
+    window = MainWindow(signal_conf=signal_conf, ports_conf=ports_conf, pkt_conf=pkt_conf)
     window.show()
     sys.exit(app.exec())
 

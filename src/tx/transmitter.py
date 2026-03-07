@@ -121,17 +121,19 @@ def send_data(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     constellation: Any = DEFAULT_DQPSK_CONST,
+    handle_signals: bool = True,
 ):
     tb = Transmitter(input_data, pkt, sig, constellation)
 
-    def sig_handler(sig=None, frame=None):
-        tb.stop()
-        tb.wait()
+    if handle_signals:
+        def sig_handler(sig=None, frame=None):
+            tb.stop()
+            tb.wait()
 
-        sys.exit(0)
+            sys.exit(0)
 
-    signal.signal(signal.SIGINT, sig_handler)
-    signal.signal(signal.SIGTERM, sig_handler)
+        signal.signal(signal.SIGINT, sig_handler)
+        signal.signal(signal.SIGTERM, sig_handler)
 
     tb.start()
     tb.flowgraph_started.set()
