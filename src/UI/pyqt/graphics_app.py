@@ -3,6 +3,11 @@ import numpy as np
 import zmq
 from PySide6 import QtWidgets, QtCore, QtUiTools
 import pyqtgraph as pg
+
+# Configure PyQtGraph for Light Theme
+pg.setConfigOption('background', 'w')
+pg.setConfigOption('foreground', 'k')
+
 from src.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
@@ -213,7 +218,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.spectroscope_layout = QtWidgets.QVBoxLayout(self.spectroscope_placeholder)
             self.spectroscope_plot = pg.PlotWidget(title="Audio Spectrum")
             self.spectroscope_layout.addWidget(self.spectroscope_plot)
-            self.spectrum_curve = self.spectroscope_plot.plot(pen='y')
+            self.spectrum_curve = self.spectroscope_plot.plot(pen='b')
             self.spectroscope_plot.setLogMode(x=False, y=False)
             self.spectroscope_plot.setYRange(-50, 50)
             self.spectroscope_plot.setXRange(0, 5000)
@@ -267,7 +272,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.constellation_plot = pg.PlotWidget(title="Constellation Diagram")
             self.constellation_layout.addWidget(self.constellation_plot)
             
-            self.constellation_scatter = pg.ScatterPlotItem(size=5, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 0, 200))
+            self.constellation_scatter = pg.ScatterPlotItem(size=5, pen=pg.mkPen(None), brush=pg.mkBrush(0, 0, 255, 200))
             self.constellation_plot.addItem(self.constellation_scatter)
             
             self.constellation_plot.setXRange(-2, 2)
