@@ -127,6 +127,7 @@ class Transmitter(gr.top_block):
         nb_symbols_transmitted = nb_bits_transmitted / self.const_definition.bits_per_symbol()
         
         audio_samples_to_transmit = int(nb_symbols_transmitted * self.sig.sps)
+        audio_samples_to_transmit += self.sig.beeper_nb_sample
         return audio_samples_to_transmit
 
 
