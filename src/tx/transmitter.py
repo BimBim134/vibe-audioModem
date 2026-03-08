@@ -148,4 +148,4 @@ def send_data(
 
 
 if __name__ == "__main__":
-    send_data(b"hello world ! this is a message transmitted using vibe-audio-modem :)")
+    send_data("hello world ! this is a message transmitted using vibe-audio-modem :)")
