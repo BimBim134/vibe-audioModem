@@ -46,10 +46,10 @@ graph TD
     end
 
     subgraph OUT [Output Assembly]
-        SCALE --> HEAD[Head Block<br/>Termination]
-        HEAD --> S_MUX[Stream Mux]
+        SCALE --> S_MUX[Stream Mux]
         BEEP[Signal Source<br/>Beeper Sine Wave] --> S_MUX
-        S_MUX --> SINK[Audio Sink]
+        S_MUX --> HEAD[Head Block<br/>Termination]
+        HEAD --> SINK[Audio Sink]
     end
 
     style PRE fill:#f9f,stroke:#333

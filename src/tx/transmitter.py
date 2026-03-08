@@ -76,10 +76,10 @@ class Transmitter(gr.top_block):
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff((1/4))
 
         ## head block to terminate cleanly the flow graph after everything is sent
-        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.get_nb_of_audio_samples())
+        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.sig.beeper_nb_sample + self.get_nb_of_audio_samples())
 
         ## beeper to help receiver to lock to carrier frequency
-        self.analog_sig_source_x_0 = analog.sig_source_f(self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.25, 0, 0)
+        self.analog_sig_source_x_0 = analog.sig_source_f(self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.77, 0, 0)
 
         ## first beeper, then data transmission
         self.blocks_stream_mux_0 = blocks.stream_mux(gr.sizeof_float*1, (self.sig.beeper_nb_sample, self.get_nb_of_audio_samples()))
@@ -99,9 +99,9 @@ class Transmitter(gr.top_block):
         self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_rotator_cc_0, 0))
         self.connect((self.blocks_rotator_cc_0, 0), (self.blocks_complex_to_real_0, 0))
         self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_multiply_const_vxx_0, 0))
-        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_head_0, 0))
-        self.connect((self.blocks_head_0, 0), (self.blocks_stream_mux_0, 1))
-        self.connect((self.blocks_stream_mux_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_stream_mux_0, 1))
+        self.connect((self.blocks_stream_mux_0, 0), (self.blocks_head_0, 0))
+        self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_stream_mux_0, 0))
 
     def get_nb_of_audio_samples(self) -> int:
