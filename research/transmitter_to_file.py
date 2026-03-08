@@ -3,6 +3,7 @@ import signal
 from typing import Any
 import threading
 from pathlib import Path
+import logging
 
 from gnuradio import blocks, digital, fec, gr, audio, analog
 import numpy as np
@@ -11,6 +12,7 @@ from src.tx.packetizer import prepare_data
 from src.config import PacketConfig, SignalConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
 
+logger = logging.getLogger(__name__)
 
 class Transmitter(gr.top_block):
     def __init__(
@@ -19,7 +21,8 @@ class Transmitter(gr.top_block):
         pkt: PacketConfig,
         sig: SignalConfig,
         constellation:Any,
-        output_file: str|Path = "research/test.wav"
+        output_file: str|Path = "research/test.wav",
+        sender_name: str = "defaut"
     ):
         """main transmitter class
 
@@ -27,6 +30,8 @@ class Transmitter(gr.top_block):
             input_data (Any): input data
             pkt (PacketConfig): packet description
             sig (SignalConfig): signal description
+            constellation (Any): constellation definition
+            sender_name (str): name of the sender
         """
         gr.top_block.__init__(self, "Transmitter", catch_exceptions=True)
         self.flowgraph_started = threading.Event()
@@ -38,14 +43,15 @@ class Transmitter(gr.top_block):
 
         ## digital communication variables
         self.pkt = pkt
-        self.input_file = prepare_data(input_data, pkt)
+        self.input_file = prepare_data(input_data, pkt, sender_name=sender_name)
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
-        self.cc_enc = fec.cc_encoder_make(pkt.total_packets_len, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
+        len_after_mux = pkt.total_packets_len + len(self.access_key) // 8 + 4
+        self.cc_enc = fec.cc_encoder_make(len_after_mux * 8, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
 
         # Blocks
         ## file source
-        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file)
+        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file, True)
 
         ## protocol layer
         self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len")
@@ -108,9 +114,8 @@ class Transmitter(gr.top_block):
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_stream_mux_0, 0))
 
     def get_nb_of_audio_samples(self) -> int:
-        """ calculate the correct number of audio sample to transmit 
-        * nb_bits_transmitted = (total file length + access keys + packet_len tags) * rate FEC
-
+        """ calculate the correct number of audio sample to transmit
+        
         Returns:
             int: number of audio sample to transmit
         """
@@ -118,8 +123,10 @@ class Transmitter(gr.top_block):
         nb_bits_transmitted = (
             len(self.input_file) * 8 + nb_packet * len(self.access_key) + nb_packet * 32
         ) * 2
-        audio_samples_to_transmit = nb_bits_transmitted * self.sig.sps
-        audio_samples_to_transmit += int(0.1 * audio_samples_to_transmit) # some extra margin (+10% samples)
+        
+        nb_symbols_transmitted = nb_bits_transmitted / self.const_definition.bits_per_symbol()
+        
+        audio_samples_to_transmit = int(nb_symbols_transmitted * self.sig.sps)
         return audio_samples_to_transmit
 
 
@@ -128,9 +135,10 @@ def send_data(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     constellation: Any = DEFAULT_DQPSK_CONST,
-    output_file: str|Path = "test.wav"
+    output_file: str|Path = "research/test.wav",
+    sender_name: str = "test-sender",
 ):
-    tb = Transmitter(input_data, pkt, sig, constellation, output_file)
+    tb = Transmitter(input_data, pkt, sig, constellation, output_file, sender_name=sender_name)
 
     def sig_handler(sig=None, frame=None):
         tb.stop()
@@ -148,4 +156,4 @@ def send_data(
 
 
 if __name__ == "__main__":
-    send_data(b"hello world ! this is a message transmitted using vibe-audio-modem :)")
+    send_data("hello world ! this is a message transmitted using vibe-audio-modem :)")
