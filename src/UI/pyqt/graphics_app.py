@@ -195,7 +195,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Load UI
         loader = QtUiTools.QUiLoader()
-        ui_file = QtCore.QFile("/home/bimbim/Codes/vibe-audioModem/src/UI/pyqt/main_window.ui")
+        ui_file = QtCore.QFile("src/UI/pyqt/main_window.ui")
         if not ui_file.open(QtCore.QFile.ReadOnly):
             logger.info(f"Could not open UI file: {ui_file.errorString()}")
             return
@@ -224,6 +224,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.spectroscope_plot.setXRange(0, 5000)
             self.spectroscope_plot.setLabel('left', 'Amplitude', units='dB')
             self.spectroscope_plot.setLabel('bottom', 'Frequency', units='Hz')
+            self.spectroscope_plot.showGrid(x=True, y=True)
 
         # Find and setup Pyqtgraph Spectrogram (Waterfall)
         self.spectrogram_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "spectrogramPlaceholder")
@@ -272,7 +273,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.constellation_plot = pg.PlotWidget(title="Constellation Diagram")
             self.constellation_layout.addWidget(self.constellation_plot)
             
-            self.constellation_scatter = pg.ScatterPlotItem(size=5, pen=pg.mkPen(None), brush=pg.mkBrush(0, 0, 255, 200))
+            self.constellation_scatter = pg.ScatterPlotItem(size=2, pen=pg.mkPen(None), brush=pg.mkBrush(0, 0, 255, 200))
             self.constellation_plot.addItem(self.constellation_scatter)
             
             self.constellation_plot.setXRange(-2, 2)
