@@ -201,16 +201,40 @@ def _export_to_bin(input_data: Any, pkt: config.PacketConfig, filepath: Path) ->
         f.write(data)
 
 
+def visualize_bytes(data: np.ndarray, pkt: config.PacketConfig) -> None:
+    """Display bytes in a visual format in the terminal.
+    
+    Args:
+        data (np.ndarray): byte array to visualize
+        pkt (config.PacketConfig): Packet configuration for grouping hex values
+    """
+    
+    # Total length
+    total_len = len(data)
+    print(f"Total bytes: {total_len:,}")
+    
+    # Group size based on packet config
+    group_size = pkt.total_packets_len
+    
+    # Create hex string with spaces between bytes
+    hex_str = " ".join([f"{b:02x}" for b in data])
+    
+    # Display grouped by packet length
+    for i in range(0, total_len, group_size):
+        chunk_end = min(i + group_size, total_len)
+        chunk_hex = hex_str[i:chunk_end]
+        print(f"[{i}:{chunk_end}]\n{chunk_hex}\n")
+
+
 if __name__ == "__main__":
     conf = config.DEFAULT_PACKET_CONFIG
     TEST_PAYLOAD = (
-        b"hello world ! this is a message transmitted using vibe-audio-modem :)"
+        "hello world ! this is a message transmitted using vibe-audio-modem :)"
     )
     packets = prepare_data(TEST_PAYLOAD, conf)
     assert len(packets) % conf.total_packets_len == 0
+    
+    # Visualize the output bytes
+    visualize_bytes(packets, conf)
 
-    # _export_to_bin(
-    #     Path("C:/Users/microbimbim/Codes/vibe-audioModem/research/conjecture.txt"),
-    #     conf,
-    #     Path("research/test_payload_packetized.bin"),
-    # )
+    
