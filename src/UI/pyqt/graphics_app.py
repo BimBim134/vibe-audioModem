@@ -381,6 +381,8 @@ class MainWindow(QtWidgets.QMainWindow):
             preset_name = "SLOW"
         elif "MEDIUM" in text:
             preset_name = "MEDIUM"
+        elif "FAST" in text:
+            preset_name = "FAST"
 
         if preset_name and preset_name in MODULATION_PRESETS:
             preset = MODULATION_PRESETS[preset_name]

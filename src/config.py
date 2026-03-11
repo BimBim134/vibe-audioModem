@@ -123,6 +123,7 @@ class ModulationPreset:
 MODULATION_PRESETS = {
     "SLOW": ModulationPreset("SLOW", 70, DEFAULT_BPSK_CONST),
     "MEDIUM": ModulationPreset("MEDIUM", 200, DEFAULT_DQPSK_CONST),
+    "FAST": ModulationPreset("FAST", 500, DEFAULT_8PSK_CONST),
 }
 
 DEFAULT_SIGNAL_CONFIG = SignalConfig(

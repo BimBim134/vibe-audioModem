@@ -131,9 +131,10 @@ class Demodulator(gr.top_block):
 
         # Reference symbol generation (1 SPS) for arbitrary constellation
         bps = self.const_definition.bits_per_symbol()
+        valid_length = len(self.access_key) - (len(self.access_key) % bps)
         access_key_symbols = [
             int(self.access_key[i : i + bps], 2)
-            for i in range(0, len(self.access_key), bps)
+            for i in range(0, valid_length, bps)
         ]
 
         # Get constellation mapping and points
