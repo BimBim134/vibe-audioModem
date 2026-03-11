@@ -104,7 +104,8 @@ class Demodulator(gr.top_block):
             self.sig.samp_rate,
         )
         ### Automatic Gain Control
-        self.analog_agc_xx_0 = analog.agc_cc((1e-2), 1.0, 1.0, 100)
+
+        self.analog_agc_xx_0 = analog.agc_cc((1e-1), 1.0, 1.0, 0)
 
         ## symbol synchronization
         nfilts = 128

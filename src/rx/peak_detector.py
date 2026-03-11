@@ -4,6 +4,7 @@ import logging
 import multiprocessing
 import copy
 import os
+from collections import deque
 
 import numpy as np
 from scipy.signal import find_peaks
@@ -86,7 +87,9 @@ def search_for_incomming_transmission(
     constellation=DEFAULT_DQPSK_CONST,
     stop_event=multiprocessing.Event(),
     nb_workers: int = 1,
-    persistence: int = 20,
+    persistence: int = 50,
+    fft_buffer_size: int = 10,
+    min_prominence: float = 2.0,
 ):
     logger.info("search_for_incomming_transmission function started")
     logger.info("Ports: %s", ports_conf)
@@ -111,6 +114,8 @@ def search_for_incomming_transmission(
         for i in range(nb_workers)
     ]
 
+    fft_buffer = deque(maxlen=fft_buffer_size)
+
     try:
         while not stop_event.is_set():
             try:
@@ -123,10 +128,14 @@ def search_for_incomming_transmission(
                 continue
 
             real_spectrum = data[half_size:]
+            fft_buffer.append(real_spectrum)
+            
+            avg_spectrum = np.mean(fft_buffer, axis=0)
+
             peaks, properties = find_peaks(
-                real_spectrum,
+                avg_spectrum,
                 distance=max(1, int(signal_conf.baudrate / freq_resolution)),
-                prominence=10,
+                prominence=min_prominence,
             )
 
             peak_freqs = peaks * freq_resolution
@@ -137,8 +146,9 @@ def search_for_incomming_transmission(
                 worker.update_state()
                 if worker.state == "running":
                     found = False
+                    bandwidth = signal_conf.baudrate  # the bandwidth roughly equals the baudrate for BPSK/DQPSK
                     for pf in peak_freqs:
-                        if abs(pf - worker.active_freq) < signal_conf.baudrate:
+                        if abs(pf - worker.active_freq) <= bandwidth / 2:
                             found = True
                             worker.missed_frames = 0
                             break
@@ -153,12 +163,13 @@ def search_for_incomming_transmission(
                     if pf <= 1000:
                         continue
 
-                    # Check if any worker is already handling this freq
+                    # Check if any worker is already handling this freq (within bandwidth)
                     already_handled = False
+                    bandwidth = signal_conf.baudrate
                     for worker in workers:
                         if (
                             worker.state == "running"
-                            and abs(pf - worker.active_freq) < signal_conf.baudrate
+                            and abs(pf - worker.active_freq) <= bandwidth / 2
                         ):
                             already_handled = True
                             break
