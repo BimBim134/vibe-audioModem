@@ -110,23 +110,6 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
     return np.frombuffer(flattened, dtype=np.uint8)
 
 
-def import_file_from_path(filepath: Path, sender_name:str) -> bytes:
-    """opens a file from path
-
-    Args:
-        filepath (Path): input file path
-
-    Returns:
-        bytes: serialized pmt payload with path included
-    """
-    with open(filepath, "rb") as f:
-        input_file = f.read()
-    input_file = np.frombuffer(input_file, dtype=np.uint8)
-    payload = pmt.to_pmt({"sender_name": sender_name, "type": "file", "path": str(filepath), "data": input_file})
-    output = pmt.serialize_str(payload)
-    return output
-
-
 @singledispatch
 def prepare_data(input_data, pkt: config.PacketConfig, sender_name:str="default") -> np.ndarray:
     """generic function to prepare bytes from input data"""
@@ -145,7 +128,13 @@ def _(input_data: Path, pkt: config.PacketConfig, sender_name:str="defaut") -> n
         bytes: packetized and error encoded file
     """
     logger.info(f"loading data from path: {input_data}")
-    file = import_file_from_path(input_data, sender_name)
+    with open(filepath, "rb") as f:
+        input_file = f.read()
+    input_file = np.frombuffer(input_file, dtype=np.uint8)
+    
+    payload = pmt.to_pmt({"sender_name": sender_name, "type": "file", "path": str(filepath), "data": input_file})
+    file = pmt.serialize_str(payload)
+
     logger.info(f"loaded {len(file)} bytes")
     return payload_to_encoded_packet(file, pkt)
 
