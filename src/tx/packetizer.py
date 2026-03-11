@@ -9,6 +9,7 @@ import numpy as np
 import pmt
 
 import src.config as config
+from src.scrambling import Scrambler
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,12 @@ def payload_to_encoded_packet(payload: bytes, pkt: config.PacketConfig) -> np.nd
     """
     # initialize encoder
     rsc = pkt.rsc_codec
+
+    # initialize scrambler
+    scrambler = Scrambler()
+
+    # scramble payload
+    payload = scrambler.process(payload)
 
     # encode packet
     packets = [

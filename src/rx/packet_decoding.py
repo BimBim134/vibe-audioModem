@@ -7,6 +7,7 @@ import numpy as np
 
 from src.config import PacketConfig
 from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_PORTS_CONFIG, PortsConfig
+from src.scrambling import Unscrambler
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,10 @@ class PacketReassembler:
             if self.state == "COLLECTING":
                 logger.info(f"Postamble detected, reassembling {len(self.buffer)} bytes")
                 try:
-                    raw_payload = pmt.to_python(pmt.deserialize_str(bytes(self.buffer)))
+                    unscrambler = Unscrambler()
+                    raw_payload = pmt.to_python(
+                        pmt.deserialize_str(unscrambler.process(bytes(self.buffer)))
+                    )
                     if isinstance(raw_payload, dict):
                         raw_payload["carrier_freq"] = self.frequency
                     self.reset()
