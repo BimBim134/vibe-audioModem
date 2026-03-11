@@ -205,14 +205,11 @@ def visualize_bytes(data: np.ndarray, pkt: config.PacketConfig) -> None:
     # Group size based on packet config
     group_size = pkt.total_packets_len
     
-    # Create hex string with spaces between bytes
-    hex_str = " ".join([f"{b:02x}" for b in data])
-    
     # Display grouped by packet length
     for i in range(0, total_len, group_size):
         chunk_end = min(i + group_size, total_len)
-        chunk_hex = hex_str[i:chunk_end]
-        print(f"[{i}:{chunk_end}]\n{chunk_hex}\n")
+        chunk_content = data[i:chunk_end]
+        print(f"[{i}:{chunk_end}]\n{chunk_content}\n")
 
 
 if __name__ == "__main__":
