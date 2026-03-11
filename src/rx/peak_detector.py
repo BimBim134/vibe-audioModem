@@ -47,11 +47,11 @@ class DemodulatorWorker:
         self.state = "initializing"  # initializing, ready, running
         self.missed_frames = 0
 
-    def start_tuning(self, freq):
+    def start_tuning(self, freq, preset):
         self.active_freq = freq
         self.state = "running"
         self.missed_frames = 0
-        self.command_queue.put({"action": "start", "freq": freq})
+        self.command_queue.put({"action": "start", "freq": freq, "preset": preset})
 
     def stop_tuning(self):
         logger.info(
@@ -100,7 +100,14 @@ def search_for_incomming_transmission(
     socket = context.socket(zmq.SUB)
     socket.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
-    socket.setsockopt(zmq.RCVTIMEO, 100)
+
+    config_socket = context.socket(zmq.SUB)
+    config_socket.connect(f"tcp://127.0.0.1:{ports_conf.config_port}")
+    config_socket.setsockopt(zmq.SUBSCRIBE, b"PRESET:")
+
+    poller = zmq.Poller()
+    poller.register(socket, zmq.POLLIN)
+    poller.register(config_socket, zmq.POLLIN)
 
     logger.info(f"peak detector subscribed to fft on port {ports_conf.fft_port}")
 
@@ -118,8 +125,26 @@ def search_for_incomming_transmission(
 
     try:
         while not stop_event.is_set():
+            socks = dict(poller.poll(100))
+
+            if config_socket in socks and socks[config_socket] == zmq.POLLIN:
+                try:
+                    config_msg = config_socket.recv_string(flags=zmq.NOBLOCK)
+                    if config_msg.startswith("PRESET:"):
+                        preset_name = config_msg.split(":")[1]
+                        from src.config import MODULATION_PRESETS
+                        if preset_name in MODULATION_PRESETS:
+                            signal_conf.modulation_preset = preset_name
+                            signal_conf.baudrate = MODULATION_PRESETS[preset_name].baudrate
+                            logger.info(f"Peak detector config updated to {preset_name}")
+                except zmq.Again:
+                    pass
+
+            if socket not in socks or socks[socket] != zmq.POLLIN:
+                continue
+
             try:
-                msg = socket.recv()
+                msg = socket.recv(flags=zmq.NOBLOCK)
             except zmq.Again:
                 continue
 
@@ -183,7 +208,7 @@ def search_for_incomming_transmission(
                                     pf,
                                     worker.worker_id,
                                 )
-                                worker.start_tuning(pf)
+                                worker.start_tuning(pf, signal_conf.modulation_preset)
                                 break
 
     except KeyboardInterrupt:
@@ -193,6 +218,7 @@ def search_for_incomming_transmission(
         for worker in workers:
             worker.terminate()
         logger.info("Peak detector: closing socket and context")
+        config_socket.close()
         socket.close()
         context.term()
 

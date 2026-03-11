@@ -102,8 +102,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>426</width>
-            <height>730</height>
+            <width>424</width>
+            <height>732</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -154,7 +154,7 @@
           <item>
            <widget class="QLineEdit" name="senderName">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -162,6 +162,31 @@
             <property name="text">
              <string>default</string>
             </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="modulationChooser">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <item>
+             <property name="text">
+              <string>SLOW (BPSK - 70 baud)</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>MEDIUM (DQPSK - 200 baud)</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>FAST (8PSK - 500 baud)</string>
+             </property>
+            </item>
            </widget>
           </item>
           <item>
@@ -188,22 +213,6 @@
              <double>2500.000000000000000</double>
             </property>
            </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="modulationChooser"/>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
           </item>
          </layout>
         </widget>

@@ -15,6 +15,7 @@ from src.config import (
     PortsConfig,
     SignalConfig,
     PacketConfig,
+    MODULATION_PRESETS,
 )
 from src.tx.transmitter import send_data
 
@@ -257,7 +258,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.bar = pg.ColorBarItem(values=(-50, 50), colorMap=colormap)
             self.bar.setImageItem(self.img)
 
-            # Map pixels to Hz explicitly via setRect now that the image is populated
+            # ZMQ Context for configuration pub
+        self.ctx = zmq.Context()
+        self.config_pub_socket = self.ctx.socket(zmq.PUB)
+        try:
+            self.config_pub_socket.bind(f"tcp://127.0.0.1:{self.ports_conf.config_port}")
+            logger.info(f"Config publisher bound to port {self.ports_conf.config_port}")
+        except Exception as e:
+            logger.error(f"Failed to bind config publisher: {e}")
+
+        # Map pixels to Hz explicitly via setRect now that the image is populated
             self.img.setRect(QtCore.QRectF(0, 0, self.samp_rate / 2.0, self.waterfall_rows))
 
         # Find and setup UI components
@@ -267,6 +277,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.carrier_freq_spin = self.ui_widget.findChild(QtWidgets.QDoubleSpinBox, "CarrierFrequency")
         self.sender_name_edit = self.ui_widget.findChild(QtWidgets.QLineEdit, "senderName")
         self.constellation_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "constellationDiagramPlaceholder")
+        self.modulation_chooser = self.ui_widget.findChild(QtWidgets.QComboBox, "modulationChooser")
 
         if self.constellation_placeholder:
             self.constellation_layout = QtWidgets.QVBoxLayout(self.constellation_placeholder)
@@ -292,6 +303,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self.carrier_freq_spin.setValue(self.signal_conf.carrier_freq)
             self.carrier_freq_spin.valueChanged.connect(self.update_carrier_freq)
             logger.info(f"CarrierFrequency spinbox connected (initial: {self.signal_conf.carrier_freq})")
+
+        if self.modulation_chooser:
+            self.modulation_chooser.currentIndexChanged.connect(self.update_modulation_preset)
+            logger.info("ModulationChooser connected")
+            # Set initials based on combo box value
+            self.update_modulation_preset(self.modulation_chooser.currentIndex())
 
         if self.send_button and self.message_edit:
             self.send_button.clicked.connect(self.start_transmission)
@@ -351,6 +368,29 @@ class MainWindow(QtWidgets.QMainWindow):
         """Update the signal configuration with the new carrier frequency."""
         self.signal_conf.carrier_freq = value
         logger.info(f"Carrier frequency updated to {value} Hz")
+
+    @QtCore.Slot(int)
+    def update_modulation_preset(self, index):
+        """Update the signal configuration based on the selected modulation preset."""
+        if not self.modulation_chooser:
+            return
+        
+        text = self.modulation_chooser.currentText()
+        preset_name = None
+        if "SLOW" in text:
+            preset_name = "SLOW"
+        elif "MEDIUM" in text:
+            preset_name = "MEDIUM"
+
+        if preset_name and preset_name in MODULATION_PRESETS:
+            preset = MODULATION_PRESETS[preset_name]
+            self.signal_conf.baudrate = preset.baudrate
+            self.signal_conf.modulation_preset = preset_name
+            try:
+                self.config_pub_socket.send_string(f"PRESET:{preset_name}")
+            except Exception as e:
+                pass
+            logger.info(f"Modulation preset updated to {preset_name}: baudrate={preset.baudrate}")
 
     @QtCore.Slot(dict)
     def display_received_message(self, payload):
@@ -412,6 +452,11 @@ class MainWindow(QtWidgets.QMainWindow):
  
         logger.info(f"Starting transmission: {message_text} (Sender: {sender_name})")
  
+        try:
+            self.config_pub_socket.send_string(f"PRESET:{self.signal_conf.modulation_preset}")
+        except Exception:
+            pass
+
         # Display sent message in the UI
         if self.messages_boards:
             date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -452,6 +497,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.const_thread.quit()
         self.const_thread.wait()
         
+        if self.config_pub_socket:
+            self.config_pub_socket.close()
+        if self.ctx:
+            self.ctx.term()
+
         event.accept()
 
 def run_graphics_app(

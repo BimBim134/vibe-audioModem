@@ -129,23 +129,26 @@ class Demodulator(gr.top_block):
             self.symbol_sync_taps,
         )
 
-        # Manual DQPSK reference symbol generation (1 SPS)
-        # 32 bits to 16 symbols
+        # Reference symbol generation (1 SPS) for arbitrary constellation
+        bps = self.const_definition.bits_per_symbol()
         access_key_symbols = [
-            int(self.access_key[i : i + 2], 2)
-            for i in range(0, len(self.access_key), 2)
+            int(self.access_key[i : i + bps], 2)
+            for i in range(0, len(self.access_key), bps)
         ]
 
         # Get constellation mapping and points
         mapping = self.const_definition.pre_diff_code()
         points = self.const_definition.points()
+        num_points = len(points)
+        if len(mapping) == 0:
+            mapping = list(range(num_points))
 
         # Handle Gray-coding, Differential encoding and Mapping
         curr_state = 0
         self.reference_symbols = []
         for s in access_key_symbols:
             gray_sym = mapping[s]
-            curr_state = (gray_sym + curr_state) % 4
+            curr_state = (gray_sym + curr_state) % num_points
             self.reference_symbols.append(points[curr_state])
 
         # Correlation-based frame detection at 1 SPS (matching symbol_sync osps=1)
@@ -157,10 +160,11 @@ class Demodulator(gr.top_block):
         self.digital_linear_equalizer_0 = digital.linear_equalizer(
             9, 1, self.variable_adaptive_algorithm_0, True, [], "corr_est"
         )
-        ## Costas loop for carrier phase/frequency recovery (matches reference QPSK modem design)
+        ## Costas loop for carrier phase/frequency recovery
+        order = 2 ** self.const_definition.bits_per_symbol()
         self.digital_costas_loop_cc_0 = digital.costas_loop_cc(
             0.0628,  # loop bandwidth (phase_bw)
-            4,  # order: 4 for QPSK/DQPSK
+            order,  # order depends on the modulation symbol count
             False,
         )
         ## Hard-decision constellation decoder (stateless, no competing PLL)
@@ -273,7 +277,10 @@ def launch_demodulator(
         signal_config.carrier_freq = carrier_frequency
 
     if constellation is None:
-        constellation = DEFAULT_DQPSK_CONST
+        if hasattr(sig, 'constellation') and sig.constellation is not None:
+            constellation = sig.constellation
+        else:
+            constellation = DEFAULT_DQPSK_CONST
 
     current_tb = [None]
 
@@ -309,12 +316,21 @@ def launch_demodulator(
 
             if action == "start":
                 freq = cmd.get("freq")
+                preset = cmd.get("preset")
                 if freq:
                     # Update frequency before instantiating
                     signal_config.carrier_freq = freq
+                
+                if preset:
+                    from src.config import MODULATION_PRESETS
+                    if preset in MODULATION_PRESETS:
+                        signal_config.modulation_preset = preset
+                        signal_config.baudrate = MODULATION_PRESETS[preset].baudrate
+
+                current_constellation = signal_config.constellation if hasattr(signal_config, "constellation") and signal_config.constellation is not None else constellation
 
                 # Create a fresh Demodulator to ensure clean algorithm state
-                tb = Demodulator(pkt, signal_config, constellation, ports_config)
+                tb = Demodulator(pkt, signal_config, current_constellation, ports_config)
                 current_tb[0] = tb
 
                 tb.start()

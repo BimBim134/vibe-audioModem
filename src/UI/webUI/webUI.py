@@ -71,12 +71,8 @@ async def listen_to_zmq(sock, websocket, prefix, transform=None):
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
-    pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
-):
+async def websocket_endpoint(websocket: WebSocket):
+    ports_conf = DEFAULT_PORTS_CONFIG
     await websocket.accept()
     logger.info("Client web connecté.")
 

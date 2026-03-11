@@ -126,10 +126,16 @@ def send_data(
     input_data: Any,
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    constellation: Any = DEFAULT_DQPSK_CONST,
+    constellation: Any = None,
     sender_name: str = "defaut",
     handle_signals: bool = True,
 ):
+    if constellation is None:
+        if hasattr(sig, 'constellation') and sig.constellation is not None:
+            constellation = sig.constellation
+        else:
+            constellation = DEFAULT_DQPSK_CONST
+
     tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name)
 
     if handle_signals:

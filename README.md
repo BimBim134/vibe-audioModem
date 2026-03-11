@@ -1,8 +1,6 @@
 # TODO
 - investigate why the demodulator struggle to get a fix bellow 2kHz
 - add some presets for the signal configuration
-  - SLOW [baudrate 70, constellation = BPSK]
-  - MEDIUM [baudrate 200, constellation = QPSK]
   - FAST [baudrate 400, constellation = 8PSK]
   - CUSTOM
   - add the option on the GUI to select the preset
@@ -20,3 +18,5 @@
 - use a profiler to see where is the performance bottle neck for low-end devices.
 
 # CURRENT
+  - SLOW [baudrate 70, constellation = BPSK]
+  - MEDIUM [baudrate 200, constellation = DQPSK]
