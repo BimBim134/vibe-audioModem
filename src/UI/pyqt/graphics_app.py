@@ -4,9 +4,9 @@ import zmq
 from PySide6 import QtWidgets, QtCore, QtUiTools
 import pyqtgraph as pg
 
-# Configure PyQtGraph for Light Theme
-pg.setConfigOption('background', 'w')
-pg.setConfigOption('foreground', 'k')
+# Configure PyQtGraph for Dark Theme
+pg.setConfigOption('background', '#12141a')
+pg.setConfigOption('foreground', '#a6adc8')
 
 from src.config import (
     DEFAULT_SIGNAL_CONFIG,
@@ -219,7 +219,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.spectroscope_layout = QtWidgets.QVBoxLayout(self.spectroscope_placeholder)
             self.spectroscope_plot = pg.PlotWidget()
             self.spectroscope_layout.addWidget(self.spectroscope_plot)
-            self.spectrum_curve = self.spectroscope_plot.plot(pen='b')
+            self.spectrum_curve = self.spectroscope_plot.plot(pen=pg.mkPen('#89b4fa', width=1))
             self.spectroscope_plot.setLogMode(x=False, y=False)
             self.spectroscope_plot.setYRange(-50, 50)
             self.spectroscope_plot.setXRange(0, 5000)
@@ -227,9 +227,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.spectroscope_plot.setMouseEnabled(x=False, y=False)
 
             # Hide everything except the X axis ticks (showing Hz values)
-            ax = self.spectroscope_plot.getAxis('left')
-            ax.setLabel('')
-            ax.setStyle(showValues=False, tickLength=0)
+            spectroscope_axis = self.spectroscope_plot.getAxis('left')
+            spectroscope_axis.setLabel('')
+            spectroscope_axis.setStyle(showValues=False, tickLength=0)
             self.spectroscope_plot.setLabel('bottom', '')  # no xlabel, just ticks
             self.spectroscope_plot.showGrid(x=True, y=True, alpha=0.1)
 
@@ -239,7 +239,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Waterfall rolling buffer
         self.n_fft = self.ports_conf.fft_size
         self.display_size = self.n_fft // 2
-        self.waterfall_rows = 200
+        self.waterfall_rows = 400
         self.waterfall_data = np.zeros((self.waterfall_rows, self.display_size), dtype=np.float32)
 
         # FFT Setup
@@ -286,7 +286,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Find and setup UI components
         self.message_edit = self.ui_widget.findChild(QtWidgets.QTextEdit, "MessageEdit")
         self.send_button = self.ui_widget.findChild(QtWidgets.QPushButton, "SendButton")
-        self.messages_boards = self.ui_widget.findChild(QtWidgets.QPlainTextEdit, "MessagesBoards")
+        self.messages_boards = self.ui_widget.findChild(QtWidgets.QTextEdit, "MessagesBoards")
         self.carrier_freq_spin = self.ui_widget.findChild(QtWidgets.QDoubleSpinBox, "CarrierFrequency")
         self.sender_name_edit = self.ui_widget.findChild(QtWidgets.QLineEdit, "senderName")
         self.constellation_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "constellationDiagramPlaceholder")
@@ -297,7 +297,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.constellation_plot = pg.PlotWidget()
             self.constellation_layout.addWidget(self.constellation_plot)
             
-            self.constellation_scatter = pg.ScatterPlotItem(size=2, pen=pg.mkPen(None), brush=pg.mkBrush(0, 0, 255, 200))
+            self.constellation_scatter = pg.ScatterPlotItem(size=3, pen=pg.mkPen(None), brush=pg.mkBrush(137, 180, 250, 200))
             self.constellation_plot.addItem(self.constellation_scatter)
             
             # Fixed range, no auto-scale
@@ -362,6 +362,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.const_worker.data_received.connect(self.update_constellation)
         self.const_thread.start()
 
+        # Welcome message
+        if self.messages_boards:
+            welcome_html = (
+                '<div style="margin: 6px 0; padding: 8px 10px; '
+                'background-color: #2b2f3a; border-left: 3px solid #92bfff; border-radius: 4px;">'
+                '<span style="color: #92bfff; font-weight: bold; font-size: 11px;">vibe-audioModem</span>'
+                '<span style="color: #686d88; font-size: 10px; margin-left: 8px;">système</span>'
+                '<div style="color: #dce4f5; margin-top: 4px; font-size: 12px; white-space: pre-wrap;">'
+                'Bienvenue sur vibe-audioModem 📡\nEn attente de transmission...</div>'
+                '</div>'
+            )
+            self.messages_boards.append(welcome_html)
+
     @QtCore.Slot(np.ndarray)
     def update_constellation(self, data):
         """Update the constellation scatter plot."""
@@ -422,19 +435,29 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.messages_boards:
             return
 
-        date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_str = datetime.now().strftime("%H:%M:%S")
         sender = payload.get("sender_name", "unknown")
         carrier_freq = payload.get("carrier_freq")
-        freq = f"{carrier_freq:.1f}Hz" if carrier_freq else "RX"
-        
+        freq = f"{carrier_freq:.0f} Hz" if carrier_freq else "RX"
+
         data = payload.get("data")
         if isinstance(data, np.ndarray):
             msg_content = data.tobytes().decode("utf-8", errors="replace")
         else:
             msg_content = str(data)
 
-        header = f"* {date_str} - {freq} - {sender}"
-        self.messages_boards.appendPlainText(f"{header}\n{msg_content}\n")
+        import html
+        msg_escaped = html.escape(msg_content)
+
+        html_block = (
+            f'<div style="margin: 6px 0; padding: 8px 10px; '
+            f'background-color: #2b2f3a; border-left: 3px solid #92bfff; border-radius: 4px;">'
+            f'<span style="color: #92bfff; font-weight: bold; font-size: 11px;">{html.escape(sender)}</span>'
+            f'<span style="color: #686d88; font-size: 10px; margin-left: 8px;">{freq} &mdash; {date_str}</span>'
+            f'<div style="color: #dce4f5; margin-top: 4px; font-size: 12px; white-space: pre-wrap;">{msg_escaped}</div>'
+            f'</div>'
+        )
+        self.messages_boards.append(html_block)
 
     @QtCore.Slot(np.ndarray)
     def update_plots(self, data):
@@ -483,9 +506,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Display sent message in the UI
         if self.messages_boards:
-            date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            header = f"* {date_str} - {self.signal_conf.carrier_freq:.1f}Hz - {sender_name}"
-            self.messages_boards.appendPlainText(f"{header}\n{message_text}\n")
+            import html
+            date_str = datetime.now().strftime("%H:%M:%S")
+            freq = f"{self.signal_conf.carrier_freq:.0f} Hz"
+            msg_escaped = html.escape(message_text)
+            html_block = (
+                f'<div style="margin: 6px 0; padding: 8px 10px; '
+                f'background-color: #252830; border-left: 3px solid #686d88; border-radius: 4px;">'
+                f'<span style="color: #b8c4da; font-weight: bold; font-size: 11px;">{html.escape(sender_name)}</span>'
+                f'<span style="color: #686d88; font-size: 10px; margin-left: 8px;">{freq} &mdash; {date_str}</span>'
+                f'<div style="color: #dce4f5; margin-top: 4px; font-size: 12px; white-space: pre-wrap;">{msg_escaped}</div>'
+                f'</div>'
+            )
+            self.messages_boards.append(html_block)
         
         # Disable button during transmission to avoid multiple overlapping transmissions
         self.send_button.setEnabled(False)
@@ -534,6 +567,16 @@ def run_graphics_app(
     pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
 ):
     app = QtWidgets.QApplication(sys.argv)
+
+    # Load QSS stylesheet
+    qss_path = QtCore.QFile("src/UI/pyqt/style.qss")
+    if qss_path.open(QtCore.QFile.ReadOnly | QtCore.QFile.Text):
+        stream = QtCore.QTextStream(qss_path)
+        app.setStyleSheet(stream.readAll())
+        qss_path.close()
+    else:
+        logger.warning("Could not load style.qss")
+
     window = MainWindow(signal_conf=signal_conf, ports_conf=ports_conf, pkt_conf=pkt_conf)
     window.show()
     sys.exit(app.exec())
