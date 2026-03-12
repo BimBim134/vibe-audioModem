@@ -281,17 +281,26 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if self.constellation_placeholder:
             self.constellation_layout = QtWidgets.QVBoxLayout(self.constellation_placeholder)
-            self.constellation_plot = pg.PlotWidget(title="Constellation Diagram")
+            self.constellation_plot = pg.PlotWidget()
             self.constellation_layout.addWidget(self.constellation_plot)
             
             self.constellation_scatter = pg.ScatterPlotItem(size=2, pen=pg.mkPen(None), brush=pg.mkBrush(0, 0, 255, 200))
             self.constellation_plot.addItem(self.constellation_scatter)
             
-            self.constellation_plot.setXRange(-2, 2)
-            self.constellation_plot.setYRange(-2, 2)
-            self.constellation_plot.setLabel('left', 'Quadrature (Q)')
-            self.constellation_plot.setLabel('bottom', 'In-phase (I)')
-            self.constellation_plot.showGrid(x=True, y=True)
+            # Fixed range, no auto-scale
+            self.constellation_plot.setXRange(-2, 2, padding=0.1)
+            self.constellation_plot.setYRange(-2, 2, padding=0.1)
+            self.constellation_plot.enableAutoRange(enable=False)
+            self.constellation_plot.setMouseEnabled(x=False, y=False)
+            
+            # Hide tick values and labels — keep default tick positions so the grid stays visible
+            self.constellation_plot.setTitle(None)
+            for axis in ('left', 'bottom', 'right', 'top'):
+                ax = self.constellation_plot.getAxis(axis)
+                ax.setLabel('')
+                ax.setStyle(showValues=False, tickLength=0)
+            
+            self.constellation_plot.showGrid(x=True, y=True, alpha=0.1)
             self.constellation_plot.setAspectLocked(True)
 
             # Buffer for points
