@@ -130,16 +130,21 @@ def run_processes(process_configs, stop_event, timeout=2.0):
                 p.terminate()
 
 
-def main(test: bool = False):
-    logger.info("test mode: %s", test)
-    process_configs = [
-        AUDIO_INTERFACE_FROM_FILE if test else AUDIO_INTERFACE,
-        # WEB_UI,
-        # QT_DEBUGGER,
-        QT_GRAPHICS_APP,
-        PEAK_DETECTOR,
-        PACKET_DECODER,
-    ]
+def main(test: bool = False, ui: bool = False):
+    if ui:
+        logger.info("ui mode")
+        process_configs = [QT_GRAPHICS_APP]
+    else:
+        logger.info("test mode: %s", test)
+
+        process_configs = [
+            AUDIO_INTERFACE_FROM_FILE if test else AUDIO_INTERFACE,
+            # WEB_UI,
+            # QT_DEBUGGER,
+            QT_GRAPHICS_APP,
+            PEAK_DETECTOR,
+            PACKET_DECODER,
+        ]
 
     run_processes(process_configs, STOP_EVENT)
 
@@ -149,5 +154,6 @@ def main(test: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", action="store_true")
+    parser.add_argument("--ui", action="store_true")
     args = parser.parse_args()
-    main(test=args.test)
+    main(test=args.test, ui=args.ui)
