@@ -245,13 +245,20 @@ class MainWindow(QtWidgets.QMainWindow):
             self.spectrogram_layout = QtWidgets.QVBoxLayout(self.spectrogram_placeholder)
             self.spectrogram_canvas = pg.GraphicsLayoutWidget()
             self.spectrogram_layout.addWidget(self.spectrogram_canvas)
-            self.spectrogram_plot = self.spectrogram_canvas.addPlot(title="Waterfall")
+            self.spectrogram_plot = self.spectrogram_canvas.addPlot()
             
             # Initialize with data so it has the correct width right away
             self.img = pg.ImageItem(image=self.waterfall_data.T)
             self.spectrogram_plot.addItem(self.img)
-            self.spectrogram_plot.setLabel('bottom', 'Frequency', units='Hz')
-            self.spectrogram_plot.setLabel('left', 'Time', units='frames')
+            
+            # Hide all axes so the image fills the entire frame
+            for axis in ('left', 'bottom', 'right', 'top'):
+                self.spectrogram_plot.hideAxis(axis)
+            self.spectrogram_plot.setMouseEnabled(x=False, y=False)
+            
+            # Remove canvas margins
+            self.spectrogram_canvas.ci.layout.setContentsMargins(0, 0, 0, 0)
+            self.spectrogram_canvas.ci.layout.setSpacing(0)
             
             # Setup Colormap/Colorbar
             colormap = pg.colormap.get('viridis')
