@@ -217,15 +217,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.spectroscope_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "spectroscopePlaceholder")
         if self.spectroscope_placeholder:
             self.spectroscope_layout = QtWidgets.QVBoxLayout(self.spectroscope_placeholder)
-            self.spectroscope_plot = pg.PlotWidget(title="Audio Spectrum")
+            self.spectroscope_plot = pg.PlotWidget()
             self.spectroscope_layout.addWidget(self.spectroscope_plot)
             self.spectrum_curve = self.spectroscope_plot.plot(pen='b')
             self.spectroscope_plot.setLogMode(x=False, y=False)
             self.spectroscope_plot.setYRange(-50, 50)
             self.spectroscope_plot.setXRange(0, 5000)
-            self.spectroscope_plot.setLabel('left', 'Amplitude', units='dB')
-            self.spectroscope_plot.setLabel('bottom', 'Frequency', units='Hz')
-            self.spectroscope_plot.showGrid(x=True, y=True)
+            self.spectroscope_plot.enableAutoRange(enable=False)
+            self.spectroscope_plot.setMouseEnabled(x=False, y=False)
+
+            # Hide everything except the X axis ticks (showing Hz values)
+            ax = self.spectroscope_plot.getAxis('left')
+            ax.setLabel('')
+            ax.setStyle(showValues=False, tickLength=0)
+            self.spectroscope_plot.setLabel('bottom', '')  # no xlabel, just ticks
+            self.spectroscope_plot.showGrid(x=True, y=True, alpha=0.1)
 
         # Find and setup Pyqtgraph Spectrogram (Waterfall)
         self.spectrogram_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "spectrogramPlaceholder")
