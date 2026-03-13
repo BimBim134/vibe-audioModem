@@ -86,7 +86,7 @@ def search_for_incomming_transmission(
     pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
     constellation=DEFAULT_DQPSK_CONST,
     stop_event=multiprocessing.Event(),
-    nb_workers: int = 1,
+    nb_workers: int = 2,
     persistence: int = 50,
     fft_buffer_size: int = 10,
     min_prominence: float = 2.0,
