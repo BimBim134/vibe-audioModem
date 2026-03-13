@@ -93,7 +93,8 @@ def start_audio_interface(
         signal_conf:SignalConfig=DEFAULT_SIGNAL_CONFIG,
         ports_conf:PortsConfig=DEFAULT_PORTS_CONFIG,
         file: str|Path=None,
-        stop_event=None
+        stop_event=None,
+        start_delay:float=10
     ):
     """Starts the audio interface.
 
@@ -104,8 +105,8 @@ def start_audio_interface(
     tb = AudioInterface(signal_conf, ports_conf, file)
     logger.info("audio interface initialized")
 
-    logger.info("Waiting 10 seconds before starting")
-    time.sleep(5)
+    logger.info(f"Waiting {start_delay} seconds before starting")
+    time.sleep(start_delay)
 
     def sig_handler(sig=None, frame=None):
         logger.info("SIGINT/SIGTERM received")
