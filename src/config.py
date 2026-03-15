@@ -93,6 +93,7 @@ class PortsConfig:
 
     raw_packets_port: int
     constellation_port: int
+    constellation_ports_count: int
 
     messages_port: int
     config_port: int
@@ -137,9 +138,10 @@ DEFAULT_PORTS_CONFIG = PortsConfig(
     fft_port=5556,
     fft_size=4096,
     raw_packets_port=5557,
-    constellation_port=5600,
     messages_port=5558,
-    config_port=5560,
+    config_port=5559,
+    constellation_port=5560,
+    constellation_ports_count=10,
 )
 
 

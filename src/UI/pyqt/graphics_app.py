@@ -122,6 +122,7 @@ class ConstellationZMQWorker(QtCore.QObject):
 
     def __init__(self, ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG):
         super().__init__()
+        self.ports_conf = ports_conf
         self.port = ports_conf.constellation_port
         self.running = True
 
@@ -133,10 +134,10 @@ class ConstellationZMQWorker(QtCore.QObject):
         socket.setsockopt(zmq.RCVTIMEO, 1000)
         try:
             # Subscribe to multiple potential demodulator workers
-            for i in range(10):
+            for i in range(self.ports_conf.constellation_ports_count):
                 socket.connect(f"tcp://127.0.0.1:{self.port + i}")
             socket.setsockopt_string(zmq.SUBSCRIBE, "")
-            logger.info(f"ConstellationZMQWorker connected to ports {self.port} to {self.port + 9}")
+            logger.info(f"ConstellationZMQWorker connected to ports {self.port} to {self.port + self.ports_conf.constellation_ports_count - 1}")
         except Exception as e:
             logger.info(f"ConstellationZMQ Connection Error: {e}")
             return
