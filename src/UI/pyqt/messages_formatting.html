@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>messages</title>
+</head>
+
+<body style="background-color: #252830; font-size: 12px; font-family: 'Segoe UI', 'Inter', sans-serif;">
+    <h3 style="color: #dce4f5;">message sent</h3>
+    <!-- sent_start -->
+    <div
+        style="margin: 6px 0; padding: 8px 10px; background-color: #3c424f; border-right: 5px solid #686d88; border-radius: 4px;box-shadow: 0px 10px 20px #00000033; text-align: right;">
+        <span style="color: #8ba0c4; font-size: 10px; margin-left: 10px;">{freq} &mdash; {date_str}</span>
+        <span style="color: #b8c4da; font-weight: bold; font-size: 12px;">{sender_name}</span>
+        <div style="color: #dce4f5; margin-top: 6px; font-size: 12px; white-space: pre-wrap;">{msg_escaped}</div>
+    </div>
+    <!-- sent_end -->
+
+    <br>
+    <h3 style="color: #dce4f5;">message received</h3>
+    <!-- received_start -->
+    <div
+        style="margin: 6px 0; padding: 8px 10px; background-color: #21416b; border-left: 5px solid #92bfff; border-radius: 4px; box-shadow: 0px 10px 20px #00000033;">
+        <span style="color: #92bfff; font-weight: bold; font-size: 12px;">{sender}</span>
+        <span style="color: #5e92dc; font-size: 10px; margin-left: 10px;">{freq} &mdash; {date_str}</span>
+        <div style="color: #dce4f5; margin-top: 6px; font-size: 12px; white-space: pre-wrap;">{msg_escaped}</div>
+    </div>
+    <!-- received_end -->
+</body>

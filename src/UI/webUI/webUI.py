@@ -85,7 +85,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
     # Constellation Socket
     const_sock = ctx.socket(zmq.SUB)
-    const_sock.connect(f"tcp://127.0.0.1:{ports_conf.constellation_port}")
+    for i in range(10):
+        const_sock.connect(f"tcp://127.0.0.1:{ports_conf.constellation_port + i}")
     const_sock.setsockopt(zmq.SUBSCRIBE, b"")
 
     last_spectro_time = 0.0

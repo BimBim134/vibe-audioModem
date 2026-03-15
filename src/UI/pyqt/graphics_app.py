@@ -132,9 +132,11 @@ class ConstellationZMQWorker(QtCore.QObject):
         socket = context.socket(zmq.SUB)
         socket.setsockopt(zmq.RCVTIMEO, 1000)
         try:
-            socket.connect(f"tcp://127.0.0.1:{self.port}")
+            # Subscribe to multiple potential demodulator workers
+            for i in range(10):
+                socket.connect(f"tcp://127.0.0.1:{self.port + i}")
             socket.setsockopt_string(zmq.SUBSCRIBE, "")
-            logger.info(f"ConstellationZMQWorker connected to port {self.port}")
+            logger.info(f"ConstellationZMQWorker connected to ports {self.port} to {self.port + 9}")
         except Exception as e:
             logger.info(f"ConstellationZMQ Connection Error: {e}")
             return
@@ -297,7 +299,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.constellation_plot = pg.PlotWidget()
             self.constellation_layout.addWidget(self.constellation_plot)
             
-            self.constellation_scatter = pg.ScatterPlotItem(size=3, pen=pg.mkPen(None), brush=pg.mkBrush(137, 180, 250, 200))
+            self.constellation_scatter = pg.ScatterPlotItem(size=1.5, pen=pg.mkPen(None), brush=pg.mkBrush(137, 180, 250, 200))
             self.constellation_plot.addItem(self.constellation_scatter)
             
             # Fixed range, no auto-scale
@@ -317,7 +319,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.constellation_plot.setAspectLocked(True)
 
             # Buffer for points
-            self.const_buffer_size = 512
+            self.const_buffer_size = 128
             self.const_points_i = np.zeros(self.const_buffer_size)
             self.const_points_q = np.zeros(self.const_buffer_size)
 

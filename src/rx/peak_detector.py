@@ -116,10 +116,12 @@ def search_for_incomming_transmission(
 
     # Pre-spawn workers
     logger.info("Pre-spawning %d demodulator workers...", nb_workers)
-    workers = [
-        DemodulatorWorker(i, signal_conf, ports_conf, pkt_conf, constellation)
-        for i in range(nb_workers)
-    ]
+    workers = []
+    for i in range(nb_workers):
+        # Assign unique constellation port for each worker
+        worker_ports = copy.copy(ports_conf)
+        worker_ports.constellation_port = ports_conf.constellation_port + i
+        workers.append(DemodulatorWorker(i, signal_conf, worker_ports, pkt_conf, constellation))
 
     fft_buffer = deque(maxlen=fft_buffer_size)
 
