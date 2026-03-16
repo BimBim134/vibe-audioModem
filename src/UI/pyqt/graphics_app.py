@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 import zmq
 from PySide6 import QtWidgets, QtCore, QtUiTools
@@ -372,113 +373,47 @@ class MainWindow(QtWidgets.QMainWindow):
         self.const_thread.start()
 
     def init_chat_window(self):
-        """Initialize the QWebEngineView with the base HTML and CSS."""
-        html_template = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { 
-                    background-color: #252830; 
-                    font-size: 12px; 
-                    font-family: 'Segoe UI', 'Inter', sans-serif; 
-                    margin: 10px;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .msg-container {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-                .msg {
-                    padding: 8px 10px;
-                    border-radius: 4px;
-                    box-shadow: 0px 5px 15px #00000033;
-                    max-width: 90%;
-                    position: relative;
-                }
-                .sent {
-                    align-self: flex-end;
-                    background-color: #3c424f;
-                    border-right: 5px solid #686d88;
-                    text-align: right;
-                }
-                .received {
-                    align-self: flex-start;
-                    background-color: #21416b;
-                    border-left: 5px solid #92bfff;
-                }
-                .system {
-                    align-self: center;
-                    background-color: #2b2f3a;
-                    border-left: 3px solid #92bfff;
-                    max-width: 100%;
-                    width: 100%;
-                }
-                .header {
-                    display: flex;
-                    justify-content: flex-start;
-                    align-items: baseline;
-                    gap: 8px;
-                    margin-bottom: 4px;
-                }
-                .sent .header {
-                    justify-content: flex-end;
-                    flex-direction: row-reverse;
-                }
-                .sender {
-                    font-weight: bold;
-                    font-size: 12px;
-                }
-                .sent .sender { color: #b8c4da; }
-                .received .sender { color: #92bfff; }
-                .system .sender { color: #92bfff; font-size: 11px; }
-                
-                .meta {
-                    color: #686d88;
-                    font-size: 10px;
-                }
-                .received .meta { color: #5e92dc; }
-                
-                .content {
-                    color: #dce4f5;
-                    font-size: 12px;
-                    white-space: pre-wrap;
-                }
-            </style>
-        </head>
-        <body>
-            <div id="chat-box" class="msg-container"></div>
-            <script>
-                function injectMessage(html) {
-                    const box = document.getElementById('chat-box');
-                    const div = document.createElement('div');
-                    div.innerHTML = html;
-                    // Get the first child which is our actual msg div
-                    const msgDiv = div.firstElementChild;
-                    box.appendChild(msgDiv);
-                    window.scrollTo(0, document.body.scrollHeight);
-                }
-            </script>
-        </body>
-        </html>
-        """
-        self.messages_boards.setHtml(html_template)
+        """Initialize the QWebEngineView with the base HTML, CSS, and JS from external files."""
+        assets_dir = os.path.join(os.path.dirname(__file__), "assets")
+        html_path = os.path.join(assets_dir, "chat_view.html")
+        
+        try:
+            with open(html_path, "r", encoding="utf-8") as f:
+                html_template = f.read()
+            
+            # Use setHtml with base URL so relative paths (css/js) work
+            base_url = QtCore.QUrl.fromLocalFile(assets_dir + os.path.sep)
+            self.messages_boards.setHtml(html_template, base_url)
+            logger.info(f"Loaded chat view assets from {assets_dir}")
+        except Exception as e:
+            logger.error(f"Failed to load chat view assets: {e}")
+            return
         
         # Add welcome message once loaded
         def on_load_finished(ok):
             if ok:
-                self.inject_html_message(
-                    f'<div class="msg system">'
-                    f'<div class="header">'
-                    f'<span class="sender">vibe-audioModem</span>'
-                    f'<span class="meta">système</span>'
-                    f'</div>'
-                    f'<div class="content">Bienvenue sur vibe-audioModem 📡\\nEn attente de transmission...</div>'
-                    f'</div>'
+                self.inject_template_message(
+                    type="system",
+                    sender="vibe-audioModem",
+                    meta="système",
+                    content="Bienvenue sur vibe-audioModem 📡\nEn attente de transmission..."
                 )
         self.messages_boards.loadFinished.connect(on_load_finished)
+
+    def inject_template_message(self, type, sender, meta, content):
+        """Helper to inject a message into the webview using the JS template."""
+        if not self.messages_boards:
+            return
+        # Escape for JS strings
+        import html
+        safe_sender = html.escape(sender).replace("'", "\\'")
+        safe_meta = html.escape(meta).replace("'", "\\'")
+        # For content, we want to preserve newlines for pre-wrap, but escape for JS string
+        safe_content = html.escape(content).replace("'", "\\'").replace("\n", "\\n")
+        
+        js = f"injectTemplate('{type}', '{safe_sender}', '{safe_meta}', '{safe_content}')"
+        logger.debug(f"Injecting template message: {js[:60]}...")
+        self.messages_boards.page().runJavaScript(js)
 
     def inject_html_message(self, html_content):
         """Helper to inject a message into the webview."""
@@ -560,20 +495,12 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             msg_content = str(data)
 
-        import html
-        msg_escaped = html.escape(msg_content)
-        sender_escaped = html.escape(sender)
-
-        html_block = (
-            f'<div class="msg received">'
-            f'<div class="header">'
-            f'<span class="sender">{sender_escaped}</span>'
-            f'<span class="meta">{freq} &mdash; {date_str}</span>'
-            f'</div>'
-            f'<div class="content">{msg_escaped}</div>'
-            f'</div>'
+        self.inject_template_message(
+            type="received",
+            sender=sender,
+            meta=freq + " — " + date_str,
+            content=msg_content
         )
-        self.inject_html_message(html_block)
 
     @QtCore.Slot(np.ndarray)
     def update_plots(self, data):
@@ -622,22 +549,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Display sent message in the UI
         if self.messages_boards:
-            import html
             date_str = datetime.now().strftime("%H:%M:%S")
             freq = f"{self.signal_conf.carrier_freq:.0f} Hz"
-            msg_escaped = html.escape(message_text)
-            sender_escaped = html.escape(sender_name)
             
-            html_block = (
-                f'<div class="msg sent">'
-                f'<div class="header">'
-                f'<span class="sender">{sender_escaped}</span>'
-                f'<span class="meta">{freq} &mdash; {date_str}</span>'
-                f'</div>'
-                f'<div class="content">{msg_escaped}</div>'
-                f'</div>'
+            self.inject_template_message(
+                type="sent",
+                sender=sender_name,
+                meta=freq + " — " + date_str,
+                content=message_text
             )
-            self.inject_html_message(html_block)
         
         # Disable button during transmission to avoid multiple overlapping transmissions
         self.send_button.setEnabled(False)
