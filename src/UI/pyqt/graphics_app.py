@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import zmq
 from PySide6 import QtWidgets, QtCore, QtUiTools
+from PySide6.QtWebEngineWidgets import QWebEngineView
 import pyqtgraph as pg
 
 # Configure PyQtGraph for Dark Theme
@@ -199,6 +200,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Load UI
         loader = QtUiTools.QUiLoader()
+        loader.registerCustomWidget(QWebEngineView)
         ui_file = QtCore.QFile("src/UI/pyqt/main_window.ui")
         if not ui_file.open(QtCore.QFile.ReadOnly):
             logger.info(f"Could not open UI file: {ui_file.errorString()}")
@@ -289,7 +291,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Find and setup UI components
         self.message_edit = self.ui_widget.findChild(QtWidgets.QTextEdit, "MessageEdit")
         self.send_button = self.ui_widget.findChild(QtWidgets.QPushButton, "SendButton")
-        self.messages_boards = self.ui_widget.findChild(QtWidgets.QTextEdit, "MessagesBoards")
+        self.messages_boards = self.ui_widget.findChild(QWebEngineView, "MessagesBoards")
         self.carrier_freq_spin = self.ui_widget.findChild(QtWidgets.QDoubleSpinBox, "CarrierFrequency")
         self.sender_name_edit = self.ui_widget.findChild(QtWidgets.QLineEdit, "senderName")
         self.constellation_placeholder = self.ui_widget.findChild(QtWidgets.QWidget, "constellationDiagramPlaceholder")
@@ -341,6 +343,10 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             logger.info("Warning: SendButton or MessageEdit not found in UI")
 
+        # Initialize Chat Window
+        if self.messages_boards:
+            self.init_chat_window()
+
         # ZMQ Threading for Waterfall/Spectrum
         self.thread = QtCore.QThread()
         self.worker = ZMQWorker(ports_conf=self.ports_conf)
@@ -365,18 +371,123 @@ class MainWindow(QtWidgets.QMainWindow):
         self.const_worker.data_received.connect(self.update_constellation)
         self.const_thread.start()
 
-        # Welcome message
-        if self.messages_boards:
-            welcome_html = (
-                '<div style="margin: 6px 0; padding: 8px 10px; '
-                'background-color: #2b2f3a; border-left: 3px solid #92bfff; border-radius: 4px;">'
-                '<span style="color: #92bfff; font-weight: bold; font-size: 11px;">vibe-audioModem</span>'
-                '<span style="color: #686d88; font-size: 10px; margin-left: 8px;">système</span>'
-                '<div style="color: #dce4f5; margin-top: 4px; font-size: 12px; white-space: pre-wrap;">'
-                'Bienvenue sur vibe-audioModem 📡\nEn attente de transmission...</div>'
-                '</div>'
-            )
-            self.messages_boards.append(welcome_html)
+    def init_chat_window(self):
+        """Initialize the QWebEngineView with the base HTML and CSS."""
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { 
+                    background-color: #252830; 
+                    font-size: 12px; 
+                    font-family: 'Segoe UI', 'Inter', sans-serif; 
+                    margin: 10px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .msg-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                .msg {
+                    padding: 8px 10px;
+                    border-radius: 4px;
+                    box-shadow: 0px 5px 15px #00000033;
+                    max-width: 90%;
+                    position: relative;
+                }
+                .sent {
+                    align-self: flex-end;
+                    background-color: #3c424f;
+                    border-right: 5px solid #686d88;
+                    text-align: right;
+                }
+                .received {
+                    align-self: flex-start;
+                    background-color: #21416b;
+                    border-left: 5px solid #92bfff;
+                }
+                .system {
+                    align-self: center;
+                    background-color: #2b2f3a;
+                    border-left: 3px solid #92bfff;
+                    max-width: 100%;
+                    width: 100%;
+                }
+                .header {
+                    display: flex;
+                    justify-content: flex-start;
+                    align-items: baseline;
+                    gap: 8px;
+                    margin-bottom: 4px;
+                }
+                .sent .header {
+                    justify-content: flex-end;
+                    flex-direction: row-reverse;
+                }
+                .sender {
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                .sent .sender { color: #b8c4da; }
+                .received .sender { color: #92bfff; }
+                .system .sender { color: #92bfff; font-size: 11px; }
+                
+                .meta {
+                    color: #686d88;
+                    font-size: 10px;
+                }
+                .received .meta { color: #5e92dc; }
+                
+                .content {
+                    color: #dce4f5;
+                    font-size: 12px;
+                    white-space: pre-wrap;
+                }
+            </style>
+        </head>
+        <body>
+            <div id="chat-box" class="msg-container"></div>
+            <script>
+                function injectMessage(html) {
+                    const box = document.getElementById('chat-box');
+                    const div = document.createElement('div');
+                    div.innerHTML = html;
+                    // Get the first child which is our actual msg div
+                    const msgDiv = div.firstElementChild;
+                    box.appendChild(msgDiv);
+                    window.scrollTo(0, document.body.scrollHeight);
+                }
+            </script>
+        </body>
+        </html>
+        """
+        self.messages_boards.setHtml(html_template)
+        
+        # Add welcome message once loaded
+        def on_load_finished(ok):
+            if ok:
+                self.inject_html_message(
+                    f'<div class="msg system">'
+                    f'<div class="header">'
+                    f'<span class="sender">vibe-audioModem</span>'
+                    f'<span class="meta">système</span>'
+                    f'</div>'
+                    f'<div class="content">Bienvenue sur vibe-audioModem 📡\\nEn attente de transmission...</div>'
+                    f'</div>'
+                )
+        self.messages_boards.loadFinished.connect(on_load_finished)
+
+    def inject_html_message(self, html_content):
+        """Helper to inject a message into the webview."""
+        if not self.messages_boards:
+            return
+        # Escape single quotes for JS
+        safe_html = html_content.replace("'", "\\'")
+        logger.debug(f"Injecting HTML message: {safe_html[:50]}...")
+        self.messages_boards.page().runJavaScript(f"injectMessage('{safe_html}')")
 
     @QtCore.Slot(np.ndarray)
     def update_constellation(self, data):
@@ -451,16 +562,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
         import html
         msg_escaped = html.escape(msg_content)
+        sender_escaped = html.escape(sender)
 
         html_block = (
-            f'<div style="margin: 6px 0; padding: 8px 10px; '
-            f'background-color: #2b2f3a; border-left: 3px solid #92bfff; border-radius: 4px;">'
-            f'<span style="color: #92bfff; font-weight: bold; font-size: 11px;">{html.escape(sender)}</span>'
-            f'<span style="color: #686d88; font-size: 10px; margin-left: 8px;">{freq} &mdash; {date_str}</span>'
-            f'<div style="color: #dce4f5; margin-top: 4px; font-size: 12px; white-space: pre-wrap;">{msg_escaped}</div>'
+            f'<div class="msg received">'
+            f'<div class="header">'
+            f'<span class="sender">{sender_escaped}</span>'
+            f'<span class="meta">{freq} &mdash; {date_str}</span>'
+            f'</div>'
+            f'<div class="content">{msg_escaped}</div>'
             f'</div>'
         )
-        self.messages_boards.append(html_block)
+        self.inject_html_message(html_block)
 
     @QtCore.Slot(np.ndarray)
     def update_plots(self, data):
@@ -513,15 +626,18 @@ class MainWindow(QtWidgets.QMainWindow):
             date_str = datetime.now().strftime("%H:%M:%S")
             freq = f"{self.signal_conf.carrier_freq:.0f} Hz"
             msg_escaped = html.escape(message_text)
+            sender_escaped = html.escape(sender_name)
+            
             html_block = (
-                f'<div style="margin: 6px 0; padding: 8px 10px; '
-                f'background-color: #252830; border-left: 3px solid #686d88; border-radius: 4px;">'
-                f'<span style="color: #b8c4da; font-weight: bold; font-size: 11px;">{html.escape(sender_name)}</span>'
-                f'<span style="color: #686d88; font-size: 10px; margin-left: 8px;">{freq} &mdash; {date_str}</span>'
-                f'<div style="color: #dce4f5; margin-top: 4px; font-size: 12px; white-space: pre-wrap;">{msg_escaped}</div>'
+                f'<div class="msg sent">'
+                f'<div class="header">'
+                f'<span class="sender">{sender_escaped}</span>'
+                f'<span class="meta">{freq} &mdash; {date_str}</span>'
+                f'</div>'
+                f'<div class="content">{msg_escaped}</div>'
                 f'</div>'
             )
-            self.messages_boards.append(html_block)
+            self.inject_html_message(html_block)
         
         # Disable button during transmission to avoid multiple overlapping transmissions
         self.send_button.setEnabled(False)
