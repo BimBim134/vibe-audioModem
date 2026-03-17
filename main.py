@@ -39,7 +39,7 @@ AUDIO_INTERFACE_FROM_FILE = {
         "signal_conf": DEFAULT_SIGNAL_CONFIG,
         "ports_conf": DEFAULT_PORTS_CONFIG,
         "stop_event": STOP_EVENT,
-        "file": "research/ultimate_test.wav",
+        "file": "research/test.wav",
         "start_delay" : 10.0
     },
     "name": "TestAudioInterfaceProcess",

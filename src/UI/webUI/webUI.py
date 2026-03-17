@@ -46,6 +46,9 @@ pkt_conf = DEFAULT_PACKET_CONFIG
 ctx = zmq.Context()
 config_pub_socket = None
 
+# Shutdown event for graceful WebSocket closure
+shutdown_event = None
+
 # 1. On lit le fichier HTML depuis le dossier assets
 current_dir = os.path.dirname(os.path.abspath(__file__))
 index_path = os.path.join(current_dir, "assets", "index.html")
@@ -185,7 +188,7 @@ async def transmit_message(request: Request):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global ports_conf
+    global shutdown_event
     await websocket.accept()
     logger.info("Client web connecté.")
 
@@ -207,7 +210,14 @@ async def websocket_endpoint(websocket: WebSocket):
         nonlocal last_spectro_time
         try:
             while True:
-                raw_data = await fft_sock.recv()
+                if shutdown_event and shutdown_event.is_set():
+                    break
+                try:
+                    raw_data = await asyncio.wait_for(fft_sock.recv(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                except asyncio.CancelledError:
+                    break
                 mag_array = np.frombuffer(raw_data, dtype=np.float32)
 
                 if len(mag_array) != ports_conf.fft_size:
@@ -234,7 +244,14 @@ async def websocket_endpoint(websocket: WebSocket):
     async def message_handler():
         try:
             while True:
-                raw_data = await msg_sock.recv()
+                if shutdown_event and shutdown_event.is_set():
+                    break
+                try:
+                    raw_data = await asyncio.wait_for(msg_sock.recv(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                except asyncio.CancelledError:
+                    break
                 # Deserialize PMT message
                 try:
                     payload = pmt.to_python(pmt.deserialize_str(raw_data))
@@ -250,7 +267,14 @@ async def websocket_endpoint(websocket: WebSocket):
     async def sender():
         try:
             while True:
-                data = await websocket.receive_bytes()
+                if shutdown_event and shutdown_event.is_set():
+                    break
+                try:
+                    data = await asyncio.wait_for(websocket.receive_bytes(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                except asyncio.CancelledError:
+                    break
                 # Handle incoming binary data if needed
                 # Currently we use HTTP for sending, but could add WebSocket support
         except Exception as e:
@@ -267,7 +291,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 def start_dashboard(stop_event=None):
     """Lancement du serveur."""
-    global config_pub_socket
+    global config_pub_socket, shutdown_event
     
     # Initialize config publisher
     config_pub_socket = ctx.socket(zmq.PUB)
@@ -283,15 +307,23 @@ def start_dashboard(stop_event=None):
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
 
+    shutdown_event = asyncio.Event()
+
     if stop_event is not None:
         def monitor_stop_event():
             stop_event.wait()
             logger.info("WebUI: stop_event received, initiating shutdown")
+            shutdown_event.set()
             server.should_exit = True
         monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
         monitor_thread.start()
 
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        logger.info("WebUI: KeyboardInterrupt received, shutting down")
+        shutdown_event.set()
+        server.should_exit = True
 
 
 if __name__ == "__main__":

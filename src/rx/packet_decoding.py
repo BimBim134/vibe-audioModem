@@ -1,6 +1,7 @@
 import zmq
 import logging
 import pmt
+import base64
 
 from reedsolo import ReedSolomonError
 import numpy as np
@@ -152,6 +153,9 @@ def listen_for_packets(
                         logger.info(f"Message from {sender_name}: {message_str}")
                         
                         # Forward the original result dict as a PMT message
+                        # Convert numpy array to base64 string for JSON serialization
+                        if isinstance(result.get("data"), np.ndarray):
+                            result["data"] = base64.b64encode(result["data"].tobytes()).decode('utf-8')
                         msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
                 else:
                     logger.debug(

@@ -90,8 +90,8 @@ class AudioInterface(gr.top_block):
 
 
 def start_audio_interface(
-        signal_conf:SignalConfig=DEFAULT_SIGNAL_CONFIG,
-        ports_conf:PortsConfig=DEFAULT_PORTS_CONFIG,
+        signal_conf,
+        ports_conf,
         file: str|Path=None,
         stop_event=None,
         start_delay:float=10
@@ -102,39 +102,48 @@ def start_audio_interface(
         sig (SignalConfig): signal configuration (mainly to get samplerate)
         fft_size (int, optional): fft windows size. Defaults to 2028.
     """
-    tb = AudioInterface(signal_conf, ports_conf, file)
-    logger.info("audio interface initialized")
+    try:
+        tb = AudioInterface(signal_conf, ports_conf, file)
+        logger.info("audio interface initialized")
 
-    logger.info(f"Waiting {start_delay} seconds before starting")
-    time.sleep(start_delay)
+        logger.info(f"Waiting {start_delay} seconds before starting")
+        remaining = start_delay
+        while remaining > 0:
+            if stop_event is not None and stop_event.is_set():
+                logger.info("stop_event set during startup delay, aborting")
+                return
+            time.sleep(min(1, remaining))
+            remaining -= 1
 
-    def sig_handler(sig=None, frame=None):
-        logger.info("SIGINT/SIGTERM received")
-        tb.stop()
+        def sig_handler(sig=None, frame=None):
+            logger.info("SIGINT/SIGTERM received")
+            tb.stop()
+            tb.wait()
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, sig_handler)
+        signal.signal(signal.SIGTERM, sig_handler)
+
+        if stop_event is not None:
+            def monitor_stop_event():
+                while True:
+                    if stop_event.is_set():
+                        logger.info("stop_event set, stopping flowgraph")
+                        tb.stop()
+                        break
+                    time.sleep(0.1)
+            
+            monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
+            monitor_thread.start()
+
+        tb.start()
+        logger.info("audio interface started")
+        tb.flowgraph_started.set()
+
         tb.wait()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, sig_handler)
-    signal.signal(signal.SIGTERM, sig_handler)
-
-    if stop_event is not None:
-        def monitor_stop_event():
-            while True:
-                if stop_event.is_set():
-                    logger.info("stop_event set, stopping flowgraph")
-                    tb.stop()
-                    break
-                time.sleep(0.1)
-        
-        monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
-        monitor_thread.start()
-
-    tb.start()
-    logger.info("audio interface started")
-    tb.flowgraph_started.set()
-
-    tb.wait()
-    logger.info("audio interface stopped")
+        logger.info("audio interface stopped")
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received, shutting down gracefully")
 
 if __name__ == "__main__":
     pass

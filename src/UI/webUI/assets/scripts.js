@@ -212,12 +212,18 @@ function displayReceivedMessage(payload) {
   
   let content;
   if (payload.data) {
-    if (payload.data instanceof Uint8Array) {
-      // Convert bytes to string
+    if (typeof payload.data === "string") {
+      // Base64 encoded bytes - decode them
+      try {
+        const bytes = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
+        content = new TextDecoder().decode(bytes);
+      } catch (e) {
+        content = payload.data;
+      }
+    } else if (payload.data instanceof Uint8Array || Array.isArray(payload.data)) {
+      // Convert bytes/array to string
       const bytes = new Uint8Array(payload.data);
       content = new TextDecoder().decode(bytes);
-    } else if (typeof payload.data === "string") {
-      content = payload.data;
     } else {
       content = JSON.stringify(payload.data);
     }
