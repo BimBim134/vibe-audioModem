@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>SDR Web Display</title>
+    <title>SDR Web Display - Vibe Audio Modem</title>
     <link rel="stylesheet" href="https://unpkg.com/uplot/dist/uPlot.min.css">
     <script src="https://unpkg.com/uplot/dist/uPlot.iife.min.js"></script>
     <link rel="stylesheet" href="stylesheet.css">
@@ -11,10 +11,61 @@
 
 <body>
     <div class="container">
-        <h2>Spectroscope</h2>
-        <div id="spectroscope-div"></div>
-        <h2>Spectrogramme</h2>
-        <canvas id="spectrogram-canvas" width="4096" height="300"></canvas>
+        <header>
+            <h1>Vibe Audio Modem - Signal Debugger</h1>
+        </header>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="carrier-freq">Carrier Frequency (Hz):</label>
+                <input type="number" id="carrier-freq" value="1000" min="100" max="8000" step="100">
+            </div>
+            
+            <div class="control-group">
+                <label for="modulation-preset">Modulation:</label>
+                <select id="modulation-preset">
+                    <option value="SLOW">SLOW (Robuste)</option>
+                    <option value="MEDIUM" selected>MEDIUM (Balanced)</option>
+                    <option value="FAST">FAST (Rapide)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="sender-name">Sender Name:</label>
+                <input type="text" id="sender-name" value="Me" maxlength="20">
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="plots-section">
+                <div class="plot-container">
+                    <h2>Spectroscope</h2>
+                    <div id="spectroscope-div"></div>
+                </div>
+                
+                <div class="plot-container">
+                    <h2>Spectrogramme</h2>
+                    <canvas id="spectrogram-canvas" width="4096" height="300"></canvas>
+                </div>
+            </div>
+            
+            <div class="messages-section">
+                <div class="messages-board" id="messages-board">
+                    <div class="message system">
+                        <div class="message-header">
+                            <span class="sender">vibe-audioModem</span>
+                            <span class="meta">système</span>
+                        </div>
+                        <div class="message-content">Bienvenue sur vibe-audioModem 📡 En attente de transmission...</div>
+                    </div>
+                </div>
+                
+                <div class="compose-area">
+                    <textarea id="message-input" placeholder="Tapez votre message..." rows="3"></textarea>
+                    <button id="send-button">Envoyer</button>
+                </div>
+            </div>
+        </div>
     </div>
     <script src="scripts.js"></script>
 </body>

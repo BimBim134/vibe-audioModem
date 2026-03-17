@@ -140,9 +140,9 @@ def main(test: bool = False, ui: bool = False):
 
         process_configs = [
             AUDIO_INTERFACE_FROM_FILE if test else AUDIO_INTERFACE,
-            # WEB_UI,
+            WEB_UI,
             # QT_DEBUGGER,
-            QT_GRAPHICS_APP,
+            # QT_GRAPHICS_APP,
             PEAK_DETECTOR,
             PACKET_DECODER,
         ]

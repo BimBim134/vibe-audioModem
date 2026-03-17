@@ -40,6 +40,7 @@ window.addEventListener("resize", () => {
   });
 });
 
+// WebSocket connection
 const ws = new WebSocket(`ws://${location.host}/ws`);
 ws.binaryType = "arraybuffer";
 
@@ -49,7 +50,7 @@ ws.onmessage = (event) => {
   const prefix = view.getUint8(0);
 
   if (prefix === 1) {
-    // SCOPE (Vert)
+    // SCOPE (FFT spectrum in dB)
     const data = new Float32Array(buffer.slice(1));
     if (data.length !== FFT_SIZE) {
       FFT_SIZE = data.length;
@@ -62,15 +63,15 @@ ws.onmessage = (event) => {
     }
     spectroChart.setData([xData, data]);
   } else if (prefix === 2) {
-    // WATERFALL (Niveaux de gris)
+    // WATERFALL (Grayscale)
     const intensities = new Uint8Array(buffer, 1);
     const w = canvas.width;
     const h = canvas.height;
 
-    // On décale tout vers le bas
+    // Shift everything down
     ctx.drawImage(canvas, 0, 0, w, h - 1, 0, 1, w, h - 1);
 
-    // On dessine la nouvelle ligne en haut
+    // Draw new line at top
     const imgData = ctx.createImageData(w, 1);
     for (let i = 0; i < w; i++) {
       const v = intensities[i];
@@ -81,5 +82,158 @@ ws.onmessage = (event) => {
       imgData.data[idx + 3] = 255;
     }
     ctx.putImageData(imgData, 0, 0);
+  } else if (prefix === 4) {
+    // MESSAGE (Received message JSON)
+    const msgStr = new TextDecoder().decode(buffer.slice(1));
+    try {
+        const payload = JSON.parse(msgStr);
+        displayReceivedMessage(payload);
+    } catch (e) {
+        console.error("Failed to parse message:", e);
+    }
   }
 };
+
+// DOM Elements
+const carrierFreqInput = document.getElementById("carrier-freq");
+const modulationSelect = document.getElementById("modulation-preset");
+const senderNameInput = document.getElementById("sender-name");
+const messageInput = document.getElementById("message-input");
+const sendButton = document.getElementById("send-button");
+const messagesBoard = document.getElementById("messages-board");
+
+// Load initial config
+fetch("/api/config")
+  .then(res => res.json())
+  .then(config => {
+    carrierFreqInput.value = config.carrier_freq;
+    modulationSelect.value = config.modulation_preset;
+  })
+  .catch(err => console.error("Failed to load config:", err));
+
+// Carrier frequency change
+carrierFreqInput.addEventListener("change", async () => {
+  const carrierFreq = parseFloat(carrierFreqInput.value);
+  try {
+    await fetch("/api/carrier_freq", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ carrier_freq: carrierFreq })
+    });
+  } catch (err) {
+    console.error("Failed to update carrier frequency:", err);
+  }
+});
+
+// Modulation preset change
+modulationSelect.addEventListener("change", async () => {
+  const preset = modulationSelect.value;
+  try {
+    await fetch("/api/modulation_preset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preset: preset })
+    });
+  } catch (err) {
+    console.error("Failed to update modulation preset:", err);
+  }
+});
+
+// Send message
+async function sendMessage() {
+  const message = messageInput.value.trim();
+  if (!message) return;
+  
+  const senderName = senderNameInput.value || "Me";
+  
+  // Disable button during send
+  sendButton.disabled = true;
+  
+  try {
+    const response = await fetch("/api/transmit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: message,
+        sender_name: senderName
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === "ok") {
+      // Display sent message
+      displaySentMessage(result.message, result.sender, result.meta);
+      messageInput.value = "";
+    } else {
+      console.error("Transmission failed:", result.message);
+    }
+  } catch (err) {
+    console.error("Failed to send message:", err);
+  } finally {
+    sendButton.disabled = false;
+  }
+}
+
+sendButton.addEventListener("click", sendMessage);
+messageInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// Display functions
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function displaySentMessage(content, sender, meta) {
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "message sent";
+  msgDiv.innerHTML = `
+    <div class="message-header">
+      <span class="sender">${escapeHtml(sender)}</span>
+      <span class="meta">${escapeHtml(meta)}</span>
+    </div>
+    <div class="message-content">${escapeHtml(content)}</div>
+  `;
+  messagesBoard.appendChild(msgDiv);
+  messagesBoard.scrollTop = messagesBoard.scrollHeight;
+}
+
+function displayReceivedMessage(payload) {
+  const sender = payload.sender_name || "unknown";
+  const carrierFreq = payload.carrier_freq;
+  const freq = carrierFreq ? `${carrierFreq.toFixed(0)} Hz` : "RX";
+  const dateStr = new Date().toLocaleTimeString("fr-FR");
+  
+  let content;
+  if (payload.data) {
+    if (payload.data instanceof Uint8Array) {
+      // Convert bytes to string
+      const bytes = new Uint8Array(payload.data);
+      content = new TextDecoder().decode(bytes);
+    } else if (typeof payload.data === "string") {
+      content = payload.data;
+    } else {
+      content = JSON.stringify(payload.data);
+    }
+  } else {
+    content = "Message reçu";
+  }
+  
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "message received";
+  msgDiv.innerHTML = `
+    <div class="message-header">
+      <span class="sender">${escapeHtml(sender)}</span>
+      <span class="meta">${freq} — ${dateStr}</span>
+    </div>
+    <div class="message-content">${escapeHtml(content)}</div>
+  `;
+  messagesBoard.appendChild(msgDiv);
+  messagesBoard.scrollTop = messagesBoard.scrollHeight;
+}
