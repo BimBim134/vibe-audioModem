@@ -2,6 +2,25 @@ let FFT_SIZE = 4096;
 let xData = new Float32Array(FFT_SIZE);
 for (let i = 0; i < FFT_SIZE; i++) xData[i] = i;
 
+const rootStyles = getComputedStyle(document.documentElement);
+const colors = {
+  accentPrimary: rootStyles.getPropertyValue("--color-accent-primary").trim(),
+  textMuted: rootStyles.getPropertyValue("--color-text-muted").trim(),
+  bgPrimary: rootStyles.getPropertyValue("--color-bg-primary").trim(),
+};
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16),
+  } : { r: 0, g: 0, b: 0 };
+}
+
+const bgRgb = hexToRgb(colors.bgPrimary);
+const accentRgb = hexToRgb(colors.accentPrimary);
+
 const uplotOpts = {
   width: document.getElementById("spectroscope-div").clientWidth || 1000,
   height: 250,
@@ -9,16 +28,16 @@ const uplotOpts = {
     x: { time: false },
     y: { range: [-80, 80] },
   },
-  series: [{}, { stroke: "#00ff00", width: 1 }],
+  series: [{}, { stroke: colors.accentPrimary, width: 1 }],
   axes: [
     {
-      stroke: "#ccc",
+      stroke: colors.textMuted,
       values: (self, ticks) =>
         ticks.map((v) =>
           v >= 1000 ? (v / 1000).toFixed(1) + " kHz" : v + " Hz",
         ),
     },
-    { stroke: "#ccc", values: (self, ticks) => ticks.map((v) => v + " dB") },
+    { stroke: colors.textMuted, values: (self, ticks) => ticks.map((v) => v + " dB") },
   ],
 };
 
@@ -30,7 +49,7 @@ const spectroChart = new uPlot(
 
 const canvas = document.getElementById("spectrogram-canvas");
 const ctx = canvas.getContext("2d", { willReadFrequently: true });
-ctx.fillStyle = "#000000";
+ctx.fillStyle = colors.bgPrimary;
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 window.addEventListener("resize", () => {
@@ -63,22 +82,20 @@ ws.onmessage = (event) => {
     }
     spectroChart.setData([xData, data]);
   } else if (prefix === 2) {
-    // WATERFALL (Grayscale)
+    // WATERFALL (Color gradient)
     const intensities = new Uint8Array(buffer, 1);
     const w = canvas.width;
     const h = canvas.height;
 
-    // Shift everything down
     ctx.drawImage(canvas, 0, 0, w, h - 1, 0, 1, w, h - 1);
 
-    // Draw new line at top
     const imgData = ctx.createImageData(w, 1);
     for (let i = 0; i < w; i++) {
-      const v = intensities[i];
+      const v = intensities[i] / 255;
       const idx = i * 4;
-      imgData.data[idx] = v; // R
-      imgData.data[idx + 1] = v; // G
-      imgData.data[idx + 2] = v; // B
+      imgData.data[idx] = Math.round(bgRgb.r + (accentRgb.r - bgRgb.r) * v);
+      imgData.data[idx + 1] = Math.round(bgRgb.g + (accentRgb.g - bgRgb.g) * v);
+      imgData.data[idx + 2] = Math.round(bgRgb.b + (accentRgb.b - bgRgb.b) * v);
       imgData.data[idx + 3] = 255;
     }
     ctx.putImageData(imgData, 0, 0);
