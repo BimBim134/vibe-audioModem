@@ -9,7 +9,7 @@
     --color-text-muted: #6c7086;
 
     --color-accent-primary: #89b4fa;
-    --color-accent-secondary: #b4befe;
+    --color-accent-secondary: #a2c5ff;
     --color-accent-success: #a6e3a1;
 
     --color-border: #333;
@@ -157,8 +157,9 @@ canvas {
 
 .message {
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 15px;
     animation: fadeIn 0.5s ease;
+    box-shadow: #00000035 0px 10px 30px;
 }
 
 @keyframes fadeIn {
@@ -168,12 +169,14 @@ canvas {
 
 .message.sent {
     background-color: var(--color-bg-message);
-    margin-left: 40px;
+    margin-left: 20%;
+    border-bottom-right-radius: 0px;
 }
 
 .message.received {
     background-color: var(--color-bg-message);
-    margin-right: 40px;
+    margin-right: 20%;
+    border-bottom-left-radius: 0px;
 }
 
 .message.system {
@@ -184,7 +187,7 @@ canvas {
 
 .message-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between  ;
     margin-bottom: 5px;
     font-size: 0.8rem;
 }
