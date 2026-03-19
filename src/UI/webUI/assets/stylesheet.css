@@ -29,30 +29,24 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
-}
-
-header {
-    text-align: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 15px;
-}
-
-header h1 {
-    color: var(--color-accent-primary);
-    margin: 0;
-    font-size: 1.8rem;
-}
-
-/* Controls Section */
-.controls {
     display: flex;
+    flex-direction: column;
     gap: 20px;
-    flex-wrap: wrap;
+}
+
+/* Module Base Styles */
+.module {
     margin-bottom: 20px;
     padding: 15px;
     background-color: var(--color-bg-secondary);
     border-radius: 8px;
+}
+
+/* Controls Section */
+.module.controls {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 .control-group {
@@ -82,55 +76,53 @@ header h1 {
     border-color: var(--color-accent-primary);
 }
 
-/* Main Content Layout */
-.main-content {
-    display: grid;
-    grid-template-columns: 1fr 800px;
-    gap: 20px;
+/* Spectroscope Section */
+.module.spectroscope {
+    height: calc(50vh - 100px);
+    min-height: 200px;
+    box-sizing: border-box;
 }
 
-@media (max-width: 1000px) {
-    .main-content {
-        grid-template-columns: 1fr;
-    }
+/* Spectrogram Section */
+.module.spectrogram {
+    height: calc(50vh - 100px);
+    min-height: 200px;
+    box-sizing: border-box;
 }
 
-/* Plots Section */
-.plots-section {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    height: calc(80vh - 200px);
-}
-
-.plot-container {
+.module.spectroscope .plot-container,
+.module.spectrogram .plot-container {
     background-color: var(--color-bg-secondary);
-    padding: 15px;
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-    min-height: 150px;
-}
-
-.plot-container:last-child {
-    flex: 1;
-    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 #spectroscope-div {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
 }
 
-canvas {
+#spectroscope-div > * {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+#spectrogram-canvas {
+    flex: 1;
     display: block;
     width: 100%;
     height: 100%;
     border: 1px solid var(--color-border);
+    box-sizing: border-box;
 }
 
 /* Messages Section */
-.messages-section {
+.module.messages {
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -138,7 +130,7 @@ canvas {
     min-height: 400px;
 }
 
-.messages-board {
+.module.messages .messages-board {
     flex: 1;
     background-color: var(--color-bg-secondary);
     border-radius: 8px;
@@ -157,8 +149,15 @@ canvas {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message.sent {
@@ -181,7 +180,7 @@ canvas {
 
 .message-header {
     display: flex;
-    justify-content: space-between  ;
+    justify-content: space-between;
     margin-bottom: 5px;
     font-size: 0.8rem;
 }
@@ -205,16 +204,13 @@ canvas {
 }
 
 /* Compose Area */
-.compose-area {
+.module.compose {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 15px;
-    background-color: var(--color-bg-secondary);
-    border-radius: 8px;
 }
 
-.compose-area textarea {
+.module.compose textarea {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--color-border);
@@ -226,12 +222,12 @@ canvas {
     box-sizing: border-box;
 }
 
-.compose-area textarea:focus {
+.module.compose textarea:focus {
     outline: none;
     border-color: var(--color-accent-primary);
 }
 
-.compose-area button {
+.module.compose button {
     padding: 10px 20px;
     background-color: var(--color-accent-primary);
     color: var(--color-bg-primary);
@@ -242,29 +238,29 @@ canvas {
     transition: background-color 0.2s;
 }
 
-.compose-area button:hover {
+.module.compose button:hover {
     background-color: var(--color-accent-secondary);
 }
 
-.compose-area button:disabled {
+.module.compose button:disabled {
     background-color: var(--color-scrollbar);
     cursor: not-allowed;
 }
 
 /* Scrollbar styling */
-.messages-board::-webkit-scrollbar {
+.module.messages .messages-board::-webkit-scrollbar {
     width: 8px;
 }
 
-.messages-board::-webkit-scrollbar-track {
+.module.messages .messages-board::-webkit-scrollbar-track {
     background: var(--color-bg-tertiary);
 }
 
-.messages-board::-webkit-scrollbar-thumb {
+.module.messages .messages-board::-webkit-scrollbar-thumb {
     background: var(--color-scrollbar);
     border-radius: 4px;
 }
 
-.messages-board::-webkit-scrollbar-thumb:hover {
+.module.messages .messages-board::-webkit-scrollbar-thumb:hover {
     background: var(--color-scrollbar-hover);
 }
