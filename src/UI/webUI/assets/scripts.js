@@ -244,7 +244,6 @@ function displayReceivedMessage(payload) {
   let content;
   if (payload.data) {
     if (typeof payload.data === "string") {
-      // Base64 encoded bytes - decode them
       try {
         const bytes = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
         content = new TextDecoder().decode(bytes);
@@ -252,7 +251,6 @@ function displayReceivedMessage(payload) {
         content = payload.data;
       }
     } else if (payload.data instanceof Uint8Array || Array.isArray(payload.data)) {
-      // Convert bytes/array to string
       const bytes = new Uint8Array(payload.data);
       content = new TextDecoder().decode(bytes);
     } else {
@@ -271,6 +269,14 @@ function displayReceivedMessage(payload) {
     </div>
     <div class="message-content">${escapeHtml(content)}</div>
   `;
+  messagesBoard.appendChild(msgDiv);
+  messagesBoard.scrollTop = messagesBoard.scrollHeight;
+}
+
+function displaySystemMessage(content) {
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "message system";
+  msgDiv.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
   messagesBoard.appendChild(msgDiv);
   messagesBoard.scrollTop = messagesBoard.scrollHeight;
 }
