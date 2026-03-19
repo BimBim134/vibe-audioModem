@@ -47,11 +47,16 @@ class DemodulatorWorker:
         self.state = "initializing"  # initializing, ready, running
         self.missed_frames = 0
 
-    def start_tuning(self, freq, preset):
+    def start_tuning(self, freq, preset, system_pub_socket=None):
         self.active_freq = freq
         self.state = "running"
         self.missed_frames = 0
         self.command_queue.put({"action": "start", "freq": freq, "preset": preset})
+        if system_pub_socket:
+            try:
+                system_pub_socket.send_string(f"Demodulator {self.worker_id} started at {freq:.0f} Hz")
+            except Exception as e:
+                logger.error(f"Failed to send demodulator launched message: {e}")
 
     def stop_tuning(self):
         logger.info(
@@ -111,6 +116,18 @@ def search_for_incomming_transmission(
 
     logger.info(f"peak detector subscribed to fft on port {ports_conf.fft_port}")
 
+    # Socket for receiving system messages from packet_decoding
+    system_sub_socket = context.socket(zmq.SUB)
+    system_sub_socket.connect(f"tcp://127.0.0.1:{ports_conf.system_messages_port}")
+    system_sub_socket.setsockopt(zmq.SUBSCRIBE, b"")
+
+    # Socket for forwarding system messages from packet_decoding to web UI
+    system_pub_socket = context.socket(zmq.PUB)
+    system_pub_socket.bind(f"tcp://*:{ports_conf.peak_detector_system_port}")
+
+    poller.register(system_sub_socket, zmq.POLLIN)
+    logger.info(f"peak detector forwarding system messages on port {ports_conf.peak_detector_system_port}")
+
     half_size = ports_conf.fft_size // 2
     freq_resolution = signal_conf.samp_rate / ports_conf.fft_size
 
@@ -128,6 +145,14 @@ def search_for_incomming_transmission(
     try:
         while not stop_event.is_set():
             socks = dict(poller.poll(100))
+
+            # Forward system messages from packet_decoding
+            if system_sub_socket in socks and socks[system_sub_socket] == zmq.POLLIN:
+                try:
+                    msg = system_sub_socket.recv_string(flags=zmq.NOBLOCK)
+                    system_pub_socket.send_string(msg)
+                except zmq.Again:
+                    pass
 
             if config_socket in socks and socks[config_socket] == zmq.POLLIN:
                 try:
@@ -210,7 +235,7 @@ def search_for_incomming_transmission(
                                     pf,
                                     worker.worker_id,
                                 )
-                                worker.start_tuning(pf, signal_conf.modulation_preset)
+                                worker.start_tuning(pf, signal_conf.modulation_preset, system_pub_socket)
                                 break
 
     except KeyboardInterrupt:
@@ -222,6 +247,8 @@ def search_for_incomming_transmission(
         logger.info("Peak detector: closing socket and context")
         config_socket.close()
         socket.close()
+        system_sub_socket.close()
+        system_pub_socket.close()
         context.term()
 
 

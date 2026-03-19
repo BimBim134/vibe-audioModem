@@ -122,6 +122,10 @@ ws.onmessage = (event) => {
     } catch (e) {
         console.error("Failed to parse message:", e);
     }
+  } else if (prefix === 3) {
+    // SYSTEM MESSAGE
+    const sysMsg = new TextDecoder().decode(buffer.slice(1));
+    displaySystemMessage(sysMsg);
   }
 };
 

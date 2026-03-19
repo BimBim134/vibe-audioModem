@@ -34,7 +34,7 @@ class PacketReassembler:
             self.reset()
             self.frequency = frequency
             self.state = "COLLECTING"
-            return "preamble"
+            return ("preamble", frequency)
         elif packet_len == 255:
             if self.state == "COLLECTING":
                 logger.info(f"Postamble detected, reassembling {len(self.buffer)} bytes")
@@ -46,27 +46,26 @@ class PacketReassembler:
                     if isinstance(raw_payload, dict):
                         raw_payload["carrier_freq"] = self.frequency
                     self.reset()
-                    return raw_payload
+                    return (raw_payload, frequency)
                 except Exception as e:
                     logger.error(f"Failed to deserialize reassembled PMT: {e}")
-                    # Log first few bytes to debug deserialization
                     logger.debug(f"Buffer start: {self.buffer[:20].hex()}")
                     self.reset()
-                    return "deserialization error"
-            return "postamble"
+                    return ("deserialization error", frequency)
+            return ("postamble", frequency)
         else:
             if self.state == "COLLECTING":
                 self.buffer.extend(decoded_payload[1 : packet_len + 1])
-                return "collecting"
+                return ("collecting", len(self.buffer))
             else:
                 logger.debug(f"Discarding data packet while in state {self.state}")
-                return "unexpected data"
+                return ("unexpected data", None)
 
 
 # Per-demodulator reassemblers
 reassemblers = {}
 
-def decode_packet(payload: list, pkt: PacketConfig):
+def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
     """
     Decodes a single raw packet and routes it to the appropriate reassembler.
 
@@ -77,6 +76,7 @@ def decode_packet(payload: list, pkt: PacketConfig):
         payload (list): A list containing metadata and raw bytes:
             [{"demodulator_id": str, ...}, np.ndarray]
         pkt (PacketConfig): Configuration object containing the RS codec.
+        system_pub_socket: Optional ZMQ PUB socket for sending system messages to web UI.
 
     Returns:
         Union[dict, str]: 
@@ -99,9 +99,30 @@ def decode_packet(payload: list, pkt: PacketConfig):
     except ReedSolomonError:
         logger.error(f"Data corrupted for demodulator {demod_id}")
         reassembler.reset()
+        if system_pub_socket:
+            publish_system_message(system_pub_socket, f"Reed-Solomon error — data corrupted at {carrier_freq:.0f} Hz")
         return "data corrupted"
 
-    return reassembler.process_packet(decoded_payload, carrier_freq)
+    result, info = reassembler.process_packet(decoded_payload, carrier_freq)
+    
+    if system_pub_socket:
+        freq_str = f"{carrier_freq:.0f} Hz"
+        if result == "preamble":
+            publish_system_message(system_pub_socket, f"Preamble detected at {freq_str}")
+        elif result == "collecting":
+            publish_system_message(system_pub_socket, f"Acquiring data — {info} bytes received")
+        elif result == "deserialization error":
+            publish_system_message(system_pub_socket, f"Deserialization error at {freq_str}")
+    
+    return result
+
+
+def publish_system_message(socket, message):
+    """Send a system message to the web UI via ZMQ PUB."""
+    try:
+        socket.send_string(message)
+    except Exception as e:
+        logger.error(f"Failed to send system message: {e}")
 
 
 def listen_for_packets(
@@ -122,11 +143,18 @@ def listen_for_packets(
     msg_pub_socket = context.socket(zmq.PUB)
     msg_pub_socket.bind(f"tcp://*:{ports_conf.messages_port}")
 
+    # Socket for system messages to the web UI
+    system_pub_socket = context.socket(zmq.PUB)
+    system_pub_socket.bind(f"tcp://*:{ports_conf.system_messages_port}")
+
     logger.info(
         f"Packet decoder listening for packets (binding) on port {ports_conf.raw_packets_port}"
     )
     logger.info(
         f"Packet decoder publishing reassembled messages on port {ports_conf.messages_port}"
+    )
+    logger.info(
+        f"Packet decoder publishing system messages on port {ports_conf.system_messages_port}"
     )
 
     try:
@@ -135,7 +163,7 @@ def listen_for_packets(
                 received = socket.recv()
                 logger.debug(f"ZMQ received {len(received)} bytes")
                 payload = pmt.to_python(pmt.deserialize_str(received))
-                result = decode_packet(payload, pkt_conf)
+                result = decode_packet(payload, pkt_conf, system_pub_socket)
                 
                 if isinstance(result, dict):
                     logger.info(
@@ -174,6 +202,7 @@ def listen_for_packets(
         logger.info("Packet decoder: closing sockets and context")
         socket.close()
         msg_pub_socket.close()
+        system_pub_socket.close()
         context.term()
 
 

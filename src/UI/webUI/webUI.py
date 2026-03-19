@@ -204,6 +204,11 @@ async def websocket_endpoint(websocket: WebSocket):
     msg_sock.connect(f"tcp://127.0.0.1:{ports_conf.messages_port}")
     msg_sock.setsockopt(zmq.SUBSCRIBE, b"")
 
+    # System messages Socket (forwarded from packet_decoding via peak_detector)
+    system_sock = ctx.socket(zmq.SUB)
+    system_sock.connect(f"tcp://127.0.0.1:{ports_conf.peak_detector_system_port}")
+    system_sock.setsockopt(zmq.SUBSCRIBE, b"")
+
     last_spectro_time = 0.0
 
     async def fft_handler():
@@ -264,6 +269,25 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception as e:
             logger.error(f"Error in message_handler: {e}")
 
+    async def system_handler():
+        try:
+            while True:
+                if shutdown_event and shutdown_event.is_set():
+                    break
+                try:
+                    raw_data = await asyncio.wait_for(system_sock.recv(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                except asyncio.CancelledError:
+                    break
+                # Forward system message with prefix 0x03
+                try:
+                    await websocket.send_bytes(b"\x03" + raw_data)
+                except Exception as e:
+                    logger.error(f"Error sending system message: {e}")
+        except Exception as e:
+            logger.error(f"Error in system_handler: {e}")
+
     async def sender():
         try:
             while True:
@@ -281,12 +305,13 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.error(f"Error in sender: {e}")
 
     try:
-        await asyncio.gather(fft_handler(), message_handler(), sender())
+        await asyncio.gather(fft_handler(), message_handler(), system_handler(), sender())
     except WebSocketDisconnect:
         logger.info("Client web déconnecté.")
     finally:
         fft_sock.close()
         msg_sock.close()
+        system_sock.close()
 
 
 def start_dashboard(stop_event=None):
