@@ -1,16 +1,16 @@
 :root {
-    --color-bg-primary: #12141a;
-    --color-bg-secondary: #1e1e24;
-    --color-bg-tertiary: #181825;
-    --color-bg-message: #313244;
+    --color-bg-primary: #161c24;
+    --color-bg-secondary: #262c36;
+    --color-bg-tertiary: #363c45;
+    --color-bg-message: #414751;
 
-    --color-text-primary: #a6adc8;
-    --color-text-secondary: #cdd6f4;
-    --color-text-muted: #6c7086;
+    --color-text-primary: #f1f1f1;
+    --color-text-secondary: #ababab;
+    --color-text-muted: #9c9c9c;
 
-    --color-accent-primary: #89b4fa;
-    --color-accent-secondary: #a2c5ff;
-    --color-accent-success: #a6e3a1;
+    --color-accent-primary: lab(62.57% 49.68 70.98);
+    --color-accent-secondary: lab(75% 49.68 70.98);
+    --color-accent-success: #ababab;
 
     --color-border: #333;
     --color-scrollbar: #45475a;
@@ -122,12 +122,6 @@ header h1 {
     min-height: 0;
 }
 
-.plot-container h2 {
-    margin: 0 0 10px 0;
-    font-size: 1rem;
-    color: var(--color-accent-primary);
-}
-
 canvas {
     display: block;
     width: 100%;
@@ -159,7 +153,7 @@ canvas {
     padding: 10px;
     border-radius: 15px;
     animation: fadeIn 0.5s ease;
-    box-shadow: #00000035 0px 10px 30px;
+    box-shadow: #00000018 0px 10px 30px;
 }
 
 @keyframes fadeIn {
