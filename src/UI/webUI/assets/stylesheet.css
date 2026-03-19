@@ -43,7 +43,6 @@ body {
     flex-direction: column;
     gap: 20px;
     min-height: 0;
-    overflow: hidden;
 }
 
 .column-left {
@@ -59,6 +58,7 @@ body {
     padding: 15px;
     background-color: var(--color-bg-secondary);
     border-radius: 8px;
+    box-shadow: 0px 10px 24px #00000055 ;
 }
 
 /* Controls Section */
