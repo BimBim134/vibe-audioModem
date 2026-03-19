@@ -7,6 +7,7 @@ const colors = {
   accentPrimary: rootStyles.getPropertyValue("--color-accent-primary").trim(),
   textMuted: rootStyles.getPropertyValue("--color-text-muted").trim(),
   bgPrimary: rootStyles.getPropertyValue("--color-bg-primary").trim(),
+  bgSecondary: rootStyles.getPropertyValue("--color-bg-secondary").trim(),
 };
 
 function hexToRgb(hex) {
@@ -18,12 +19,21 @@ function hexToRgb(hex) {
   } : { r: 0, g: 0, b: 0 };
 }
 
-const bgRgb = hexToRgb(colors.bgPrimary);
+const bgRgb = hexToRgb(colors.bgSecondary);
 const accentRgb = hexToRgb(colors.accentPrimary);
 
+function getChartDimensions() {
+  const container = document.getElementById("spectroscope-div");
+  return {
+    width: container.clientWidth || 600,
+    height: container.clientHeight || 300,
+  };
+}
+
+const initialDims = getChartDimensions();
 const uplotOpts = {
-  width: document.getElementById("spectroscope-div").clientWidth || 1000,
-  height: 250,
+  width: initialDims.width,
+  height: initialDims.height,
   scales: {
     x: { time: false },
     y: { range: [-80, 80] },
@@ -49,15 +59,19 @@ const spectroChart = new uPlot(
 
 const canvas = document.getElementById("spectrogram-canvas");
 const ctx = canvas.getContext("2d", { willReadFrequently: true });
-ctx.fillStyle = colors.bgPrimary;
+ctx.fillStyle = colors.bgSecondary;
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-window.addEventListener("resize", () => {
-  spectroChart.setSize({
-    width: document.getElementById("spectroscope-div").clientWidth,
-    height: 250,
-  });
-});
+function resizeCharts() {
+  const dims = getChartDimensions();
+  spectroChart.setSize({ width: dims.width, height: dims.height });
+  canvas.width = dims.width;
+  canvas.height = canvas.parentElement.clientHeight;
+}
+
+const resizeObserver = new ResizeObserver(() => resizeCharts());
+resizeObserver.observe(document.getElementById("spectroscope-div"));
+resizeObserver.observe(document.getElementById("spectrogram-canvas").parentElement);
 
 // WebSocket connection
 const ws = new WebSocket(`ws://${location.host}/ws`);

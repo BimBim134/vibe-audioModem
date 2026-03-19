@@ -8,8 +8,8 @@
     --color-text-secondary: #ababab;
     --color-text-muted: #9c9c9c;
 
-    --color-accent-primary: lab(62.57% 49.68 70.98);
-    --color-accent-secondary: lab(75% 49.68 70.98);
+    --color-accent-primary: #f96d00;
+    --color-accent-secondary: #ff8f30;
     --color-accent-success: #ababab;
 
     --color-border: #333;
@@ -29,14 +29,33 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 30fr 70fr;
+    gap: 20px;
+    height: calc(100vh - 40px);
+}
+
+.column {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.column-left {
+    min-width: 0;
+}
+
+.column-right {
+    min-width: 0;
 }
 
 /* Module Base Styles */
 .module {
-    margin-bottom: 20px;
     padding: 15px;
     background-color: var(--color-bg-secondary);
     border-radius: 8px;
@@ -78,26 +97,32 @@ body {
 
 /* Spectroscope Section */
 .module.spectroscope {
-    height: calc(50vh - 100px);
-    min-height: 200px;
+    flex: 25;
+    min-height: 150px;
+    min-width: 0;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Spectrogram Section */
 .module.spectrogram {
-    height: calc(50vh - 100px);
+    flex: 75;
     min-height: 200px;
+    min-width: 0;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .module.spectroscope .plot-container,
 .module.spectrogram .plot-container {
+    flex: 1;
+    min-height: 0;
     background-color: var(--color-bg-secondary);
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-    height: 100%;
-    box-sizing: border-box;
     overflow: hidden;
 }
 
@@ -123,15 +148,13 @@ body {
 
 /* Messages Section */
 .module.messages {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    height: calc(80vh - 200px);
-    min-height: 400px;
+    flex: 1;
+    min-height: 300px;
 }
 
 .module.messages .messages-board {
     flex: 1;
+    min-height: 0;
     background-color: var(--color-bg-secondary);
     border-radius: 8px;
     padding: 15px;
@@ -156,12 +179,11 @@ body {
 
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
 .message.sent {
-    background-color: var(--color-bg-message);
+    background-color: var(--color-bg-tertiary);
     margin-left: 20%;
     border-bottom-right-radius: 0px;
 }
@@ -173,8 +195,8 @@ body {
 }
 
 .message.system {
-    background-color: var(--color-bg-message);
-    text-align: center;
+    color: #ababab;
+    text-align: left;
     font-style: italic;
 }
 
