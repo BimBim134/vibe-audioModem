@@ -210,7 +210,7 @@ body {
 .message {
     padding: 10px;
     border-radius: 15px;
-    animation: fadeIn 0.7s ease forwards;
+    animation: fadeIn 0.4s ease forwards;
     will-change: transform, opacity;
 }
 
