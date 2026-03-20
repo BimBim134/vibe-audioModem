@@ -24,10 +24,9 @@ const accentRgb = hexToRgb(colors.accentPrimary);
 
 function getChartDimensions() {
   const container = document.getElementById("spectroscope-div");
-  const legendHeight = 30; // Approximate legend height
   return {
     width: container.clientWidth || 600,
-    height: Math.max(100, (container.clientHeight || 300) - legendHeight),
+    height: Math.max(100, (container.querySelector(".u-wrap")?.clientHeight || container.clientHeight || 300)),
   };
 }
 
@@ -36,20 +35,20 @@ const uplotOpts = {
   width: initialDims.width,
   height: initialDims.height,
   scales: {
-    x: { time: false },
+    x: { time: false},
     y: { range: [-80, 80] },
   },
   series: [
     {
-      label: "Frequency",
+      label: "F",
       width: 1,
-      value: (u, v) => (v == null ? "--/" : v.toFixed(1) + " Hz"),
+      value: (u, v) => (v == null ? "" : v.toFixed(1) + " Hz"),
     },
     {
-      label: "Amplitude",
+      label: "A",
       stroke: colors.accentPrimary,
       width: 1,
-      value: (u, v) => (v == null ? "--" : v.toFixed(1) + " dB"),
+      value: (u, v) => (v == null ? "" : v.toFixed(1) + " dB"),
     },
   ],
   axes: [
