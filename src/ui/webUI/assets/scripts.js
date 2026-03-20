@@ -39,7 +39,19 @@ const uplotOpts = {
     x: { time: false },
     y: { range: [-80, 80] },
   },
-  series: [{}, { stroke: colors.accentPrimary, width: 1, value: (u, v) => v == null ? "--" : v.toFixed(1) + " dB" }],
+  series: [
+    {
+      label: "Frequency",
+      width: 1,
+      value: (u, v) => (v == null ? "--/" : v.toFixed(1) + " Hz"),
+    },
+    {
+      label: "Amplitude",
+      stroke: colors.accentPrimary,
+      width: 1,
+      value: (u, v) => (v == null ? "--" : v.toFixed(1) + " dB"),
+    },
+  ],
   axes: [
     {
       stroke: colors.textMuted,
@@ -48,7 +60,10 @@ const uplotOpts = {
           v >= 1000 ? (v / 1000).toFixed(1) + " kHz" : v + " Hz",
         ),
     },
-    { stroke: colors.textMuted, values: (self, ticks) => ticks.map((v) => v + " dB") },
+    {
+      stroke: colors.textMuted,
+      values: (self, ticks) => ticks.map((v) => v + " dB"),
+    },
   ],
   legend: { show: true },
 };
