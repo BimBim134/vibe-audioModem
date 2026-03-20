@@ -14,9 +14,9 @@ from research.audio_from_file import (
 )
 from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
-from src.UI.webUI.webUI import start_dashboard
-from src.UI.pyqt.visual_signal_debugger import run_visual_debugger
-from src.UI.pyqt.graphics_app import run_graphics_app
+from src.ui.webUI.webUI import start_dashboard
+from src.ui.pyqt.visual_signal_debugger import run_visual_debugger
+from src.ui.pyqt.graphics_app import run_graphics_app
 
 logger = logging.getLogger(__name__)
 
