@@ -24,9 +24,10 @@ const accentRgb = hexToRgb(colors.accentPrimary);
 
 function getChartDimensions() {
   const container = document.getElementById("spectroscope-div");
+  const legendHeight = 30; // Approximate legend height
   return {
     width: container.clientWidth || 600,
-    height: container.clientHeight || 300,
+    height: Math.max(100, (container.clientHeight || 300) - legendHeight),
   };
 }
 
@@ -38,7 +39,7 @@ const uplotOpts = {
     x: { time: false },
     y: { range: [-80, 80] },
   },
-  series: [{}, { stroke: colors.accentPrimary, width: 1 }],
+  series: [{}, { stroke: colors.accentPrimary, width: 1, value: (u, v) => v == null ? "--" : v.toFixed(1) + " dB" }],
   axes: [
     {
       stroke: colors.textMuted,
@@ -49,6 +50,7 @@ const uplotOpts = {
     },
     { stroke: colors.textMuted, values: (self, ticks) => ticks.map((v) => v + " dB") },
   ],
+  legend: { show: true },
 };
 
 const spectroChart = new uPlot(

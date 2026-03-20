@@ -116,7 +116,15 @@ body {
     flex-direction: column;
 }
 
-.module.spectroscope .plot-container,
+.module.spectroscope .plot-container {
+    flex: 1;
+    min-height: 0;
+    background-color: var(--color-bg-secondary);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
 .module.spectrogram .plot-container {
     flex: 1;
     min-height: 0;
@@ -130,12 +138,22 @@ body {
 #spectroscope-div {
     flex: 1;
     min-height: 0;
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-#spectroscope-div > * {
-    width: 100% !important;
-    height: 100% !important;
+#spectroscope-div .uplot {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+#spectroscope-div .u-wrap {
+    flex-shrink: 0;
+}
+
+#spectroscope-div .u-legend {
+    flex-shrink: 0;
 }
 
 #spectrogram-canvas {
