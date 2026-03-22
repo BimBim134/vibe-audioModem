@@ -153,8 +153,10 @@ ws.onmessage = (event) => {
   } else if (prefix === 3) {
     // SYSTEM MESSAGE
     const sysMsg = new TextDecoder().decode(buffer.slice(1));
+    const payload = JSON.parse(sysMsg);
     const displayText = formatSystemMessage(sysMsg);
-    overlayMessages.push({ text: displayText, rowIndex: waterfallRowIndex });
+    const freq = payload.carrier_freq || null;
+    overlayMessages.push({ text: displayText, rowIndex: waterfallRowIndex, freq });
     displaySystemMessage(sysMsg);
   }
 };
@@ -350,6 +352,9 @@ function renderOverlay() {
   overlayCtx.font = "12px -apple-system, BlinkMacSystemFont, sans-serif";
   overlayCtx.textBaseline = "middle";
 
+  const MAX_FREQ = 24000;
+  const margin = 10;
+
   overlayMessages = overlayMessages.filter((msg) => {
     const y = waterfallRowIndex - msg.rowIndex;
 
@@ -361,8 +366,14 @@ function renderOverlay() {
     const textWidth = overlayCtx.measureText(text).width;
     const pillWidth = textWidth + padding * 2;
     const pillHeight = 20;
-    const margin = 10;
-    const x = margin;
+
+    let x;
+    if (msg.freq !== null) {
+      x = (msg.freq / MAX_FREQ) * w;
+    } else {
+      x = margin;
+    }
+
     const textY = y - pillHeight / 2;
 
     overlayCtx.fillStyle = colors.bgPrimary;
