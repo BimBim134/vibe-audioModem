@@ -296,7 +296,33 @@ function displayReceivedMessage(payload) {
 function displaySystemMessage(content) {
   const msgDiv = document.createElement("div");
   msgDiv.className = "message system";
-  msgDiv.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
+  
+  let displayText;
+  try {
+    const payload = typeof content === "string" ? JSON.parse(content) : content;
+    const freq = payload.carrier_freq ? `${payload.carrier_freq.toFixed(0)} Hz` : "";
+    
+    switch (payload.status) {
+      case "preamble":
+        displayText = freq ? `Preamble detected at ${freq}` : "Preamble detected";
+        break;
+      case "collecting":
+        displayText = `Acquiring data — ${payload.bytes_received} bytes received`;
+        break;
+      case "error":
+        displayText = payload.error || "Unknown error";
+        break;
+      case "deserialization_error":
+        displayText = freq ? `Deserialization error at ${freq}` : "Deserialization error";
+        break;
+      default:
+        displayText = JSON.stringify(payload);
+    }
+  } catch (e) {
+    displayText = content;
+  }
+  
+  msgDiv.innerHTML = `<div class="message-content">${escapeHtml(displayText)}</div>`;
   messagesBoard.appendChild(msgDiv);
   messagesBoard.scrollTop = messagesBoard.scrollHeight;
 }

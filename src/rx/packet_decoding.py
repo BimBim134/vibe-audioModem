@@ -69,7 +69,7 @@ class PacketReassembler:
 reassemblers = {}
 
 
-def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
+def decode_packet(payload: list, pkt: PacketConfig):
     """
     Decodes a single raw packet and routes it to the appropriate reassembler.
 
@@ -80,18 +80,19 @@ def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
         payload (list): A list containing metadata and raw bytes:
             [{"demodulator_id": str, ...}, np.ndarray]
         pkt (PacketConfig): Configuration object containing the RS codec.
-        system_pub_socket: Optional ZMQ PUB socket for sending system messages to web UI.
 
     Returns:
-        Union[dict, str]:
-            - A dictionary if a full PMT message was successfully reassembled.
-            - A status string ("preamble", "collecting", "postamble", "data corrupted", etc.)
-              indicating the current state of reassembly for this source.
+        tuple: (result, system_messages)
+            - result: A dictionary if a full PMT message was successfully reassembled,
+                      or a status string ("preamble", "collecting", "postamble",
+                      "data corrupted", etc.) indicating the current state.
+            - system_messages: List of dicts with type="system" to send to web UI.
     """
     metadata = payload[0]
     demod_id = metadata["demodulator_id"]
     carrier_freq = metadata.get("carrier_freq", 0.0)
     raw_packet_data = payload[1].tobytes()
+    system_messages = []
 
     if demod_id not in reassemblers:
         reassemblers[demod_id] = PacketReassembler()
@@ -103,39 +104,45 @@ def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
     except ReedSolomonError:
         logger.error("Data corrupted for demodulator %s", demod_id)
         reassembler.reset()
-        if system_pub_socket:
-            publish_system_message(
-                system_pub_socket,
-                f"Reed-Solomon error — data corrupted at {carrier_freq:.0f} Hz",
-            )
-        return "data corrupted"
+        system_messages.append({
+            "type": "system",
+            "status": "error",
+            "error": f"Reed-Solomon error — data corrupted at {carrier_freq:.0f} Hz",
+            "carrier_freq": carrier_freq,
+        })
+        return "data corrupted", system_messages
 
     result, info = reassembler.process_packet(decoded_payload, carrier_freq)
 
-    if system_pub_socket:
-        freq_str = f"{carrier_freq:.0f} Hz"
-        if result == "preamble":
-            publish_system_message(
-                system_pub_socket, f"Preamble detected at {freq_str}"
-            )
-        elif result == "collecting":
-            publish_system_message(
-                system_pub_socket, f"Acquiring data — {info} bytes received"
-            )
-        elif result == "deserialization error":
-            publish_system_message(
-                system_pub_socket, f"Deserialization error at {freq_str}"
-            )
+    if result == "preamble":
+        system_messages.append({
+            "type": "system",
+            "status": "preamble",
+            "carrier_freq": carrier_freq,
+        })
+    elif result == "collecting":
+        system_messages.append({
+            "type": "system",
+            "status": "collecting",
+            "bytes_received": info,
+        })
+    elif result == "deserialization error":
+        system_messages.append({
+            "type": "system",
+            "status": "deserialization_error",
+            "carrier_freq": carrier_freq,
+        })
 
-    return result
+    return result, system_messages
 
 
-def publish_system_message(socket, message):
-    """Send a system message to the web UI via ZMQ PUB."""
+def send_message(socket, msg_type, **kwargs):
+    """Send a unified PMT message to the web UI."""
+    msg = {"type": msg_type, **kwargs}
     try:
-        socket.send_string(message)
+        socket.send(pmt.serialize_str(pmt.to_pmt(msg)))
     except Exception as e:
-        logger.error("Failed to send system message: %s", e)
+        logger.error("Failed to send message: %s", e)
 
 
 def listen_for_packets(
@@ -156,21 +163,13 @@ def listen_for_packets(
     msg_pub_socket = context.socket(zmq.PUB)
     msg_pub_socket.bind(f"tcp://*:{ports_conf.messages_port}")
 
-    # Socket for system messages to the web UI
-    system_pub_socket = context.socket(zmq.PUB)
-    system_pub_socket.bind(f"tcp://*:{ports_conf.system_messages_port}")
-
     logger.info(
         "Packet decoder listening for packets (binding) on port %s",
         ports_conf.raw_packets_port,
     )
     logger.info(
-        "Packet decoder publishing reassembled messages on port %s",
+        "Packet decoder publishing messages on port %s",
         ports_conf.messages_port,
-    )
-    logger.info(
-        "Packet decoder publishing system messages on port %s",
-        ports_conf.system_messages_port,
     )
 
     try:
@@ -179,7 +178,10 @@ def listen_for_packets(
                 received = socket.recv()
                 logger.debug("ZMQ received %s bytes", len(received))
                 payload = pmt.to_python(pmt.deserialize_str(received))
-                result = decode_packet(payload, pkt_conf, system_pub_socket)
+                result, system_messages = decode_packet(payload, pkt_conf)
+
+                for msg in system_messages:
+                    send_message(msg_pub_socket, msg["type"], **{k: v for k, v in msg.items() if k != "type"})
 
                 if isinstance(result, dict):
                     logger.info(
@@ -198,8 +200,7 @@ def listen_for_packets(
                             message_str = str(data)
                         logger.info("Message from %s: %s", sender_name, message_str)
 
-                        # Forward the original result dict as a PMT message
-                        # Convert numpy array to base64 string for JSON serialization
+                        result["type"] = "data"
                         if isinstance(result.get("data"), np.ndarray):
                             result["data"] = base64.b64encode(
                                 result["data"].tobytes()
@@ -225,7 +226,6 @@ def listen_for_packets(
         logger.info("Packet decoder: closing sockets and context")
         socket.close()
         msg_pub_socket.close()
-        system_pub_socket.close()
         context.term()
 
 

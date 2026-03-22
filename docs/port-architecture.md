@@ -3,16 +3,14 @@
 The application uses **ZeroMQ (ZMQ)** for inter-process communication and **WebSocket** for the web UI.
 
 ## ZMQ Ports (Internal Communication)
-| Port      | Name                        | Type     | Purpose                                                        | Publisher        | Subscribers             |
-| --------- | --------------------------- | -------- | -------------------------------------------------------------- | ---------------- | ----------------------- |
-| **5555**  | `audio_port`                | PUB      | Raw audio stream from sound card                               | `AudioInterface` | `Demodulator`           |
-| **5556**  | `fft_port`                  | PUB      | FFT magnitude spectrum                                         | `AudioInterface` | `WebUI`, `PeakDetector` |
-| **5557**  | `raw_packets_port`          | SUB→BIND | Demodulated raw packets from each demodulator worker           | `Demodulator`    | `PacketDecoder`         |
-| **5558**  | `messages_port`             | PUB      | Reassembled/decoded messages (ready to display)                | `PacketDecoder`  | `WebUI`                 |
-| **5559**  | `config_port`               | PUB      | Config changes (modulation preset)                             | `WebUI`          | `PeakDetector`          |
-| **5561**  | `system_messages_port`      | PUB      | System status messages (preamble, progress, errors)            | `PacketDecoder`  | `PeakDetector`          |
-| **5562**  | `peak_detector_system_port` | PUB      | System messages forwarded to web UI                            | `PeakDetector`   | `WebUI`                 |
-| **5563+** | `constellation_port`        | PUB      | Constellation diagram points (one port per demodulator worker) | `Demodulator`    | -                       |
+| Port      | Name                 | Type     | Purpose                                                        | Publisher        | Subscribers      |
+| --------- | -------------------- | -------- | -------------------------------------------------------------- | ---------------- | ---------------- |
+| **5555**  | `audio_port`         | PUB      | Raw audio stream from sound card                               | `AudioInterface` | `Demodulator`    |
+| **5556**  | `fft_port`           | PUB      | FFT magnitude spectrum                                         | `AudioInterface` | `WebUI`, `PeakDetector` |
+| **5557**  | `raw_packets_port`   | SUB→BIND | Demodulated raw packets from each demodulator worker           | `Demodulator`    | `PacketDecoder`  |
+| **5558**  | `messages_port`      | PUB      | All messages (data + system status) for WebUI                   | `PacketDecoder`  | `WebUI`          |
+| **5559**  | `config_port`        | PUB      | Config changes (modulation preset)                             | `WebUI`          | `PeakDetector`   |
+| **5563+** | `constellation_port` | PUB      | Constellation diagram points (one port per demodulator worker) | `Demodulator`    | -                |
 
 ```mermaid
 flowchart LR
@@ -23,8 +21,6 @@ port5556       ---> WebUI & PeakDetector
 Demodulator    --->|5557<br>raw_packets_port| PacketDecoder
 PacketDecoder  --->|5558<br>messages_port| WebUI
 WebUI          --->|5559<br>config_port| PeakDetector
-PacketDecoder  --->|5561<br>system_messages_port| PeakDetector
-PeakDetector   --->|5562<br>peak_detector_system_port| WebUI
 Demodulator    --->|5563+<br>constellation_port| None@{shape: text}
 ```
 
@@ -37,8 +33,8 @@ Demodulator    --->|5563+<br>constellation_port| None@{shape: text}
 The WebSocket pushes 4 message types with prefix bytes:
 - `0x01` - FFT magnitude (dB)
 - `0x02` - Waterfall display data (Uint8)
-- `0x03` - System messages
-- `0x04` - Decoded messages (JSON)
+- `0x03` - System messages (JSON: `{"type": "system", "status": "...", ...}`)
+- `0x04` - Decoded messages (JSON: `{"type": "data", "sender_name": "...", "data": "...", ...}`)
 
 ## Component Descriptions
 ### AudioInterface
@@ -64,11 +60,10 @@ Collects raw packets and reassembles them into complete messages:
 1. Subscribes to port 5557 for raw packets
 2. Performs Reed-Solomon error correction
 3. Reassembles multi-packet messages
-4. Publishes decoded messages to port 5558
-5. Publishes system status messages to port 5561
+4. Publishes all messages to port 5558 (unified format with `type` field)
 
 ### WebUI (FastAPI)
 Serves the web interface and bridges ZMQ to WebSocket:
 - HTTP endpoints for configuration (`/api/carrier_freq`, `/api/modulation_preset`, `/api/transmit`)
 - WebSocket endpoint (`/ws`) for real-time data streaming
-- Publishes config changes
+- Subscribes to port 5558 and routes messages based on `type` field
