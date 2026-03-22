@@ -1,7 +1,5 @@
 import zmq
 import logging
-import time
-import json
 import pmt
 import base64
 
@@ -67,7 +65,7 @@ class PacketReassembler:
 # Per-demodulator reassemblers
 reassemblers = {}
 
-def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None, msg_pub_socket=None):
+def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
     """
     Decodes a single raw packet and routes it to the appropriate reassembler.
 
@@ -79,7 +77,6 @@ def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None, msg_
             [{"demodulator_id": str, ...}, np.ndarray]
         pkt (PacketConfig): Configuration object containing the RS codec.
         system_pub_socket: Optional ZMQ PUB socket for sending system messages to web UI.
-        msg_pub_socket: Optional ZMQ PUB socket for sending protocol events.
 
     Returns:
         Union[dict, str]: 
@@ -104,8 +101,6 @@ def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None, msg_
         reassembler.reset()
         if system_pub_socket:
             publish_system_message(system_pub_socket, f"Reed-Solomon error — data corrupted at {carrier_freq:.0f} Hz")
-        if msg_pub_socket:
-            publish_protocol_event(msg_pub_socket, "RX_CORRUPTED", carrier_freq)
         return "data corrupted"
 
     result, info = reassembler.process_packet(decoded_payload, carrier_freq)
@@ -119,14 +114,6 @@ def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None, msg_
         elif result == "deserialization error":
             publish_system_message(system_pub_socket, f"Deserialization error at {freq_str}")
     
-    if msg_pub_socket:
-        if result == "preamble":
-            publish_protocol_event(msg_pub_socket, "RX_PREAMBLE", carrier_freq)
-        elif result == "collecting":
-            publish_protocol_event(msg_pub_socket, "RX_DATA", carrier_freq, {"bytes_received": info})
-        elif isinstance(result, dict):
-            publish_protocol_event(msg_pub_socket, "RX_COMPLETE", carrier_freq, {"total_bytes": len(reassembler.buffer) if hasattr(reassembler, 'buffer') else 0})
-    
     return result
 
 
@@ -136,23 +123,6 @@ def publish_system_message(socket, message):
         socket.send_string(message)
     except Exception as e:
         logger.error(f"Failed to send system message: {e}")
-
-
-def publish_protocol_event(msg_pub_socket, event_type, frequency=None, extra=None):
-    """Send a protocol event with topic 'EVENT' to the web UI via ZMQ PUB."""
-    import time
-    event_data = {
-        "event": event_type,
-        "timestamp": time.time(),
-    }
-    if frequency is not None:
-        event_data["frequency"] = frequency
-    if extra is not None:
-        event_data.update(extra)
-    try:
-        msg_pub_socket.send_string("EVENT " + json.dumps(event_data))
-    except Exception as e:
-        logger.error(f"Failed to send protocol event: {e}")
 
 
 def listen_for_packets(
@@ -173,11 +143,9 @@ def listen_for_packets(
     msg_pub_socket = context.socket(zmq.PUB)
     msg_pub_socket.bind(f"tcp://*:{ports_conf.messages_port}")
 
-    # Socket for system messages to the web UI (connects to peak_detector which binds port)
+    # Socket for system messages to the web UI
     system_pub_socket = context.socket(zmq.PUB)
-    system_pub_socket.setsockopt(zmq.LINGER, 1000)
-    system_pub_socket.connect(f"tcp://127.0.0.1:{ports_conf.peak_detector_system_port}")
-    time.sleep(0.1)
+    system_pub_socket.bind(f"tcp://*:{ports_conf.system_messages_port}")
 
     logger.info(
         f"Packet decoder listening for packets (binding) on port {ports_conf.raw_packets_port}"
@@ -186,7 +154,7 @@ def listen_for_packets(
         f"Packet decoder publishing reassembled messages on port {ports_conf.messages_port}"
     )
     logger.info(
-        f"Packet decoder connecting to system messages port {ports_conf.peak_detector_system_port}"
+        f"Packet decoder publishing system messages on port {ports_conf.system_messages_port}"
     )
 
     try:

@@ -97,6 +97,7 @@ class PortsConfig:
 
     messages_port: int
     config_port: int
+    system_messages_port: int
     peak_detector_system_port: int
 
     @property
@@ -141,6 +142,7 @@ DEFAULT_PORTS_CONFIG = PortsConfig(
     raw_packets_port=5557,
     messages_port=5558,
     config_port=5559,
+    system_messages_port=5561,
     peak_detector_system_port=5562,
     constellation_port=5563,
     constellation_ports_count=10,
