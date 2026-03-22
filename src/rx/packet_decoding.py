@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class PacketReassembler:
     """Stateful reassembler for multi-packet PMT messages."""
+
     def __init__(self):
         self.buffer = bytearray()
         self.state = "IDLE"
@@ -27,7 +28,7 @@ class PacketReassembler:
 
     def process_packet(self, decoded_payload: bytes, frequency: float = 0.0):
         packet_len = decoded_payload[0]
-        logger.debug(f"Processing packet with len flag: {packet_len}")
+        logger.debug("Processing packet with len flag: %s", packet_len)
 
         if packet_len == 0:
             logger.info("Preamble detected, starting reassembly")
@@ -37,7 +38,9 @@ class PacketReassembler:
             return ("preamble", frequency)
         elif packet_len == 255:
             if self.state == "COLLECTING":
-                logger.info(f"Postamble detected, reassembling {len(self.buffer)} bytes")
+                logger.info(
+                    "Postamble detected, reassembling %s bytes", len(self.buffer)
+                )
                 try:
                     unscrambler = Unscrambler()
                     raw_payload = pmt.to_python(
@@ -48,8 +51,8 @@ class PacketReassembler:
                     self.reset()
                     return (raw_payload, frequency)
                 except Exception as e:
-                    logger.error(f"Failed to deserialize reassembled PMT: {e}")
-                    logger.debug(f"Buffer start: {self.buffer[:20].hex()}")
+                    logger.error("Failed to deserialize reassembled PMT: %s", e)
+                    logger.debug("Buffer start: %s", self.buffer[:20].hex())
                     self.reset()
                     return ("deserialization error", frequency)
             return ("postamble", frequency)
@@ -58,12 +61,13 @@ class PacketReassembler:
                 self.buffer.extend(decoded_payload[1 : packet_len + 1])
                 return ("collecting", len(self.buffer))
             else:
-                logger.debug(f"Discarding data packet while in state {self.state}")
+                logger.debug("Discarding data packet while in state %s", self.state)
                 return ("unexpected data", None)
 
 
 # Per-demodulator reassemblers
 reassemblers = {}
+
 
 def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
     """
@@ -79,7 +83,7 @@ def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
         system_pub_socket: Optional ZMQ PUB socket for sending system messages to web UI.
 
     Returns:
-        Union[dict, str]: 
+        Union[dict, str]:
             - A dictionary if a full PMT message was successfully reassembled.
             - A status string ("preamble", "collecting", "postamble", "data corrupted", etc.)
               indicating the current state of reassembly for this source.
@@ -97,23 +101,32 @@ def decode_packet(payload: list, pkt: PacketConfig, system_pub_socket=None):
     try:
         decoded_payload = pkt.rsc_codec.decode(raw_packet_data)[0]
     except ReedSolomonError:
-        logger.error(f"Data corrupted for demodulator {demod_id}")
+        logger.error("Data corrupted for demodulator %s", demod_id)
         reassembler.reset()
         if system_pub_socket:
-            publish_system_message(system_pub_socket, f"Reed-Solomon error — data corrupted at {carrier_freq:.0f} Hz")
+            publish_system_message(
+                system_pub_socket,
+                f"Reed-Solomon error — data corrupted at {carrier_freq:.0f} Hz",
+            )
         return "data corrupted"
 
     result, info = reassembler.process_packet(decoded_payload, carrier_freq)
-    
+
     if system_pub_socket:
         freq_str = f"{carrier_freq:.0f} Hz"
         if result == "preamble":
-            publish_system_message(system_pub_socket, f"Preamble detected at {freq_str}")
+            publish_system_message(
+                system_pub_socket, f"Preamble detected at {freq_str}"
+            )
         elif result == "collecting":
-            publish_system_message(system_pub_socket, f"Acquiring data — {info} bytes received")
+            publish_system_message(
+                system_pub_socket, f"Acquiring data — {info} bytes received"
+            )
         elif result == "deserialization error":
-            publish_system_message(system_pub_socket, f"Deserialization error at {freq_str}")
-    
+            publish_system_message(
+                system_pub_socket, f"Deserialization error at {freq_str}"
+            )
+
     return result
 
 
@@ -122,7 +135,7 @@ def publish_system_message(socket, message):
     try:
         socket.send_string(message)
     except Exception as e:
-        logger.error(f"Failed to send system message: {e}")
+        logger.error("Failed to send system message: %s", e)
 
 
 def listen_for_packets(
@@ -131,7 +144,7 @@ def listen_for_packets(
     stop_event=None,
 ):
     context = zmq.Context()
-    
+
     # Socket for receiving raw packets from demodulators
     socket = context.socket(zmq.SUB)
     # The decoder binds, and multiple demodulator workers connect to it.
@@ -148,26 +161,31 @@ def listen_for_packets(
     system_pub_socket.bind(f"tcp://*:{ports_conf.system_messages_port}")
 
     logger.info(
-        f"Packet decoder listening for packets (binding) on port {ports_conf.raw_packets_port}"
+        "Packet decoder listening for packets (binding) on port %s",
+        ports_conf.raw_packets_port,
     )
     logger.info(
-        f"Packet decoder publishing reassembled messages on port {ports_conf.messages_port}"
+        "Packet decoder publishing reassembled messages on port %s",
+        ports_conf.messages_port,
     )
     logger.info(
-        f"Packet decoder publishing system messages on port {ports_conf.system_messages_port}"
+        "Packet decoder publishing system messages on port %s",
+        ports_conf.system_messages_port,
     )
 
     try:
         while stop_event is None or not stop_event.is_set():
             try:
                 received = socket.recv()
-                logger.debug(f"ZMQ received {len(received)} bytes")
+                logger.debug("ZMQ received %s bytes", len(received))
                 payload = pmt.to_python(pmt.deserialize_str(received))
                 result = decode_packet(payload, pkt_conf, system_pub_socket)
-                
+
                 if isinstance(result, dict):
                     logger.info(
-                        f"Successfully reassembled message from {result.get('sender_name', 'unknown')}: {result}"
+                        "Successfully reassembled message from %s: %s",
+                        result.get("sender_name", "unknown"),
+                        result,
                     )
                     if result.get("type") == "raw_string":
                         sender_name = result.get("sender_name", "unknown")
@@ -178,23 +196,28 @@ def listen_for_packets(
                             message_str = data.tobytes().decode("utf-8")
                         else:
                             message_str = str(data)
-                        logger.info(f"Message from {sender_name}: {message_str}")
-                        
+                        logger.info("Message from %s: %s", sender_name, message_str)
+
                         # Forward the original result dict as a PMT message
                         # Convert numpy array to base64 string for JSON serialization
                         if isinstance(result.get("data"), np.ndarray):
-                            result["data"] = base64.b64encode(result["data"].tobytes()).decode('utf-8')
+                            result["data"] = base64.b64encode(
+                                result["data"].tobytes()
+                            ).decode("utf-8")
                         msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
                 else:
                     logger.debug(
-                        f"Packet result from {payload[0]['demodulator_id']}: {result}"
+                        "Packet result from %s: %s",
+                        payload[0]["demodulator_id"],
+                        result,
                     )
-                    
+
             except zmq.Again:
                 continue
             except Exception as e:
-                logger.error(f"Error in packet decoder loop: {e}")
+                logger.error("Error in packet decoder loop: %s", e)
                 import traceback
+
                 logger.debug(traceback.format_exc())
     except KeyboardInterrupt:
         pass
