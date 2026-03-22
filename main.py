@@ -15,8 +15,8 @@ from research.audio_from_file import (
 from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
 from src.ui.webUI.webUI import start_dashboard
-from src.ui.pyqt.visual_signal_debugger import run_visual_debugger
-from src.ui.pyqt.graphics_app import run_graphics_app
+# from src.ui.pyqt.visual_signal_debugger import run_visual_debugger
+# from src.ui.pyqt.graphics_app import run_graphics_app
 
 logger = logging.getLogger(__name__)
 
@@ -51,19 +51,19 @@ WEB_UI = {
     "name": "WebUIProcess",
 }
 
-QT_DEBUGGER = {
-    "target": run_visual_debugger,
-    "name": "qtSignalDebuggerProcess",
-}
-
-QT_GRAPHICS_APP = {
-    "target": run_graphics_app,
-    "kwargs": {
-        "signal_conf": DEFAULT_SIGNAL_CONFIG,
-        "ports_conf": DEFAULT_PORTS_CONFIG,
-    },
-    "name": "qtGraphicsAppProcess",
-}
+# QT_DEBUGGER = {
+#     "target": run_visual_debugger,
+#     "name": "qtSignalDebuggerProcess",
+# }
+# 
+# QT_GRAPHICS_APP = {
+#     "target": run_graphics_app,
+#     "kwargs": {
+#         "signal_conf": DEFAULT_SIGNAL_CONFIG,
+#         "ports_conf": DEFAULT_PORTS_CONFIG,
+#     },
+#     "name": "qtGraphicsAppProcess",
+# }
 
 PEAK_DETECTOR = {
     "target": search_for_incomming_transmission,
