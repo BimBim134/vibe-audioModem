@@ -310,20 +310,19 @@ function displayReceivedMessage(payload) {
 function formatSystemMessage(content) {
   try {
     const payload = typeof content === "string" ? JSON.parse(content) : content;
-    const freq = payload.carrier_freq ? `${payload.carrier_freq.toFixed(0)} Hz` : "";
     
     switch (payload.status) {
       case "preamble":
-        return freq ? `Preamble detected at ${freq}` : "Preamble detected";
+        return "Preamble";
       case "collecting":
-        return `Acquiring data — ${payload.bytes_received} bytes received`;
+        return `${payload.bytes_received} bytes received`;
       case "error":
         return payload.error || "Unknown error";
       case "deserialization_error":
-        return freq ? `Deserialization error at ${freq}` : "Deserialization error";
+        return "Deserialization error";
       case "dispatching":
         const workerId = payload.worker_id !== undefined ? `worker ${payload.worker_id}` : "";
-        return freq ? `Transmission detected at ${freq}. Dispatching to ${workerId}` : `Transmission detected. Dispatching to ${workerId}`;
+        return workerId ? `TX → ${workerId}` : "TX";
       default:
         return JSON.stringify(payload);
     }
