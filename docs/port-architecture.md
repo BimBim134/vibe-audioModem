@@ -3,14 +3,15 @@
 The application uses **ZeroMQ (ZMQ)** for inter-process communication and **WebSocket** for the web UI.
 
 ## ZMQ Ports (Internal Communication)
-| Port      | Name                 | Type     | Purpose                                                        | Publisher        | Subscribers      |
-| --------- | -------------------- | -------- | -------------------------------------------------------------- | ---------------- | ---------------- |
-| **5555**  | `audio_port`         | PUB      | Raw audio stream from sound card                               | `AudioInterface` | `Demodulator`    |
-| **5556**  | `fft_port`           | PUB      | FFT magnitude spectrum                                         | `AudioInterface` | `WebUI`, `PeakDetector` |
-| **5557**  | `raw_packets_port`   | SUB→BIND | Demodulated raw packets from each demodulator worker           | `Demodulator`    | `PacketDecoder`  |
-| **5558**  | `messages_port`      | PUB      | All messages (data + system status) for WebUI                   | `PacketDecoder`  | `WebUI`          |
-| **5559**  | `config_port`        | PUB      | Config changes (modulation preset)                             | `WebUI`          | `PeakDetector`   |
-| **5563+** | `constellation_port` | PUB      | Constellation diagram points (one port per demodulator worker) | `Demodulator`    | -                |
+| Port      | Name                      | Type     | Purpose                                                        | Publisher        | Subscribers      |
+| --------- | ------------------------- | -------- | -------------------------------------------------------------- | ---------------- | ---------------- |
+| **5555**  | `audio_port`               | PUB      | Raw audio stream from sound card                               | `AudioInterface` | `Demodulator`    |
+| **5556**  | `fft_port`                 | PUB      | FFT magnitude spectrum                                         | `AudioInterface` | `WebUI`, `PeakDetector` |
+| **5557**  | `raw_packets_port`         | SUB→BIND | Demodulated raw packets from each demodulator worker           | `Demodulator`    | `PacketDecoder`  |
+| **5558**  | `messages_port`            | PUB      | Data messages + system status from packet decoder               | `PacketDecoder`  | `WebUI`          |
+| **5559**  | `config_port`              | PUB      | Config changes (modulation preset)                             | `WebUI`          | `PeakDetector`   |
+| **5560**  | `peak_detector_system_port`| PUB      | System status from peak detector (transmission detected)        | `PeakDetector`   | `WebUI`          |
+| **5563+** | `constellation_port`       | PUB      | Constellation diagram points (one port per demodulator worker) | `Demodulator`    | -                |
 
 ```mermaid
 flowchart LR
@@ -21,6 +22,7 @@ port5556       ---> WebUI & PeakDetector
 Demodulator    --->|5557<br>raw_packets_port| PacketDecoder
 PacketDecoder  --->|5558<br>messages_port| WebUI
 WebUI          --->|5559<br>config_port| PeakDetector
+PeakDetector   --->|5560<br>peak_detector_system_port| WebUI
 Demodulator    --->|5563+<br>constellation_port| None@{shape: text}
 ```
 
@@ -36,6 +38,12 @@ The WebSocket pushes 4 message types with prefix bytes:
 - `0x03` - System messages (JSON: `{"type": "system", "status": "...", ...}`)
 - `0x04` - Decoded messages (JSON: `{"type": "data", "sender_name": "...", "data": "...", ...}`)
 
+System message statuses:
+- `preamble` - Preamble detected during message reassembly
+- `collecting` - Acquiring data bytes during reassembly
+- `error` - Reed-Solomon or deserialization error
+- `dispatching` - Peak detector dispatched a worker to a frequency
+
 ## Component Descriptions
 ### AudioInterface
 Receives audio from the sound card via GNU Radio. Publishes:
@@ -45,8 +53,9 @@ Receives audio from the sound card via GNU Radio. Publishes:
 ### PeakDetector
 Scans the FFT spectrum for carrier frequency peaks. When a transmission is detected:
 1. Dispatches a demodulator worker to tune to that frequency
-2. Monitors for signal loss and stops workers accordingly
-3. Subscribes to config changes (port 5559) to update modulation presets
+2. Sends system status to port 5560
+3. Monitors for signal loss and stops workers accordingly
+4. Subscribes to config changes (port 5559) to update modulation presets
 
 ### Demodulator
 For each detected carrier frequency:
@@ -66,4 +75,4 @@ Collects raw packets and reassembles them into complete messages:
 Serves the web interface and bridges ZMQ to WebSocket:
 - HTTP endpoints for configuration (`/api/carrier_freq`, `/api/modulation_preset`, `/api/transmit`)
 - WebSocket endpoint (`/ws`) for real-time data streaming
-- Subscribes to port 5558 and routes messages based on `type` field
+- Subscribes to port 5558 (data + packet decoder system messages) and port 5560 (peak detector system messages)

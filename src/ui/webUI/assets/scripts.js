@@ -315,6 +315,10 @@ function displaySystemMessage(content) {
       case "deserialization_error":
         displayText = freq ? `Deserialization error at ${freq}` : "Deserialization error";
         break;
+      case "dispatching":
+        const workerId = payload.worker_id !== undefined ? `worker ${payload.worker_id}` : "";
+        displayText = freq ? `Transmission detected at ${freq}. Dispatching to ${workerId}` : `Transmission detected. Dispatching to ${workerId}`;
+        break;
       default:
         displayText = JSON.stringify(payload);
     }
