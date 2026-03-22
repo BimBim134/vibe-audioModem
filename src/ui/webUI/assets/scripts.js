@@ -78,11 +78,19 @@ const ctx = canvas.getContext("2d", { willReadFrequently: true });
 ctx.fillStyle = colors.bgSecondary;
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+const overlayCanvas = document.getElementById("spectrogram-overlay");
+const overlayCtx = overlayCanvas.getContext("2d");
+
+let overlayMessages = [];
+let waterfallRowIndex = 0;
+
 function resizeCharts() {
   const dims = getChartDimensions();
   spectroChart.setSize({ width: dims.width, height: dims.height });
   canvas.width = dims.width;
   canvas.height = canvas.parentElement.clientHeight;
+  overlayCanvas.width = dims.width;
+  overlayCanvas.height = canvas.parentElement.clientHeight;
 }
 
 const resizeObserver = new ResizeObserver(() => resizeCharts());
@@ -117,6 +125,8 @@ ws.onmessage = (event) => {
     const w = canvas.width;
     const h = canvas.height;
 
+    waterfallRowIndex++;
+
     ctx.drawImage(canvas, 0, 0, w, h - 1, 0, 1, w, h - 1);
 
     const imgData = ctx.createImageData(w, 1);
@@ -129,6 +139,8 @@ ws.onmessage = (event) => {
       imgData.data[idx + 3] = 255;
     }
     ctx.putImageData(imgData, 0, 0);
+
+    renderOverlay();
   } else if (prefix === 4) {
     // MESSAGE (Received message JSON)
     const msgStr = new TextDecoder().decode(buffer.slice(1));
@@ -141,6 +153,8 @@ ws.onmessage = (event) => {
   } else if (prefix === 3) {
     // SYSTEM MESSAGE
     const sysMsg = new TextDecoder().decode(buffer.slice(1));
+    const displayText = formatSystemMessage(sysMsg);
+    overlayMessages.push({ text: displayText, rowIndex: waterfallRowIndex });
     displaySystemMessage(sysMsg);
   }
 };
@@ -293,40 +307,78 @@ function displayReceivedMessage(payload) {
   messagesBoard.scrollTop = messagesBoard.scrollHeight;
 }
 
-function displaySystemMessage(content) {
-  const msgDiv = document.createElement("div");
-  msgDiv.className = "message system";
-  
-  let displayText;
+function formatSystemMessage(content) {
   try {
     const payload = typeof content === "string" ? JSON.parse(content) : content;
     const freq = payload.carrier_freq ? `${payload.carrier_freq.toFixed(0)} Hz` : "";
     
     switch (payload.status) {
       case "preamble":
-        displayText = freq ? `Preamble detected at ${freq}` : "Preamble detected";
-        break;
+        return freq ? `Preamble detected at ${freq}` : "Preamble detected";
       case "collecting":
-        displayText = `Acquiring data — ${payload.bytes_received} bytes received`;
-        break;
+        return `Acquiring data — ${payload.bytes_received} bytes received`;
       case "error":
-        displayText = payload.error || "Unknown error";
-        break;
+        return payload.error || "Unknown error";
       case "deserialization_error":
-        displayText = freq ? `Deserialization error at ${freq}` : "Deserialization error";
-        break;
+        return freq ? `Deserialization error at ${freq}` : "Deserialization error";
       case "dispatching":
         const workerId = payload.worker_id !== undefined ? `worker ${payload.worker_id}` : "";
-        displayText = freq ? `Transmission detected at ${freq}. Dispatching to ${workerId}` : `Transmission detected. Dispatching to ${workerId}`;
-        break;
+        return freq ? `Transmission detected at ${freq}. Dispatching to ${workerId}` : `Transmission detected. Dispatching to ${workerId}`;
       default:
-        displayText = JSON.stringify(payload);
+        return JSON.stringify(payload);
     }
   } catch (e) {
-    displayText = content;
+    return content;
   }
+}
+
+function displaySystemMessage(content) {
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "message system";
+  
+  const displayText = formatSystemMessage(content);
   
   msgDiv.innerHTML = `<div class="message-content">${escapeHtml(displayText)}</div>`;
   messagesBoard.appendChild(msgDiv);
   messagesBoard.scrollTop = messagesBoard.scrollHeight;
+}
+
+function renderOverlay() {
+  const w = overlayCanvas.width;
+  const h = overlayCanvas.height;
+  overlayCtx.clearRect(0, 0, w, h);
+
+  overlayCtx.font = "12px -apple-system, BlinkMacSystemFont, sans-serif";
+  overlayCtx.textBaseline = "middle";
+
+  overlayMessages = overlayMessages.filter((msg) => {
+    const y = waterfallRowIndex - msg.rowIndex;
+
+    if (y >= h) return false;
+    if (y < 0) return true;
+
+    const text = msg.text.length > 50 ? msg.text.substring(0, 47) + "..." : msg.text;
+    const padding = 6;
+    const textWidth = overlayCtx.measureText(text).width;
+    const pillWidth = textWidth + padding * 2;
+    const pillHeight = 20;
+    const margin = 10;
+    const x = margin;
+    const textY = y - pillHeight / 2;
+
+    overlayCtx.fillStyle = colors.bgPrimary;
+    overlayCtx.shadowColor = "rgba(0, 0, 0, 0.2)";
+    overlayCtx.shadowBlur = 8;
+    overlayCtx.shadowOffsetY = 3;
+    overlayCtx.beginPath();
+    overlayCtx.roundRect(x, textY, pillWidth, pillHeight, 4);
+    overlayCtx.fill();
+    overlayCtx.shadowBlur = 0;
+    overlayCtx.shadowOffsetY = 0;
+
+    overlayCtx.fillStyle = colors.accentPrimary;
+    overlayCtx.fillText(text, x + padding, y);
+
+    return true;
+  });
 }
