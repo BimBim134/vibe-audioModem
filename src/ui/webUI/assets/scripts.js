@@ -169,8 +169,25 @@ const messageInput = document.getElementById("message-input");
 const sendButton = document.getElementById("send-button");
 const messagesBoard = document.getElementById("messages-board");
 
+// Load modulation presets
+function loadModulationPresets() {
+  return fetch("modulation_presets.json")
+    .then(res => res.json())
+    .then(presets => {
+      Object.keys(presets).forEach(key => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = key;
+        modulationSelect.appendChild(option);
+      });
+    })
+    .catch(err => console.error("Failed to load modulation presets:", err));
+}
+
 // Load initial config
-fetch("/api/config")
+loadModulationPresets().then(() => {
+  return fetch("/api/config");
+})
   .then(res => res.json())
   .then(config => {
     carrierFreqInput.value = config.carrier_freq;

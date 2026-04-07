@@ -72,6 +72,11 @@ async def get_stylesheet():
     return FileResponse(os.path.join(current_dir, "assets", "stylesheet.css"))
 
 
+@app.get("/modulation_presets.json")
+async def get_modulation_presets():
+    return FileResponse(os.path.join(current_dir, "assets", "modulation_presets.json"))
+
+
 # 3. WebSocket bridge
 async def listen_to_zmq(sock, websocket, prefix, transform=None):
     try:
