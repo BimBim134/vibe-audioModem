@@ -22,7 +22,6 @@ from src.config import (
     SignalConfig,
     PortsConfig,
     PacketConfig,
-    MODULATION_PRESETS,
 )
 from src.tx.transmitter import send_data
 
@@ -103,36 +102,11 @@ async def set_carrier_freq(request: Request):
     return JSONResponse({"status": "error", "message": "carrier_freq required"}, status_code=400)
 
 
-@app.post("/api/modulation_preset")
-async def set_modulation_preset(request: Request):
-    global signal_conf, config_pub_socket
-    data = await request.json()
-    preset_name = data.get("preset")
-    
-    if preset_name and preset_name in MODULATION_PRESETS:
-        preset = MODULATION_PRESETS[preset_name]
-        signal_conf.baudrate = preset.baudrate
-        signal_conf.modulation_preset = preset_name
-        
-        # Broadcast preset to GNU Radio flowgraph
-        if config_pub_socket:
-            try:
-                config_pub_socket.send_string(f"PRESET:{preset_name}")
-            except Exception as e:
-                logger.error(f"Failed to send preset: {e}")
-        
-        logger.info(f"Modulation preset updated to {preset_name}: baudrate={preset.baudrate}")
-        return JSONResponse({"status": "ok", "preset": preset_name, "baudrate": preset.baudrate})
-    
-    return JSONResponse({"status": "error", "message": "Invalid preset"}, status_code=400)
-
-
 @app.get("/api/config")
 async def get_config():
     return JSONResponse({
         "carrier_freq": signal_conf.carrier_freq,
         "baudrate": signal_conf.baudrate,
-        "modulation_preset": signal_conf.modulation_preset,
         "samp_rate": signal_conf.samp_rate,
     })
 
@@ -148,13 +122,6 @@ async def transmit_message(request: Request):
         return JSONResponse({"status": "error", "message": "Message is required"}, status_code=400)
     
     logger.info(f"Starting transmission: {message_text} (Sender: {sender_name})")
-    
-    # Broadcast preset to GNU Radio flowgraph
-    if config_pub_socket:
-        try:
-            config_pub_socket.send_string(f"PRESET:{signal_conf.modulation_preset}")
-        except Exception as e:
-            logger.error(f"Failed to send preset: {e}")
     
     # Run transmission in a separate thread
     def transmit():

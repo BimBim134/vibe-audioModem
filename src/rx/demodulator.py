@@ -317,18 +317,10 @@ def launch_demodulator(
 
             if action == "start":
                 freq = cmd.get("freq")
-                preset = cmd.get("preset")
                 if freq:
-                    # Update frequency before instantiating
                     signal_config.carrier_freq = freq
                 
-                if preset:
-                    from src.config import MODULATION_PRESETS
-                    if preset in MODULATION_PRESETS:
-                        signal_config.modulation_preset = preset
-                        signal_config.baudrate = MODULATION_PRESETS[preset].baudrate
-
-                current_constellation = signal_config.constellation if hasattr(signal_config, "constellation") and signal_config.constellation is not None else constellation
+                current_constellation = constellation
 
                 # Create a fresh Demodulator to ensure clean algorithm state
                 tb = Demodulator(pkt, signal_config, current_constellation, ports_config)

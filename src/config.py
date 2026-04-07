@@ -19,8 +19,8 @@ def setup_logging(level=logging.DEBUG):
         format="%(asctime)s: %(processName)s: %(message)s",
         level=level,
     )
-    logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    logging.getLogger('PIL').setLevel(logging.WARNING)
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+    logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
 # Automatically setup logging when config is imported
@@ -60,11 +60,6 @@ class SignalConfig:
     carrier_freq: float
     beeper_duration: float
     baudrate: int
-    modulation_preset: str = "MEDIUM"
-
-    @property
-    def constellation(self):
-        return MODULATION_PRESETS.get(self.modulation_preset, MODULATION_PRESETS["MEDIUM"]).constellation
 
     @property
     def sps(self) -> int:
@@ -116,22 +111,9 @@ DEFAULT_BPSK_CONST = digital.constellation_bpsk()
 DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
 DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
 
-@dataclass
-class ModulationPreset:
-    name: str
-    baudrate: int
-    constellation: digital.constellation
-
-MODULATION_PRESETS = {
-    "SLOW": ModulationPreset("SLOW", 70, DEFAULT_BPSK_CONST),
-    "MEDIUM": ModulationPreset("MEDIUM", 200, DEFAULT_DQPSK_CONST),
-    "FAST": ModulationPreset("FAST", 500, DEFAULT_8PSK_CONST),
-}
-
 DEFAULT_SIGNAL_CONFIG = SignalConfig(
-    samp_rate=48000, beeper_duration=3.0, carrier_freq=2500, baudrate=200, modulation_preset="MEDIUM"
+    samp_rate=48000, beeper_duration=3.0, carrier_freq=2500, baudrate=200
 )
-
 
 
 DEFAULT_PORTS_CONFIG = PortsConfig(
