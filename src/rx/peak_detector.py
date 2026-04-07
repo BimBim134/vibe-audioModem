@@ -16,7 +16,6 @@ from src.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
     DEFAULT_PACKET_CONFIG,
-    DEFAULT_DQPSK_CONST,
 )
 from src.rx.demodulator import launch_demodulator
 
@@ -26,7 +25,7 @@ logger = logging.getLogger(__name__)
 class DemodulatorWorker:
     """Helper to manage a persistent demodulator process."""
 
-    def __init__(self, worker_id, sig_conf, ports_conf, pkt_conf, constellation):
+    def __init__(self, worker_id, sig_conf, ports_conf, pkt_conf):
         self.worker_id = worker_id
         self.command_queue = multiprocessing.Queue()
         self.status_queue = multiprocessing.Queue()
@@ -48,11 +47,11 @@ class DemodulatorWorker:
         self.state = "initializing"  # initializing, ready, running
         self.missed_frames = 0
 
-    def start_tuning(self, freq, preset, system_pub_socket=None):
+    def start_tuning(self, freq, system_pub_socket=None):
         self.active_freq = freq
         self.state = "running"
         self.missed_frames = 0
-        self.command_queue.put({"action": "start", "freq": freq, "preset": preset})
+        self.command_queue.put({"action": "start", "freq": freq})
         if system_pub_socket:
             try:
                 msg = {
@@ -96,7 +95,6 @@ def search_for_incomming_transmission(
     ports_conf: PortsConfig = DEFAULT_PORTS_CONFIG,
     signal_conf: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     pkt_conf: PacketConfig = DEFAULT_PACKET_CONFIG,
-    constellation=DEFAULT_DQPSK_CONST,
     stop_event=multiprocessing.Event(),
     nb_workers: int = 2,
     persistence: int = 50,
@@ -113,13 +111,8 @@ def search_for_incomming_transmission(
     socket.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
 
-    config_socket = context.socket(zmq.SUB)
-    config_socket.connect(f"tcp://127.0.0.1:{ports_conf.config_port}")
-    config_socket.setsockopt(zmq.SUBSCRIBE, b"PRESET:")
-
     poller = zmq.Poller()
     poller.register(socket, zmq.POLLIN)
-    poller.register(config_socket, zmq.POLLIN)
 
     logger.info(f"peak detector subscribed to fft on port {ports_conf.fft_port}")
 
@@ -138,26 +131,13 @@ def search_for_incomming_transmission(
         # Assign unique constellation port for each worker
         worker_ports = copy.copy(ports_conf)
         worker_ports.constellation_port = ports_conf.constellation_port + i
-        workers.append(DemodulatorWorker(i, signal_conf, worker_ports, pkt_conf, constellation))
+        workers.append(DemodulatorWorker(i, signal_conf, worker_ports, pkt_conf))
 
     fft_buffer = deque(maxlen=fft_buffer_size)
 
     try:
         while not stop_event.is_set():
             socks = dict(poller.poll(100))
-
-            if config_socket in socks and socks[config_socket] == zmq.POLLIN:
-                try:
-                    config_msg = config_socket.recv_string(flags=zmq.NOBLOCK)
-                    if config_msg.startswith("PRESET:"):
-                        preset_name = config_msg.split(":")[1]
-                        from src.config import MODULATION_PRESETS
-                        if preset_name in MODULATION_PRESETS:
-                            signal_conf.modulation_preset = preset_name
-                            signal_conf.baudrate = MODULATION_PRESETS[preset_name].baudrate
-                            logger.info(f"Peak detector config updated to {preset_name}")
-                except zmq.Again:
-                    pass
 
             if socket not in socks or socks[socket] != zmq.POLLIN:
                 continue
@@ -227,7 +207,7 @@ def search_for_incomming_transmission(
                                     pf,
                                     worker.worker_id,
                                 )
-                                worker.start_tuning(pf, signal_conf.modulation_preset, system_pub_socket)
+                                worker.start_tuning(pf, system_pub_socket)
                                 break
 
     except KeyboardInterrupt:
@@ -237,7 +217,6 @@ def search_for_incomming_transmission(
         for worker in workers:
             worker.terminate()
         logger.info("Peak detector: closing socket and context")
-        config_socket.close()
         socket.close()
         system_pub_socket.close()
         context.term()
