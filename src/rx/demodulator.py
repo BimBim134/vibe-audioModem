@@ -15,9 +15,15 @@ from src.config import PacketConfig, SignalConfig, PortsConfig
 from src.config import (
     DEFAULT_PACKET_CONFIG,
     DEFAULT_SIGNAL_CONFIG,
-    DEFAULT_DQPSK_CONST,
     DEFAULT_PORTS_CONFIG,
 )
+
+
+def get_constellation_by_name(name):
+    """Resolve constellation name to actual constellation object."""
+    if name is None:
+        return DEFAULT_DQPSK_CONST
+    return CONSTELLATION_MAP.get(name, DEFAULT_DQPSK_CONST)
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +265,7 @@ def launch_demodulator(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
     constellation: Any = None,
+    constellation_name: str = None,
     carrier_frequency: float | None = None,
     ports: PortsConfig = DEFAULT_PORTS_CONFIG,
     command_queue=None,
@@ -277,11 +284,8 @@ def launch_demodulator(
     if carrier_frequency:
         signal_config.carrier_freq = carrier_frequency
 
-    if constellation is None:
-        if hasattr(sig, 'constellation') and sig.constellation is not None:
-            constellation = sig.constellation
-        else:
-            constellation = DEFAULT_DQPSK_CONST
+    current_constellation_name = constellation_name or sig.constellation_name
+    current_constellation_obj = constellation or get_constellation_by_name(current_constellation_name)
 
     current_tb = [None]
 
@@ -295,7 +299,7 @@ def launch_demodulator(
     signal.signal(signal.SIGTERM, sig_handler)
 
     if command_queue is None:
-        tb = Demodulator(pkt, signal_config, constellation, ports_config)
+        tb = Demodulator(pkt, signal_config, current_constellation_obj, ports_config)
         current_tb[0] = tb
         tb.start()
         tb.flowgraph_started.set()
@@ -319,11 +323,9 @@ def launch_demodulator(
                 freq = cmd.get("freq")
                 if freq:
                     signal_config.carrier_freq = freq
-                
-                current_constellation = constellation
 
                 # Create a fresh Demodulator to ensure clean algorithm state
-                tb = Demodulator(pkt, signal_config, current_constellation, ports_config)
+                tb = Demodulator(pkt, signal_config, current_constellation_obj, ports_config)
                 current_tb[0] = tb
 
                 tb.start()
@@ -352,16 +354,21 @@ def launch_demodulator(
                     elif cmd_queue_action == "update_preset":
                         new_baudrate = cmd_queue.get("baudrate")
                         new_beeper_duration = cmd_queue.get("beeper_duration")
+                        new_constellation_name = cmd_queue.get("constellation_name")
                         if new_baudrate:
                             signal_config.baudrate = new_baudrate
                         if new_beeper_duration:
                             signal_config.beeper_duration = new_beeper_duration
-                        logger.info(f"Preset update received: baudrate={signal_config.baudrate}, beeper_duration={signal_config.beeper_duration}")
+                        if new_constellation_name:
+                            current_constellation_name = new_constellation_name
+                            current_constellation_obj = get_constellation_by_name(current_constellation_name)
+                            signal_config.constellation_name = current_constellation_name
+                        logger.info(f"Preset update received: baudrate={signal_config.baudrate}, constellation={current_constellation_name}")
                         # Restart demodulator with new settings
                         tb.stop()
                         tb.wait()
                         del tb
-                        tb = Demodulator(pkt, signal_config, constellation, ports_config)
+                        tb = Demodulator(pkt, signal_config, current_constellation_obj, ports_config)
                         current_tb[0] = tb
                         tb.start()
                         logger.info("Demodulator restarted with new preset")

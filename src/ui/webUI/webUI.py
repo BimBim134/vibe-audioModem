@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from src.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
-    DEFAULT_PACKET_CONFIG,
+    DEFAULT_PACKET_CONFIG
 )
 from src.config import (
     SignalConfig,
@@ -102,8 +102,9 @@ async def set_modulation_preset(request: Request):
     preset = presets[preset_name]
     signal_conf.baudrate = preset.get("baudrate", signal_conf.baudrate)
     signal_conf.beeper_duration = preset.get("beeper-duration", signal_conf.beeper_duration)
+    signal_conf.constellation_name = preset.get("constellation", signal_conf.constellation_name)
 
-    logger.info(f"Modulation preset '{preset_name}' applied: baudrate={signal_conf.baudrate}, beeper_duration={signal_conf.beeper_duration}")
+    logger.info(f"Modulation preset '{preset_name}' applied: baudrate={signal_conf.baudrate}, beeper_duration={signal_conf.beeper_duration}, constellation={signal_conf.constellation_name}")
 
     if config_pub_socket:
         try:
@@ -112,13 +113,14 @@ async def set_modulation_preset(request: Request):
                 "preset": preset_name,
                 "baudrate": signal_conf.baudrate,
                 "beeper_duration": signal_conf.beeper_duration,
+                "constellation_name": signal_conf.constellation_name,
             }
             config_pub_socket.send(pmt.serialize_str(pmt.to_pmt(msg)))
             logger.info(f"Published preset update to port {ports_conf.config_port}")
         except Exception as e:
             logger.error(f"Failed to publish preset update: {e}")
 
-    return JSONResponse({"status": "ok", "preset": preset_name, "baudrate": signal_conf.baudrate})
+    return JSONResponse({"status": "ok", "preset": preset_name, "baudrate": signal_conf.baudrate, "constellation": signal_conf.constellation_name})
 
 
 # 3. WebSocket bridge

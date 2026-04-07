@@ -29,6 +29,7 @@ class DemodulatorWorker:
         self.worker_id = worker_id
         self.command_queue = multiprocessing.Queue()
         self.status_queue = multiprocessing.Queue()
+        self.current_constellation_name = sig_conf.constellation_name
 
         self.process = multiprocessing.Process(
             target=launch_demodulator,
@@ -37,6 +38,7 @@ class DemodulatorWorker:
                 "ports": ports_conf,
                 "pkt": pkt_conf,
                 "constellation": None,  # Pass None to avoid pickling GNU Radio objects
+                "constellation_name": sig_conf.constellation_name,
                 "command_queue": self.command_queue,
                 "status_queue": self.status_queue,
             },
@@ -86,12 +88,14 @@ class DemodulatorWorker:
 
     def update_preset(self, sig_conf):
         """Send preset update command to worker."""
+        self.current_constellation_name = sig_conf.constellation_name
         self.command_queue.put({
             "action": "update_preset",
             "baudrate": sig_conf.baudrate,
             "beeper_duration": sig_conf.beeper_duration,
+            "constellation_name": sig_conf.constellation_name,
         })
-        logger.info(f"Sent preset update to worker {self.worker_id}: baudrate={sig_conf.baudrate}")
+        logger.info(f"Sent preset update to worker {self.worker_id}: baudrate={sig_conf.baudrate}, constellation={sig_conf.constellation_name}")
 
     def terminate(self):
         self.command_queue.put(None)
@@ -162,13 +166,16 @@ def search_for_incomming_transmission(
                         preset_name = config_payload.get("preset", "unknown")
                         new_baudrate = config_payload.get("baudrate")
                         new_beeper_duration = config_payload.get("beeper_duration")
+                        new_constellation_name = config_payload.get("constellation_name")
 
                         if new_baudrate:
                             signal_conf.baudrate = new_baudrate
                         if new_beeper_duration:
                             signal_conf.beeper_duration = new_beeper_duration
+                        if new_constellation_name:
+                            signal_conf.constellation_name = new_constellation_name
 
-                        logger.info(f"Received preset '{preset_name}'")
+                        logger.info(f"Received preset '{preset_name}': baudrate={signal_conf.baudrate}, constellation={signal_conf.constellation_name}")
 
                         for worker in workers:
                             worker.update_preset(signal_conf)
