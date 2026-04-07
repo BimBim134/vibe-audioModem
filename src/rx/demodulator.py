@@ -333,12 +333,14 @@ def launch_demodulator(
 
                 # Internal loop to wait for stop or kill while running
                 while True:
-                    cmd2 = command_queue.get()
-                    if cmd2 is None:
+                    cmd_queue = command_queue.get()
+                    if cmd_queue is None:
                         tb.stop()
                         tb.wait()
                         return
-                    if cmd2.get("action") == "stop":
+                    cmd_queue_action = cmd_queue.get("action")
+
+                    if cmd_queue_action == "stop":
                         tb.stop()
                         tb.wait()
                         current_tb[0] = None  # Allow garbage collection
@@ -347,6 +349,24 @@ def launch_demodulator(
                         if status_queue:
                             status_queue.put({"status": "ready"})
                         break
+                    elif cmd_queue_action == "update_preset":
+                        new_baudrate = cmd_queue.get("baudrate")
+                        new_beeper_duration = cmd_queue.get("beeper_duration")
+                        if new_baudrate:
+                            signal_config.baudrate = new_baudrate
+                        if new_beeper_duration:
+                            signal_config.beeper_duration = new_beeper_duration
+                        logger.info(f"Preset update received: baudrate={signal_config.baudrate}, beeper_duration={signal_config.beeper_duration}")
+                        # Restart demodulator with new settings
+                        tb.stop()
+                        tb.wait()
+                        del tb
+                        tb = Demodulator(pkt, signal_config, constellation, ports_config)
+                        current_tb[0] = tb
+                        tb.start()
+                        logger.info("Demodulator restarted with new preset")
+                        if status_queue:
+                            status_queue.put({"status": "running", "preset_updated": True})
             elif action == "stop":
                 if current_tb[0] is not None:
                     current_tb[0].stop()

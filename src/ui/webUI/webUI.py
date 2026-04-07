@@ -77,6 +77,50 @@ async def get_modulation_presets():
     return FileResponse(os.path.join(current_dir, "assets", "modulation_presets.json"))
 
 
+PRESETS_PATH = os.path.join(current_dir, "assets", "modulation_presets.json")
+
+
+@app.post("/api/modulation_preset")
+async def set_modulation_preset(request: Request):
+    global signal_conf, config_pub_socket
+    data = await request.json()
+    preset_name = data.get("preset")
+
+    if not preset_name:
+        return JSONResponse({"status": "error", "message": "preset required"}, status_code=400)
+
+    try:
+        with open(PRESETS_PATH, "r", encoding="utf-8") as f:
+            presets = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load presets: {e}")
+        return JSONResponse({"status": "error", "message": "Failed to load presets"}, status_code=500)
+
+    if preset_name not in presets:
+        return JSONResponse({"status": "error", "message": f"Unknown preset: {preset_name}"}, status_code=400)
+
+    preset = presets[preset_name]
+    signal_conf.baudrate = preset.get("baudrate", signal_conf.baudrate)
+    signal_conf.beeper_duration = preset.get("beeper-duration", signal_conf.beeper_duration)
+
+    logger.info(f"Modulation preset '{preset_name}' applied: baudrate={signal_conf.baudrate}, beeper_duration={signal_conf.beeper_duration}")
+
+    if config_pub_socket:
+        try:
+            msg = {
+                "type": "preset_update",
+                "preset": preset_name,
+                "baudrate": signal_conf.baudrate,
+                "beeper_duration": signal_conf.beeper_duration,
+            }
+            config_pub_socket.send(pmt.serialize_str(pmt.to_pmt(msg)))
+            logger.info(f"Published preset update to port {ports_conf.config_port}")
+        except Exception as e:
+            logger.error(f"Failed to publish preset update: {e}")
+
+    return JSONResponse({"status": "ok", "preset": preset_name, "baudrate": signal_conf.baudrate})
+
+
 # 3. WebSocket bridge
 async def listen_to_zmq(sock, websocket, prefix, transform=None):
     try:

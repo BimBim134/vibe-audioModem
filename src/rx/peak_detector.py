@@ -84,6 +84,15 @@ class DemodulatorWorker:
             except:
                 break
 
+    def update_preset(self, sig_conf):
+        """Send preset update command to worker."""
+        self.command_queue.put({
+            "action": "update_preset",
+            "baudrate": sig_conf.baudrate,
+            "beeper_duration": sig_conf.beeper_duration,
+        })
+        logger.info(f"Sent preset update to worker {self.worker_id}: baudrate={sig_conf.baudrate}")
+
     def terminate(self):
         self.command_queue.put(None)
         self.process.join(timeout=1.0)
@@ -111,10 +120,16 @@ def search_for_incomming_transmission(
     socket.connect(f"tcp://127.0.0.1:{ports_conf.fft_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
 
+    config_socket = context.socket(zmq.SUB)
+    config_socket.connect(f"tcp://127.0.0.1:{ports_conf.config_port}")
+    config_socket.setsockopt(zmq.SUBSCRIBE, b"")
+
     poller = zmq.Poller()
     poller.register(socket, zmq.POLLIN)
+    poller.register(config_socket, zmq.POLLIN)
 
     logger.info(f"peak detector subscribed to fft on port {ports_conf.fft_port}")
+    logger.info(f"peak detector subscribed to config on port {ports_conf.config_port}")
 
     # Socket for sending system messages to web UI
     system_pub_socket = context.socket(zmq.PUB)
@@ -138,6 +153,27 @@ def search_for_incomming_transmission(
     try:
         while not stop_event.is_set():
             socks = dict(poller.poll(100))
+
+            if config_socket in socks and socks[config_socket] == zmq.POLLIN:
+                try:
+                    raw_config = config_socket.recv(flags=zmq.NOBLOCK)
+                    config_payload = pmt.to_python(pmt.deserialize_str(raw_config))
+                    if isinstance(config_payload, dict) and config_payload.get("type") == "preset_update":
+                        preset_name = config_payload.get("preset", "unknown")
+                        new_baudrate = config_payload.get("baudrate")
+                        new_beeper_duration = config_payload.get("beeper_duration")
+
+                        if new_baudrate:
+                            signal_conf.baudrate = new_baudrate
+                        if new_beeper_duration:
+                            signal_conf.beeper_duration = new_beeper_duration
+
+                        logger.info(f"Received preset '{preset_name}'")
+
+                        for worker in workers:
+                            worker.update_preset(signal_conf)
+                except Exception as e:
+                    logger.error(f"Error processing config message: {e}")
 
             if socket not in socks or socks[socket] != zmq.POLLIN:
                 continue
@@ -216,8 +252,9 @@ def search_for_incomming_transmission(
         logger.info("Peak detector: cleaning up workers...")
         for worker in workers:
             worker.terminate()
-        logger.info("Peak detector: closing socket and context")
+        logger.info("Peak detector: closing sockets and context")
         socket.close()
+        config_socket.close()
         system_pub_socket.close()
         context.term()
 
