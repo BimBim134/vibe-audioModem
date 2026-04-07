@@ -16,6 +16,7 @@ from src.config import (
     DEFAULT_PACKET_CONFIG,
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
+    CONSTELLATION_MAP
 )
 
 
