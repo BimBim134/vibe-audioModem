@@ -2,14 +2,12 @@ import logging
 import argparse
 
 from src.audioModem.audioModem import main
+from src.misc.config import setup_logging
 
-logging.basicConfig(
-    format="%(asctime)s: %(levelname)s: %(message)s",
-    level=logging.INFO,
-)
+setup_logging(level=logging.INFO)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Vibe Audio Modem")
-    parser.add_argument("--port", type=int, default=8000, help="HTTP server port (default: 8000)")
+    parser.add_argument("--cli", action="store_true", help="Enable CLI terminal interface")
     args = parser.parse_args()
-    main(http_port=args.port)
+    main(cli=args.cli)

@@ -26,6 +26,7 @@ from src.rx.audio_interface import start_audio_interface
 from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
 from src.tx.transmitter import send_data
+from src.audioModem.cli import start_cli
 
 logger = logging.getLogger(__name__)
 
@@ -377,7 +378,7 @@ def run_processes(process_configs, stop_event, timeout=2.0):
                 p.terminate()
 
 
-def main(http_port: int = 8000):
+def main(http_port: int = 8000, cli: bool = False):
     logger.info("Starting audio modem...")
 
     controller = ModemController(cmd_port=5561)
@@ -400,6 +401,15 @@ def main(http_port: int = 8000):
     )
     http_thread.start()
     logger.info(f"HTTP server starting on port {http_port}")
+
+    if cli:
+        cli_thread = threading.Thread(
+            target=start_cli,
+            daemon=False,
+            name="CLI"
+        )
+        cli_thread.start()
+        cli_thread.join()
 
     process_configs = [
         AUDIO_INTERFACE,
