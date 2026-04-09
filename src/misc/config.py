@@ -11,20 +11,33 @@ from reedsolo import RSCodec
 import numpy as np
 
 
-def setup_logging(level=logging.DEBUG):
+def setup_logging(
+    level=logging.DEBUG,
+    log_file: str = "audiomodem.log",
+    console: bool = False
+):
     """
     Configure logging for the entire application.
-    This can be called safely multiple times, but the first call will set the configuration.
+    Logs to file by default. Can optionally enable console output.
+    
+    Args:
+        level: Log level (default: DEBUG)
+        log_file: Path to log file (default: "audiomodem.log")
+        console: If True, also output to stdout (default: False)
     """
+    handlers = [logging.FileHandler(log_file, mode="a")]
+    if console:
+        handlers.append(logging.StreamHandler())
+    
     logging.basicConfig(
-        format="%(asctime)s: %(processName)s: %(message)s",
+        format="%(asctime)s: %(processName)s: %(levelname)s: %(message)s",
         level=level,
+        handlers=handlers,
     )
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
-# Automatically setup logging when config is imported
 setup_logging()
 
 
