@@ -2,7 +2,6 @@ import os
 import multiprocessing
 import logging
 import time
-import argparse
 import threading
 import json
 import queue
@@ -10,6 +9,10 @@ from copy import deepcopy
 from typing import Optional, Dict, Any
 import zmq
 import pmt
+
+import uvicorn
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 
 from src.misc.config import (
     DEFAULT_SIGNAL_CONFIG,
@@ -60,9 +63,6 @@ PACKET_DECODER = {
 }
 
 
-PRESETS_PATH = None
-
-
 class ModemController:
     def __init__(
         self,
@@ -94,7 +94,7 @@ class ModemController:
         logger.info(f"  Command port: {self.cmd_port}")
         logger.info(f"  Config pub port: {self.ports_conf.config_port}")
 
-    def _load_presets(self):
+    def _load_presets(self) -> Dict[str, Any]:
         if self.presets_path and os.path.exists(self.presets_path):
             try:
                 with open(self.presets_path, "r") as f:
@@ -141,13 +141,8 @@ class ModemController:
                         handle_signals=False,
                     )
                     logger.info("Transmission completed successfully")
-                    response = {"status": "done", "message": "Transmission completed"}
                 except Exception as e:
                     logger.error(f"Transmission failed: {e}")
-                    response = {"status": "error", "error": str(e)}
-
-                item["response"] = response
-                item["event"].set()
 
                 with self._transmission_lock:
                     self._is_transmitting = False
@@ -156,11 +151,9 @@ class ModemController:
                 logger.error(f"Queue processing error: {e}")
 
     def _queue_transmission(self, message: str, sender_name: str = "unknown"):
-        event = threading.Event()
         item = {
             "message": message,
             "sender_name": sender_name,
-            "event": event,
         }
         self._transmission_queue.put(item)
         logger.info(f"Transmission queued (queue size: {self._transmission_queue.qsize()})")
@@ -173,19 +166,16 @@ class ModemController:
             )
             self._transmission_thread.start()
 
-        return event
-
     def handle_transmit(self, data: Dict[str, Any]) -> Dict[str, Any]:
         message = data.get("message", "")
-        sender_name = data.get("sender_name", "Me")
+        sender_name = data.get("sender_name", "HTTP")
 
         if not message:
             return {"status": "error", "error": "Message is required"}
 
-        event = self._queue_transmission(message, sender_name)
-        event.wait()
+        self._queue_transmission(message, sender_name)
 
-        return {"status": "transmitting", "message": message, "sender": sender_name}
+        return {"status": "queued", "message": message, "sender": sender_name}
 
     def handle_set_preset(self, data: Dict[str, Any]) -> Dict[str, Any]:
         preset_name = data.get("preset")
@@ -311,6 +301,48 @@ class ModemController:
         logger.info("ModemController shutdown complete")
 
 
+app = FastAPI(title="Vibe Audio Modem")
+_controller: Optional[ModemController] = None
+
+
+def set_controller(controller: ModemController):
+    global _controller
+    _controller = controller
+
+
+@app.get("/status")
+async def get_status():
+    return _controller.handle_get_status()
+
+
+@app.get("/config")
+async def get_config():
+    return _controller.handle_get_config()
+
+
+@app.post("/transmit")
+async def transmit(request: Request):
+    data = await request.json()
+    return _controller.handle_transmit(data)
+
+
+@app.post("/preset")
+async def set_preset(request: Request):
+    data = await request.json()
+    return _controller.handle_set_preset(data)
+
+
+@app.post("/carrier")
+async def set_carrier(request: Request):
+    data = await request.json()
+    return _controller.handle_set_carrier_freq(data)
+
+
+def run_http_server(host: str = "0.0.0.0", port: int = 8000, stop_event=None):
+    logger.info(f"Starting HTTP server on {host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
 def run_processes(process_configs, stop_event, timeout=2.0):
     processes = []
 
@@ -345,16 +377,29 @@ def run_processes(process_configs, stop_event, timeout=2.0):
                 p.terminate()
 
 
-def main():
-    controller = ModemController(presets_path=None)
+def main(http_port: int = 8000):
+    logger.info("Starting audio modem...")
+
+    controller = ModemController(cmd_port=5561)
+    set_controller(controller)
 
     controller_thread = threading.Thread(
         target=controller.run_command_loop,
         args=(STOP_EVENT,),
         daemon=True,
-        name="ControllerCommandLoop"
+        name="ModemController"
     )
     controller_thread.start()
+    logger.info("ModemController running on port 5561")
+
+    http_thread = threading.Thread(
+        target=run_http_server,
+        kwargs={"port": http_port, "stop_event": STOP_EVENT},
+        daemon=True,
+        name="HTTPServer"
+    )
+    http_thread.start()
+    logger.info(f"HTTP server starting on port {http_port}")
 
     process_configs = [
         AUDIO_INTERFACE,
