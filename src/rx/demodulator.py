@@ -11,8 +11,8 @@ from gnuradio import analog, audio, blocks, digital, fec, gr, pdu, zeromq
 from gnuradio.filter import firdes, freq_xlating_fir_filter_fcc
 from gnuradio.fft import window
 
-from src.config import PacketConfig, SignalConfig, PortsConfig
-from src.config import (
+from src.misc.config import PacketConfig, SignalConfig, PortsConfig
+from src.misc.config import (
     DEFAULT_PACKET_CONFIG,
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
@@ -23,8 +23,8 @@ from src.config import (
 def get_constellation_by_name(name):
     """Resolve constellation name to actual constellation object."""
     if name is None:
-        return DEFAULT_DQPSK_CONST
-    return CONSTELLATION_MAP.get(name, DEFAULT_DQPSK_CONST)
+        return "default"
+    return CONSTELLATION_MAP.get(name, CONSTELLATION_MAP["default"])
 
 logger = logging.getLogger(__name__)
 
@@ -287,6 +287,8 @@ def launch_demodulator(
 
     current_constellation_name = constellation_name or sig.constellation_name
     current_constellation_obj = constellation or get_constellation_by_name(current_constellation_name)
+    if isinstance(current_constellation_obj, str):
+        current_constellation_obj = CONSTELLATION_MAP["default"]
 
     current_tb = [None]
 

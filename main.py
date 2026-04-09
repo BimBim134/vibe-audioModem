@@ -3,7 +3,7 @@ import logging
 import time
 import argparse
 
-from src.config import (
+from src.misc.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
     DEFAULT_PACKET_CONFIG,

@@ -8,8 +8,8 @@ import logging
 import numpy as np
 import pmt
 
-import src.config as config
-from src.scrambling import Scrambler
+import src.misc.config as config
+from src.misc.scrambling import Scrambler
 
 logger = logging.getLogger(__name__)
 

@@ -9,8 +9,8 @@ from gnuradio import blocks, digital, fec, gr, audio, analog
 import numpy as np
 
 from src.tx.packetizer import prepare_data
-from src.config import PacketConfig, SignalConfig
-from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
+from src.misc.config import PacketConfig, SignalConfig
+from src.misc.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, DEFAULT_DQPSK_CONST
 
 logger = logging.getLogger(__name__)
 

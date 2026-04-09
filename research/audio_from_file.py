@@ -12,7 +12,7 @@ from gnuradio.fft import window
 from gnuradio import gr
 from gnuradio import zeromq
 
-from src.config import SignalConfig, PortsConfig, DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
+from src.misc.config import SignalConfig, PortsConfig, DEFAULT_SIGNAL_CONFIG, DEFAULT_PORTS_CONFIG
 
 logger = logging.getLogger(__name__)
 

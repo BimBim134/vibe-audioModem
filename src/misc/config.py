@@ -109,14 +109,15 @@ DEFAULT_PACKET_CONFIG = PacketConfig(
     error_correction_len=32,
 )
 
-DEFAULT_BPSK_CONST = digital.constellation_bpsk()
-DEFAULT_DQPSK_CONST = digital.constellation_dqpsk()
-DEFAULT_8PSK_CONST = digital.constellation_8psk_natural()
+BPSK_CONST = digital.constellation_bpsk()
+DQPSK_CONST = digital.constellation_dqpsk()
+PSK8_CONST = digital.constellation_8psk_natural()
 
 CONSTELLATION_MAP = {
-    "DEFAULT_BPSK_CONST": DEFAULT_BPSK_CONST,
-    "DEFAULT_DQPSK_CONST": DEFAULT_DQPSK_CONST,
-    "DEFAULT_8PSK_CONST": DEFAULT_8PSK_CONST,
+    "default":BPSK_CONST,
+    "bpsk": BPSK_CONST,
+    "qpsk": DQPSK_CONST,
+    "8psk": PSK8_CONST,
 }
 
 DEFAULT_SIGNAL_CONFIG = SignalConfig(

@@ -1,11 +1,11 @@
 {
     "ultra-slow": {
-        "constellation": "DEFAULT_BPSK_CONST",
+        "constellation": "bpsk",
         "beeper-duration": 3,
         "baudrate": 50
     },
     "turbo-fast": {
-        "constellation": "DEFAULT_8PSK_CONST",
+        "constellation": "8psk",
         "beeper-duration": 3,
         "baudrate": 2000
     }

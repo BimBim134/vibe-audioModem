@@ -10,7 +10,7 @@ import pyqtgraph as pg
 pg.setConfigOption('background', '#12141a')
 pg.setConfigOption('foreground', '#a6adc8')
 
-from src.config import (
+from src.misc.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
     DEFAULT_PACKET_CONFIG,

@@ -13,12 +13,12 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 
-from src.config import (
+from src.misc.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
     DEFAULT_PACKET_CONFIG
 )
-from src.config import (
+from src.misc.config import (
     SignalConfig,
     PortsConfig,
     PacketConfig,

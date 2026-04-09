@@ -6,9 +6,9 @@ import base64
 from reedsolo import ReedSolomonError
 import numpy as np
 
-from src.config import PacketConfig
-from src.config import DEFAULT_PACKET_CONFIG, DEFAULT_PORTS_CONFIG, PortsConfig
-from src.scrambling import Unscrambler
+from src.misc.config import PacketConfig
+from src.misc.config import DEFAULT_PACKET_CONFIG, DEFAULT_PORTS_CONFIG, PortsConfig
+from src.misc.scrambling import Unscrambler
 
 logger = logging.getLogger(__name__)
 

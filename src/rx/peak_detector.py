@@ -11,8 +11,8 @@ from scipy.signal import find_peaks
 import zmq
 import pmt
 
-from src.config import SignalConfig, PortsConfig, PacketConfig
-from src.config import (
+from src.misc.config import SignalConfig, PortsConfig, PacketConfig
+from src.misc.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
     DEFAULT_PACKET_CONFIG,
