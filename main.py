@@ -1,10 +1,33 @@
 import logging
 import argparse
+import multiprocessing
+import sys
 
-from src.audioModem.audioModem import main
+from src.audioModem.audioModem import start_audiomodem
 from src.misc.config import setup_logging
 
 setup_logging(level=logging.INFO)
+
+STOP_EVENT = multiprocessing.Event()
+
+
+def main(http_port: int = 8000, cli: bool = False):
+    if cli:
+        start_audiomodem(http_port=http_port, cli=cli)
+    else:
+        import multiprocessing as mp
+        modem_process = mp.Process(
+            target=start_audiomodem,
+            name="AudioModem",
+            kwargs={"cli": False}
+        )
+        modem_process.start()
+        try:
+            modem_process.join()
+        except KeyboardInterrupt:
+            if modem_process.is_alive():
+                modem_process.terminate()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Vibe Audio Modem")

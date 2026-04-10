@@ -10,10 +10,6 @@ from typing import Optional, Dict, Any
 import zmq
 import pmt
 
-import uvicorn
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-
 from src.misc.config import (
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
@@ -26,7 +22,7 @@ from src.rx.audio_interface import start_audio_interface
 from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
 from src.tx.transmitter import send_data
-from src.audioModem.cli import start_cli
+from src.audioModem.http_server import run_http_server, set_controller
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +59,6 @@ PACKET_DECODER = {
     "name": "PacketDecoderProcess",
 }
 
-
 class ModemController:
     def __init__(
         self,
@@ -83,6 +78,7 @@ class ModemController:
         self._is_transmitting = False
         self._transmission_thread = None
         self._transmission_lock = threading.Lock()
+        self._cancel_event = threading.Event()
 
         self.context = zmq.Context()
         self.command_socket = self.context.socket(zmq.REP)
@@ -92,8 +88,8 @@ class ModemController:
         self.config_pub_socket.bind(f"tcp://*:{self.ports_conf.config_port}")
 
         logger.info("ModemController initialized")
-        logger.info(f"  Command port: {self.cmd_port}")
-        logger.info(f"  Config pub port: {self.ports_conf.config_port}")
+        logger.info(f"Command port: {self.cmd_port}")
+        logger.info(f"Config pub port: {self.ports_conf.config_port}")
 
     def _load_presets(self) -> Dict[str, Any]:
         if self.presets_path and os.path.exists(self.presets_path):
@@ -302,83 +298,9 @@ class ModemController:
         logger.info("ModemController shutdown complete")
 
 
-app = FastAPI(title="Vibe Audio Modem")
-_controller: Optional[ModemController] = None
-
-
-def set_controller(controller: ModemController):
-    global _controller
-    _controller = controller
-
-
-@app.get("/status")
-async def get_status():
-    return _controller.handle_get_status()
-
-
-@app.get("/config")
-async def get_config():
-    return _controller.handle_get_config()
-
-
-@app.post("/transmit")
-async def transmit(request: Request):
-    data = await request.json()
-    return _controller.handle_transmit(data)
-
-
-@app.post("/preset")
-async def set_preset(request: Request):
-    data = await request.json()
-    return _controller.handle_set_preset(data)
-
-
-@app.post("/carrier")
-async def set_carrier(request: Request):
-    data = await request.json()
-    return _controller.handle_set_carrier_freq(data)
-
-
-def run_http_server(host: str = "0.0.0.0", port: int = 8000, stop_event=None):
-    logger.info(f"Starting HTTP server on {host}:{port}")
-    uvicorn.run(app, host=host, port=port, log_level="info")
-
-
-def run_processes(process_configs, stop_event, timeout=2.0):
-    processes = []
-
-    for config in process_configs:
-        p = multiprocessing.Process(
-            target=config["target"],
-            args=config.get("args", ()),
-            kwargs=config.get("kwargs", {}),
-            name=config.get("name", "Process"),
-        )
-        processes.append(p)
-        logger.info("Starting process: %s", config.get("name", "Process"))
-        p.start()
-
-    try:
-        while all(p.is_alive() for p in processes):
-            time.sleep(0.2)
-
-        logger.info("A process ended. Signaling remaining processes to stop...")
-        stop_event.set()
-
-    except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt received, signaling processes to stop...")
-        stop_event.set()
-    finally:
-        for p in processes:
-            p.join(timeout=timeout)
-
-        for p in processes:
-            if p.is_alive():
-                logger.warning("%s still alive, terminating...", p.name)
-                p.terminate()
-
-
-def main(http_port: int = 8000, cli: bool = False):
+def start_audiomodem(http_port: int = 8000, cli: bool = False):
+    from src.audioModem.cli import start_cli
+    
     logger.info("Starting audio modem...")
 
     controller = ModemController(cmd_port=5561)
@@ -402,25 +324,42 @@ def main(http_port: int = 8000, cli: bool = False):
     http_thread.start()
     logger.info(f"HTTP server starting on port {http_port}")
 
-    if cli:
-        cli_thread = threading.Thread(
-            target=start_cli,
-            daemon=False,
-            name="CLI"
-        )
-        cli_thread.start()
-        cli_thread.join()
-
     process_configs = [
         AUDIO_INTERFACE,
         PEAK_DETECTOR,
         PACKET_DECODER,
     ]
-    run_processes(process_configs, STOP_EVENT)
+
+    processes = []
+    for config in process_configs:
+        p = multiprocessing.Process(
+            target=config["target"],
+            args=config.get("args", ()),
+            kwargs=config.get("kwargs", {}),
+            name=config.get("name", "Process"),
+        )
+        processes.append(p)
+        p.start()
+
+    if cli:
+        start_cli(base_url="http://localhost:8000")
+
+    try:
+        while all(p.is_alive() for p in processes):
+            time.sleep(0.2)
+
+        STOP_EVENT.set()
+    except KeyboardInterrupt:
+        STOP_EVENT.set()
+    finally:
+        for p in processes:
+            p.join(timeout=2.0)
+            if p.is_alive():
+                p.terminate()
 
     controller.shutdown()
     logger.info("Shutdown complete.")
 
 
 if __name__ == "__main__":
-    main()
+    start_audiomodem()

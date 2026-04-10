@@ -120,6 +120,7 @@ class ModemCLI(cmd.Cmd):
 
 
 def start_cli(base_url: str = "http://localhost:8000"):
+    sys.stdin = sys.__stdin__
     cli = ModemCLI(base_url=base_url)
     try:
         cli.cmdloop()
