@@ -113,7 +113,7 @@ class Transmitter(gr.top_block):
         """
         nb_packet = int(len(self.input_file) / self.pkt.total_packets_len)
         nb_bits_transmitted = (
-            len(self.input_file) * 8 + nb_packet * len(self.access_key) + nb_packet * 32
+            len(self.input_file) * 8 + nb_packet * len(self.access_key) + nb_packet * self.pkt.error_correction_len * 8
         ) * 2
         
         nb_symbols_transmitted = nb_bits_transmitted / self.const_definition.bits_per_symbol()

@@ -116,10 +116,10 @@ class PortsConfig:
 
 
 DEFAULT_PACKET_CONFIG = PacketConfig(
-    total_packets_len=255,
+    total_packets_len=48,
     preamble_packets=1,
-    postamble_packets=1,  # serve as EOF flag
-    error_correction_len=32,
+    postamble_packets=1,
+    error_correction_len=16,
 )
 
 BPSK_CONST = digital.constellation_bpsk()

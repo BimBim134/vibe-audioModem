@@ -3,17 +3,17 @@
 ### details
 | setting                      | value |  unit  |
 | :--------------------------- | :---: | :----: |
-| total packet lenght          |  64  |  bit   |
+| total packet lenght          |  48   |  byte  |
 | pramble packets              |   1   | packet |
 | postamble packets            |   1   | packet |
-| error correction code length |  32   |  bit   |
+| error correction code length |  16   |  byte  |
 
 ### single packet description
 ```mermaid
 packet
 +1:"flag"
 +31:"data"
-+32:"Reed Solomon error code"
++16:"Reed Solomon error code"
 ```
 ## signal configuration
 ### details

@@ -225,19 +225,6 @@ class Demodulator(gr.top_block):
             f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False
         )
 
-        ## send constellation points to zmq sink
-        self.zeromq_pub_sink_0 = zeromq.pub_sink(
-            gr.sizeof_gr_complex,
-            1,
-            f"tcp://127.0.0.1:{self.ports.constellation_port}",
-            0,
-            False,
-            (-1),
-            "",
-            True,
-            True,
-        )
-
         # Connections
         self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
@@ -247,7 +234,6 @@ class Demodulator(gr.top_block):
         self.connect((self.digital_linear_equalizer_0, 0), (self.digital_costas_loop_cc_0, 0))
         self.connect((self.digital_costas_loop_cc_0, 0),(self.digital_constellation_decoder_cb_0, 0),)
         self.connect((self.digital_constellation_decoder_cb_0, 0),(self.digital_diff_decoder_bb_0, 0),)
-        self.connect((self.digital_costas_loop_cc_0, 0), (self.zeromq_pub_sink_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
         self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
