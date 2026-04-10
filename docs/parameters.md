@@ -11,7 +11,6 @@
 ### single packet description
 ```mermaid
 packet
-+32:"access key"
 +1:"flag"
 +31:"data"
 +32:"Reed Solomon error code"
