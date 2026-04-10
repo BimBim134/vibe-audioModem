@@ -153,15 +153,25 @@ def send_data(
     tb.flowgraph_started.set()
 
     if cancel_event:
-        while tb.is_running():
+        done = threading.Event()
+
+        def wait_for_flowgraph():
+            tb.wait()
+            done.set()
+
+        wait_thread = threading.Thread(target=wait_for_flowgraph, daemon=True)
+        wait_thread.start()
+
+        while not done.is_set():
             if cancel_event.is_set():
                 tb.stop()
-                tb.wait()
+                done.set()
+                wait_thread.join(timeout=2.0)
                 logger.info("Transmission cancelled mid-flight")
                 return
             time.sleep(0.1)
-
-    tb.wait()
+    else:
+        tb.wait()
 
 
 if __name__ == "__main__":
