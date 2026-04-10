@@ -98,7 +98,8 @@ class ModemCLI(cmd.Cmd):
                 print(f"Error: {result.get('error', 'Unknown error')}")
 
     def do_exit(self, arg):
-        """Exit the CLI (backend keeps running)"""
+        """Exit the CLI (cancels queue and stops backend)"""
+        self._api_post("/cancel", {})
         print("Goodbye!")
         return True
 
@@ -114,6 +115,12 @@ class ModemCLI(cmd.Cmd):
     def do_clear(self, arg):
         """Clear the screen"""
         print("\033[2J\033[H", end="")
+
+    def do_cancel(self, arg):
+        """Cancel pending and in-progress transmissions"""
+        result = self._api_post("/cancel", {})
+        if result:
+            print("Transmission queue cancelled")
 
     def emptyline(self):
         pass

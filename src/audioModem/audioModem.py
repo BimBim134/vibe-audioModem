@@ -117,8 +117,20 @@ class ModemController:
     def _process_transmission_queue(self):
         while True:
             try:
+                if self._cancel_event.is_set():
+                    logger.info("Transmission cancelled before processing")
+                    with self._transmission_lock:
+                        self._is_transmitting = False
+                    break
+
                 item = self._transmission_queue.get()
                 if item is None:
+                    break
+
+                if self._cancel_event.is_set():
+                    logger.info("Transmission cancelled before processing")
+                    with self._transmission_lock:
+                        self._is_transmitting = False
                     break
 
                 with self._transmission_lock:
@@ -136,8 +148,12 @@ class ModemController:
                         sig=self.signal_conf,
                         sender_name=sender_name,
                         handle_signals=False,
+                        cancel_event=self._cancel_event,
                     )
-                    logger.info("Transmission completed successfully")
+                    if self._cancel_event.is_set():
+                        logger.info("Transmission cancelled mid-flight")
+                    else:
+                        logger.info("Transmission completed successfully")
                 except Exception as e:
                     logger.error(f"Transmission failed: {e}")
 
@@ -170,6 +186,7 @@ class ModemController:
         if not message:
             return {"status": "error", "error": "Message is required"}
 
+        self._cancel_event.clear()
         self._queue_transmission(message, sender_name)
 
         return {"status": "queued", "message": message, "sender": sender_name}
@@ -237,6 +254,22 @@ class ModemController:
             "queue_size": self._transmission_queue.qsize(),
         }
 
+    def cancel_queue(self):
+        logger.info("Cancelling transmission queue...")
+        self._cancel_event.set()
+        while not self._transmission_queue.empty():
+            try:
+                self._transmission_queue.get_nowait()
+            except queue.Empty:
+                break
+        self._transmission_queue.put(None)
+        with self._transmission_lock:
+            self._is_transmitting = False
+
+    def handle_cancel_queue(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        self.cancel_queue()
+        return {"status": "cancelled"}
+
     def handle_command(self, cmd: Any) -> Dict[str, Any]:
         action = cmd.get("action") if isinstance(cmd, dict) else None
 
@@ -246,6 +279,7 @@ class ModemController:
             "set_carrier_freq": self.handle_set_carrier_freq,
             "get_config": self.handle_get_config,
             "get_status": self.handle_get_status,
+            "cancel_queue": self.handle_cancel_queue,
         }
 
         handler = handlers.get(action) if action else None
@@ -287,7 +321,7 @@ class ModemController:
         logger.info("Command loop stopped")
 
     def shutdown(self):
-        self._transmission_queue.put(None)
+        self.cancel_queue()
         if self._transmission_thread and self._transmission_thread.is_alive():
             self._transmission_thread.join(timeout=2.0)
 

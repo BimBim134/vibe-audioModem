@@ -1,5 +1,6 @@
 import sys
 import signal
+import time
 from typing import Any
 import threading
 import logging
@@ -128,6 +129,7 @@ def send_data(
     constellation: Any = None,
     sender_name: str = "defaut",
     handle_signals: bool = True,
+    cancel_event=None,
 ):
     if constellation is None:
         if hasattr(sig, 'constellation') and sig.constellation is not None:
@@ -149,6 +151,15 @@ def send_data(
 
     tb.start()
     tb.flowgraph_started.set()
+
+    if cancel_event:
+        while tb.is_running():
+            if cancel_event.is_set():
+                tb.stop()
+                tb.wait()
+                logger.info("Transmission cancelled mid-flight")
+                return
+            time.sleep(0.1)
 
     tb.wait()
 

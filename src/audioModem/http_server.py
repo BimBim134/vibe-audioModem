@@ -41,9 +41,14 @@ async def set_preset(request: Request):
 
 
 @app.post("/carrier")
-async def set_carrier(request: Request):
+async def set_carrier_freq(request: Request):
     data = await request.json()
     return _controller.handle_set_carrier_freq(data)
+
+
+@app.post("/cancel")
+async def cancel_queue():
+    return _controller.handle_cancel_queue({})
 
 
 def run_http_server(host: str = "0.0.0.0", port: int = 8000, stop_event=None):
