@@ -332,7 +332,7 @@ class ModemController:
         logger.info("ModemController shutdown complete")
 
 
-def start_audiomodem(http_port: int = 8000, cli: bool = False):
+def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=None):
     from src.audioModem.cli import start_cli
     
     logger.info("Starting audio modem...")
@@ -376,10 +376,12 @@ def start_audiomodem(http_port: int = 8000, cli: bool = False):
         p.start()
 
     if cli:
-        start_cli(base_url="http://localhost:8000")
+        start_cli(base_url="http://localhost:8000", cli_exit_event=cli_exit_event)
 
     try:
         while all(p.is_alive() for p in processes):
+            if cli_exit_event and cli_exit_event.is_set():
+                break
             time.sleep(0.2)
 
         STOP_EVENT.set()

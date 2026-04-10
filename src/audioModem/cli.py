@@ -31,7 +31,7 @@ class ModemCLI(cmd.Cmd):
 
     def _api_post(self, endpoint: str, data: dict) -> dict:
         try:
-            resp = requests.post(f"{self.base_url}{endpoint}", json=data, timeout=5)
+            resp = requests.post(f"{self.base_url}{endpoint}", json=data, timeout=2)
             resp.raise_for_status()
             return resp.json()
         except requests.exceptions.ConnectionError:
@@ -40,6 +40,31 @@ class ModemCLI(cmd.Cmd):
         except Exception as e:
             print(f"Error: {e}")
             return None
+
+    def cmdloop(self, intro=None):
+        self.preloop()
+        if intro is not None:
+            self.intro = intro
+        if self.intro:
+            print(self.intro)
+        while True:
+            try:
+                line = input(self.prompt)
+                line = self.precmd(line)
+                stop = self.onecmd(line)
+                stop = self.postcmd(stop, line)
+                if stop:
+                    break
+            except SystemExit:
+                break
+            except KeyboardInterrupt:
+                self.intr = None
+                print("^C")
+                break
+            except EOFError:
+                print("^D")
+                break
+        self.postloop()
 
     def do_send(self, arg):
         """send <message> - Send a message"""
@@ -105,12 +130,16 @@ class ModemCLI(cmd.Cmd):
 
     def do_quit(self, arg):
         """Exit the CLI (same as exit)"""
-        return self.do_exit(arg)
+        self._api_post("/cancel", {})
+        print("Goodbye!")
+        return True
 
     def do_EOF(self, arg):
         """Handle Ctrl+D"""
         print()
-        return self.do_exit(arg)
+        self._api_post("/cancel", {})
+        print("Goodbye!")
+        return True
 
     def do_clear(self, arg):
         """Clear the screen"""
@@ -126,10 +155,14 @@ class ModemCLI(cmd.Cmd):
         pass
 
 
-def start_cli(base_url: str = "http://localhost:8000"):
+def start_cli(base_url: str = "http://localhost:8000", cli_exit_event=None):
     sys.stdin = sys.__stdin__
     cli = ModemCLI(base_url=base_url)
     try:
         cli.cmdloop()
     except KeyboardInterrupt:
         print("\nExiting CLI...")
+    except SystemExit:
+        pass
+    if cli_exit_event:
+        cli_exit_event.set()

@@ -1,6 +1,7 @@
 import logging
 import argparse
 import multiprocessing
+import threading
 import sys
 
 from src.audioModem.audioModem import start_audiomodem
@@ -9,11 +10,12 @@ from src.misc.config import setup_logging
 setup_logging(level=logging.INFO)
 
 STOP_EVENT = multiprocessing.Event()
+CLI_EXIT_EVENT = threading.Event()
 
 
 def main(http_port: int = 8000, cli: bool = False):
     if cli:
-        start_audiomodem(http_port=http_port, cli=cli)
+        start_audiomodem(http_port=http_port, cli=cli, cli_exit_event=CLI_EXIT_EVENT)
     else:
         import multiprocessing as mp
         modem_process = mp.Process(
