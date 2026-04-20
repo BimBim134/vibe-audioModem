@@ -33,6 +33,7 @@ packet
 | messages                    | 5558 |
 | modem configuration         | 5559 |
 | peak detector configuration | 5560 |
+| CLI                         | 8000 |
 
 ## process connection
 ```mermaid
@@ -44,8 +45,10 @@ CLI["modem<br>CLI"]
 DM@{label: demodulator, shape: procs}
 MD["audio<br>modem"]
 TX[transmitter]
+HTTP["http<br>server"]
 
-CLI ----->|"5559<br>configuration"| MD
+CLI ---->|"8000<br>http requests"| HTTP
+HTTP -.->|"python<br>import"| MD
 AIF -->|"5557<br>fft"| PDT
 AIF -->|"5555<br>audio"| DM
 DM  -->|"5557<br>raw packet"| PDC
