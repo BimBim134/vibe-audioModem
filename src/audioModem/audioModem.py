@@ -66,13 +66,11 @@ class ModemController:
         pkt_conf: Optional[PacketConfig] = None,
         ports_conf: Optional[PortsConfig] = None,
         presets_path: Optional[str] = None,
-        cmd_port: int = 5561,
     ):
         self.signal_conf = deepcopy(signal_conf or DEFAULT_SIGNAL_CONFIG)
         self.pkt_conf = pkt_conf or DEFAULT_PACKET_CONFIG
         self.ports_conf = ports_conf or DEFAULT_PORTS_CONFIG
         self.presets_path = presets_path
-        self.cmd_port = cmd_port
 
         self._transmission_queue = queue.Queue()
         self._is_transmitting = False
@@ -81,14 +79,10 @@ class ModemController:
         self._cancel_event = threading.Event()
 
         self.context = zmq.Context()
-        self.command_socket = self.context.socket(zmq.REP)
-        self.command_socket.bind(f"tcp://*:{self.cmd_port}")
-
         self.config_pub_socket = self.context.socket(zmq.PUB)
         self.config_pub_socket.bind(f"tcp://*:{self.ports_conf.config_port}")
 
         logger.info("ModemController initialized")
-        logger.info(f"Command port: {self.cmd_port}")
         logger.info(f"Config pub port: {self.ports_conf.config_port}")
 
     def _load_presets(self) -> Dict[str, Any]:
@@ -270,62 +264,11 @@ class ModemController:
         self.cancel_queue()
         return {"status": "cancelled"}
 
-    def handle_command(self, cmd: Any) -> Dict[str, Any]:
-        action = cmd.get("action") if isinstance(cmd, dict) else None
-
-        handlers = {
-            "transmit": self.handle_transmit,
-            "set_preset": self.handle_set_preset,
-            "set_carrier_freq": self.handle_set_carrier_freq,
-            "get_config": self.handle_get_config,
-            "get_status": self.handle_get_status,
-            "cancel_queue": self.handle_cancel_queue,
-        }
-
-        handler = handlers.get(action) if action else None
-        if not handler:
-            return {"status": "error", "error": f"Unknown action: {action}"}
-
-        try:
-            return handler(cmd)
-        except Exception as e:
-            logger.error(f"Command handler error: {e}")
-            return {"status": "error", "error": str(e)}
-
-    def run_command_loop(self, stop_event):
-        poller = zmq.Poller()
-        poller.register(self.command_socket, zmq.POLLIN)
-
-        logger.info("Command loop started")
-
-        while not stop_event.is_set():
-            try:
-                socks = dict(poller.poll(100))
-
-                if self.command_socket in socks and socks[self.command_socket] == zmq.POLLIN:
-                    raw_msg = self.command_socket.recv()
-                    try:
-                        cmd = json.loads(raw_msg.decode("utf-8"))
-                        logger.info(f"Received command: {cmd.get('action')}")
-                    except json.JSONDecodeError:
-                        cmd = pmt.to_python(pmt.deserialize_str(raw_msg))
-
-                    response = self.handle_command(cmd)
-
-                    self.command_socket.send(json.dumps(response).encode("utf-8"))
-                    logger.info(f"Sent response: {response.get('status')}")
-
-            except Exception as e:
-                logger.error(f"Command loop error: {e}")
-
-        logger.info("Command loop stopped")
-
     def shutdown(self):
         self.cancel_queue()
         if self._transmission_thread and self._transmission_thread.is_alive():
             self._transmission_thread.join(timeout=2.0)
 
-        self.command_socket.close()
         self.config_pub_socket.close()
         self.context.term()
 
@@ -337,17 +280,8 @@ def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=No
     
     logger.info("Starting audio modem...")
 
-    controller = ModemController(cmd_port=5561)
+    controller = ModemController()
     set_controller(controller)
-
-    controller_thread = threading.Thread(
-        target=controller.run_command_loop,
-        args=(STOP_EVENT,),
-        daemon=True,
-        name="ModemController"
-    )
-    controller_thread.start()
-    logger.info("ModemController running on port 5561")
 
     http_thread = threading.Thread(
         target=run_http_server,
