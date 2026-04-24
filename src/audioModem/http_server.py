@@ -51,6 +51,12 @@ async def cancel_queue():
     return _controller.handle_cancel_queue({})
 
 
+@app.get("/messages")
+async def get_messages():
+    messages = _controller.get_received_messages()
+    return {"messages": messages}
+
+
 def run_http_server(host: str = "0.0.0.0", port: int = 8000, stop_event=None):
     logger.info(f"Starting HTTP server on {host}:{port}")
     uvicorn.run(app, host=host, port=port, log_level="info")

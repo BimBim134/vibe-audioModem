@@ -78,12 +78,29 @@ class ModemController:
         self._transmission_lock = threading.Lock()
         self._cancel_event = threading.Event()
 
+        self._received_messages = queue.Queue()
+        self._messages_lock = threading.Lock()
+
         self.context = zmq.Context()
         self.config_pub_socket = self.context.socket(zmq.PUB)
         self.config_pub_socket.bind(f"tcp://*:{self.ports_conf.config_port}")
 
+        self._messages_sub_socket = self.context.socket(zmq.SUB)
+        self._messages_sub_socket.connect(f"tcp://localhost:{self.ports_conf.messages_port}")
+        self._messages_sub_socket.setsockopt(zmq.SUBSCRIBE, b"")
+
+        self._message_listener_thread = None
+
         logger.info("ModemController initialized")
         logger.info(f"Config pub port: {self.ports_conf.config_port}")
+        logger.info(f"Subscribing to messages on port {self.ports_conf.messages_port}")
+
+        self._message_listener_thread = threading.Thread(
+            target=self._listen_for_messages,
+            daemon=True,
+            name="MessageListener"
+        )
+        self._message_listener_thread.start()
 
     def _load_presets(self) -> Dict[str, Any]:
         if self.presets_path and os.path.exists(self.presets_path):
@@ -93,6 +110,38 @@ class ModemController:
             except Exception as e:
                 logger.error(f"Failed to load presets: {e}")
         return {}
+
+    def _listen_for_messages(self):
+        logger.info("Message listener thread started")
+        while True:
+            try:
+                if STOP_EVENT.is_set():
+                    break
+                message = self._messages_sub_socket.recv(flags=zmq.NOBLOCK)
+                if message:
+                    try:
+                        data = pmt.to_python(pmt.deserialize_str(message))
+                        with self._messages_lock:
+                            self._received_messages.put(data)
+                        sender = data.get("sender_name", "unknown") if isinstance(data, dict) else "unknown"
+                        logger.info(f"Received message from: {sender}")
+                    except Exception as e:
+                        logger.error(f"Failed to deserialize message: {e}")
+            except zmq.Again:
+                continue
+            except Exception as e:
+                logger.error(f"Message listener error: {e}")
+        logger.info("Message listener thread stopped")
+
+    def get_received_messages(self) -> list:
+        messages = []
+        with self._messages_lock:
+            while not self._received_messages.empty():
+                try:
+                    messages.append(self._received_messages.get_nowait())
+                except queue.Empty:
+                    break
+        return messages
 
     def _broadcast_preset_update(self, preset_name: str):
         msg = {
@@ -269,6 +318,10 @@ class ModemController:
         if self._transmission_thread and self._transmission_thread.is_alive():
             self._transmission_thread.join(timeout=2.0)
 
+        if self._message_listener_thread and self._message_listener_thread.is_alive():
+            self._message_listener_thread.join(timeout=2.0)
+
+        self._messages_sub_socket.close()
         self.config_pub_socket.close()
         self.context.term()
 

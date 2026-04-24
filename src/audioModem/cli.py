@@ -1,6 +1,8 @@
 import cmd
 import requests
 import sys
+import threading
+import time
 
 try:
     import readline
@@ -16,6 +18,43 @@ class ModemCLI(cmd.Cmd):
     def __init__(self, base_url: str = "http://localhost:8000"):
         super().__init__()
         self.base_url = base_url
+        self._message_poller = None
+        self._stop_poller = threading.Event()
+
+    def _poll_messages(self):
+        while not self._stop_poller.is_set():
+            try:
+                resp = requests.get(f"{self.base_url}/messages", timeout=1)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    messages = data.get("messages", [])
+                    for msg in messages:
+                        self._display_message(msg)
+            except Exception:
+                pass
+            self._stop_poller.wait(1.0)
+
+    def _display_message(self, msg: dict):
+        sender = msg.get("sender_name", "unknown")
+        msg_type = msg.get("type", "unknown")
+        if msg_type == "data":
+            data = msg.get("data", "")
+            if isinstance(data, str):
+                print(f"\n[Received from {sender}]: {data}\n{self.prompt}", end="")
+            else:
+                print(f"\n[Received from {sender}]: (binary data)\n{self.prompt}", end="")
+        else:
+            print(f"\n[System message]: {msg}\n{self.prompt}", end="")
+
+    def start_message_polling(self):
+        self._stop_poller.clear()
+        self._message_poller = threading.Thread(target=self._poll_messages, daemon=True)
+        self._message_poller.start()
+
+    def stop_message_polling(self):
+        self._stop_poller.set()
+        if self._message_poller:
+            self._message_poller.join(timeout=2.0)
 
     def _api_get(self, endpoint: str) -> dict:
         try:
@@ -158,11 +197,14 @@ class ModemCLI(cmd.Cmd):
 def start_cli(base_url: str = "http://localhost:8000", cli_exit_event=None):
     sys.stdin = sys.__stdin__
     cli = ModemCLI(base_url=base_url)
+    cli.start_message_polling()
     try:
         cli.cmdloop()
     except KeyboardInterrupt:
         print("\nExiting CLI...")
     except SystemExit:
         pass
+    finally:
+        cli.stop_message_polling()
     if cli_exit_event:
         cli_exit_event.set()
