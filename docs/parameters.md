@@ -24,6 +24,17 @@ packet
 | baud            |  200  |   baud   |
 | constellation   | BPSK  |    /     |
 
+## HTTP API (port 8000)
+| endpoint  | method | description                              |
+| :-------- | :----- | :--------------------------------------- |
+| /status   | GET    | Get modem status                         |
+| /config   | GET    | Get current configuration                |
+| /transmit | POST   | Queue a message for transmission         |
+| /preset   | POST   | Set modulation preset (FAST/MEDIUM/SLOW) |
+| /carrier  | POST   | Set carrier frequency                    |
+| /cancel   | POST   | Cancel pending transmissions             |
+| /messages | GET    | Fetch and clear received messages        |
+
 ## ports configuration
 | port description            | port |
 | :-------------------------- | :--: |
