@@ -37,6 +37,10 @@ def setup_logging(
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("PIL").setLevel(logging.WARNING)
 
+    logging.getLogger("uvicorn").setLevel(level)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("audio_portaudio_source").setLevel(logging.INFO)
+
 
 setup_logging()
 

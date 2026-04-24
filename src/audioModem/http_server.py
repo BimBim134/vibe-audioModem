@@ -59,4 +59,4 @@ async def get_messages():
 
 def run_http_server(host: str = "0.0.0.0", port: int = 8000, stop_event=None):
     logger.info(f"Starting HTTP server on {host}:{port}")
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info", log_config=None)
