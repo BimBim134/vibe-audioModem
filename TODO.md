@@ -69,7 +69,6 @@ it seems audiomodem has no way to return received message to the cli
     closes the whole application **gracefully**
 
 ## 2.2. /GET
- * `audio`
  * `fft`
  * `messages`
  * `configuration`
