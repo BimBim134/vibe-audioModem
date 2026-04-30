@@ -6,6 +6,18 @@
 - [4. replace the CLI by a TUI](#4-replace-the-cli-by-a-tui)
 - [5. create a webUI](#5-create-a-webui)
   - [5.1. add the possibility the launch only the webUI](#51-add-the-possibility-the-launch-only-the-webui)
+- [6. performance improvements](#6-performance-improvements)
+  - [6.1. Audio Modem Architecture: Low SNR Optimization Guide](#61-audio-modem-architecture-low-snr-optimization-guide)
+    - [6.1.1. Executive Summary](#611-executive-summary)
+    - [6.1.2. Modulation Comparison (Audio Context)](#612-modulation-comparison-audio-context)
+    - [6.1.3. Analysis of the "10dB Bottleneck"](#613-analysis-of-the-10db-bottleneck)
+    - [6.1.4. Proposed Architecture Upgrades](#614-proposed-architecture-upgrades)
+      - [6.1.4.1. Phase A: Optimization (The "Free" Gains)](#6141-phase-a-optimization-the-free-gains)
+      - [6.1.4.2. Phase B: The Acoustic Receiver Chain](#6142-phase-b-the-acoustic-receiver-chain)
+    - [6.1.5. Overcoming the Noise Floor (SNR \< 0dB)](#615-overcoming-the-noise-floor-snr--0db)
+      - [6.1.5.1. DSSS (Direct Sequence)](#6151-dsss-direct-sequence)
+      - [6.1.5.2. CSS (Chirp Spread Spectrum)](#6152-css-chirp-spread-spectrum)
+    - [6.1.6. Implementation Notes for GNU Radio](#616-implementation-notes-for-gnu-radio)
 
 
 
@@ -69,7 +81,6 @@ it seems audiomodem has no way to return received message to the cli
     closes the whole application **gracefully**
 
 ## 2.2. /GET
- * `audio`
  * `fft`
  * `messages`
  * `configuration`
@@ -85,3 +96,70 @@ The same than CLI, but much nicer
 it can do everything the CLI can do, but graphically, in the browser.
 ## 5.1. add the possibility the launch only the webUI
 that way, the user can setup a distant station, and control it remotely.
+
+
+# 6. performance improvements
+
+## 6.1. Audio Modem Architecture: Low SNR Optimization Guide
+
+### 6.1.1. Executive Summary
+While BPSK is theoretically optimal for power efficiency in a vacuum, it is poorly suited for **acoustic (audio)** environments due to phase instability, Doppler shifts, and hardware clock drift. For an audio modem operating near or below the noise floor, **GFSK (Gaussian Frequency Shift Keying)** or **CSS (Chirp Spread Spectrum)** are the preferred choices.
+
+### 6.1.2. Modulation Comparison (Audio Context)
+
+| Feature                 | BPSK (Current)                     | GFSK (Recommended)                | CSS/LoRa (Advanced)             |
+| :---------------------- | :--------------------------------- | :-------------------------------- | :------------------------------ |
+| **Information Carrier** | Phase ($180^\circ$ shifts)         | Frequency Deviation               | Frequency Slope (Chirps)        |
+| **CFO Tolerance**       | **Extremely Low** (Rotation)       | **High** (Linear Shift)           | **Very High**                   |
+| **Acoustic Robustness** | Poor (Echoes break phase)          | Good (Tolerates echoes)           | Excellent (Multipath resistant) |
+| **Complexity**          | High (Costas Loop required)        | Low (Quadrature Demod)            | Moderate (Cross-correlation)    |
+| **SNR Threshold**       | $\approx 7\text{ to }10\text{ dB}$ | $\approx 4\text{ to }6\text{ dB}$ | $\mathbf{< 0\text{ dB}}$        |
+
+---
+
+### 6.1.3. Analysis of the "10dB Bottleneck"
+Your current "Voyager-grade" stack (Scrambling → Reed-Solomon → CC → RRC) is sophisticated, but it likely hits a wall at 10dB SNR due to:
+1.  **Hard-Decision Loss:** Using a Binary Slicer before the Viterbi decoder discards $\approx 2\text{ dB}$ of "probability information."
+2.  **Phase Noise:** In audio, small physical movements or reflections rotate the BPSK constellation, causing the Viterbi decoder to receive "rotated garbage" it cannot fix.
+3.  **Synchronization Jitter:** At low SNR, standard clock recovery blocks struggle to find the "center" of the bit, leading to sampling errors.
+
+---
+
+### 6.1.4. Proposed Architecture Upgrades
+
+#### 6.1.4.1. Phase A: Optimization (The "Free" Gains)
+*   **Switch to GFSK:** Use a Modulation Index $h = 1.0$ (instead of the GMSK standard of 0.5) to increase tone separation.
+*   **Soft-Decision Viterbi:** Remove the Binary Slicer. Feed raw floats from the demodulator into the `FEC Extended Decoder` (set to Soft-Decision).
+*   **Correlation Estimator:** Use this instead of "Correlate Access Code" to find your 32-bit preamble. It uses complex math to find the header even when buried in noise.
+
+#### 6.1.4.2. Phase B: The Acoustic Receiver Chain
+To handle the "messy" audio environment in GNU Radio, use this specific sequence:
+1.  **Frequency Xlating FIR Filter:** Centers the signal and provides initial decimation.
+2.  **Quadrature Demod:** Converts frequency shifts to voltage (floats).
+3.  **DC Blocker:** **CRITICAL.** Removes the offset caused by frequency drift between the speaker and mic.
+4.  **Symbol Sync:** Performs timing recovery on the "clean" DC-blocked signal.
+
+---
+
+### 6.1.5. Overcoming the Noise Floor (SNR < 0dB)
+If you need to decode when the signal is inaudible/invisible, **Spreading** is required.
+
+#### 6.1.5.1. DSSS (Direct Sequence)
+*   **Method:** Multiply each bit by a PN sequence (e.g., 11-bit Barker or 31-bit Gold code).
+*   **Pro:** High processing gain.
+*   **Con:** **Increases Bandwidth ($BW$) significantly.** 
+*   **Equation:** $BW_{spread} = BW_{base} \times L$ (where $L$ is sequence length).
+
+#### 6.1.5.2. CSS (Chirp Spread Spectrum)
+*   **Method:** Use "up-chirps" and "down-chirps" to represent data.
+*   **Pro:** Bandwidth is fixed. You gain SNR by increasing the **Time** of the chirp (integration).
+*   **Why for Audio:** Best at handling the "echo-chamber" effect of indoor rooms.
+
+---
+
+### 6.1.6. Implementation Notes for GNU Radio
+*   **Sensitivity Formula:** For the Quadrature Demod block, use $Sensitivity = \frac{Sample Rate}{2 \pi \times Deviation}$.
+*   **Matched Filtering:** Ensure **Root Raised Cosine (RRC)** filters are matched on both TX and RX to minimize Inter-Symbol Interference (ISI).
+*   **Sampling:** Use a standard audio rate (48kHz) but keep your symbol rate low (e.g., 100–500 baud) to allow the FEC/Spreading to do its work.
+
+> **Final Verdict:** Stay with your FEC stack, but swap **BPSK $\to$ GFSK**, implement **Soft-Decision decoding**, and add a **DC Blocker** to your RX chain. This should push your decoding limit from 10dB down toward the 3–5dB range.
