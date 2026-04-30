@@ -87,7 +87,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1096, 136.0]
+    coordinate: [1088, 116.0]
     rotation: 0
     state: enabled
 - name: const_definition
@@ -101,7 +101,7 @@ blocks:
     bus_structure: null
     coordinate: [1544, 240.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: hdr_format
   id: variable
   parameters:
@@ -394,6 +394,44 @@ blocks:
     bus_structure: null
     coordinate: [1536, 312.0]
     rotation: 0
+    state: disabled
+- name: digital_diff_encoder_bb_0
+  id: digital_diff_encoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    modulus: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1448, 520.0]
+    rotation: 0
+    state: enabled
+- name: digital_gfsk_mod_0
+  id: digital_gfsk_mod
+  parameters:
+    affinity: ''
+    alias: ''
+    bt: '0.35'
+    comment: ''
+    do_unpack: 'True'
+    log: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_symbol: sps
+    sensitivity: '1.0'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1632, 512.0]
+    rotation: 0
     state: enabled
 - name: digital_protocol_formatter_bb_0
   id: digital_protocol_formatter_bb
@@ -450,6 +488,7 @@ connections:
 - [blocks_head_0, '0', blocks_stream_mux_0, '1']
 - [blocks_multiply_const_vxx_0, '0', blocks_head_0, '0']
 - [blocks_repack_bits_bb_1_0, '0', digital_constellation_modulator_0, '0']
+- [blocks_repack_bits_bb_1_0, '0', digital_diff_encoder_bb_0, '0']
 - [blocks_rotator_cc_0, '0', blocks_complex_to_real_0, '0']
 - [blocks_stream_mux_0, '0', audio_sink_0, '0']
 - [blocks_stream_to_tagged_stream_0, '0', blocks_tagged_stream_mux_0, '1']
@@ -458,6 +497,8 @@ connections:
 - [blocks_unpack_k_bits_bb_0, '0', fec_extended_encoder_0, '0']
 - [blocks_vector_source_x_0, '0', blocks_stream_to_tagged_stream_0, '0']
 - [digital_constellation_modulator_0, '0', blocks_rotator_cc_0, '0']
+- [digital_diff_encoder_bb_0, '0', digital_gfsk_mod_0, '0']
+- [digital_gfsk_mod_0, '0', blocks_rotator_cc_0, '0']
 - [digital_protocol_formatter_bb_0, '0', blocks_tagged_stream_mux_0, '0']
 - [fec_extended_encoder_0, '0', blocks_repack_bits_bb_1_0, '0']
 
