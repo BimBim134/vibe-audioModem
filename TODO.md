@@ -18,6 +18,7 @@
       - [6.1.5.1. DSSS (Direct Sequence)](#6151-dsss-direct-sequence)
       - [6.1.5.2. CSS (Chirp Spread Spectrum)](#6152-css-chirp-spread-spectrum)
     - [6.1.6. Implementation Notes for GNU Radio](#616-implementation-notes-for-gnu-radio)
+- [7. keep only quit in CLI](#7-keep-only-quit-in-cli)
 
 
 
@@ -163,3 +164,8 @@ If you need to decode when the signal is inaudible/invisible, **Spreading** is r
 *   **Sampling:** Use a standard audio rate (48kHz) but keep your symbol rate low (e.g., 100–500 baud) to allow the FEC/Spreading to do its work.
 
 > **Final Verdict:** Stay with your FEC stack, but swap **BPSK $\to$ GFSK**, implement **Soft-Decision decoding**, and add a **DC Blocker** to your RX chain. This should push your decoding limit from 10dB down toward the 3–5dB range.
+
+
+# 7. keep only quit in CLI
+
+why is there quit, clear, ctrl+D handle ?? it needs to be simplifies
