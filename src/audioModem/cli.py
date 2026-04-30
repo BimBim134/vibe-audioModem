@@ -13,7 +13,7 @@ except ImportError:
 class ModemCLI(cmd.Cmd):
     intro = "\n=== vibe-audio-modem CLI ===\nType 'help' for commands.\n"
 
-    prompt = "modem> "
+    prompt = "Vibe Audiomodem >> "
 
     def __init__(self, base_url: str = "http://localhost:8000"):
         super().__init__()
