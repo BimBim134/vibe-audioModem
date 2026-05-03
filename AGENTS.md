@@ -1,63 +1,92 @@
 # AGENTS.md
 
-## VIBE AUDIOMODEM story
-### context of project
+## VIBE AUDIOMODEM Story
+### Context of Project
+Radio amateurs use "digital modes" to send text via audio signals plugged into radio microphones. vibe-audiomodem modernize this by providing a chat-like interface for text, images, and files, moving away from the cluttered, callsign-only UIs of the past.
 
-Radio amateurs all around the world use so called "digital modes" to send text to each other.
-It works by pluging directly the soundcard of your computer directly onto the radio microphone port.
-the data to be sent is modulated in an audio signal that can be transmitted easily with minimal hardware change.
+### Solution
+- **Modern UI:** Chat input, file attachments, message history.
+- **Signal Monitoring:** Simplified for non-experts.
+- **Expert Mode:** Advanced control over baudrate, constellation, packet size, and ECC.
 
-### Current state of the art
+---
 
-There is no modern solution to digital mode, Only bad and cluttered UI. The UX consist only to send your call sign and getting the other's back.
-There is no conversation. There no unique solution that can send text, images, files.
+## Technical Architecture
 
-### solution
+### Process Model
+The system uses a multiprocess architecture for real-time DSP performance:
+- **`AudioInterfaceProcess` (`src/rx/audio_interface.py`):** Captures audio via PortAudio, computes FFT (Blackman-Harris window), and publishes both to ZMQ.
+- **`PeakDetectorProcess` (`src/rx/peak_detector.py`):** Monitors FFT for signals. Spawns `DemodulatorWorker` processes when a transmission is detected.
+- **`DemodulatorWorker` (`src/rx/demodulator.py`):** Handles synchronization (Gardner TED), carrier recovery (Costas Loop), and decoding.
+- **`PacketDecoderProcess` (`src/rx/packet_decoding.py`):** Reassembles fragments, handles Reed-Solomon decoding, and unscrambling.
+- **`ModemController` (`src/audioModem/audioModem.py`):** Main orchestrator. Manages the TX queue and hosts the ZMQ configuration publisher.
+- **HTTP Server (`src/audioModem/http_server.py`):** FastAPI interface for the UI/CLI.
 
-vibe-audiomodem aims to resolve the lack of conversation by ressembling all modern chatting app :
-* a text input where you can type what you want
-* an attach file or images
-* a send button
-* a scrollable messages area
+### Networking (ZMQ IPC)
+Processes communicate via ZMQ on `localhost` (ports 5555-5560):
+| Port | Type | Description | Data Type |
+| :--- | :--- | :--- | :--- |
+| 5555 | PUB/SUB | Raw Audio | Float32 |
+| 5556 | PUB/SUB | FFT Spectrum | Float32 Vector |
+| 5557 | PUB/SUB | Raw Packets | PMT (Metadata + Bytes) |
+| 5558 | PUB/SUB | Reassembled Messages | PMT (Dict) |
+| 5559 | PUB/SUB | Config Broadcast | PMT (Dict) |
+| 5560 | PUB/SUB | Peak Detector System | PMT (Dict) |
 
-there will be some additionnal feature specific to audiomodem
-* a simplified signal monitoring system (I don't want it to be the main part of the UI, so that the user can focus on conversation)
-* some signal presets (SLOW, FAST)
-* hidden on another page, an expert mode whe advanced user can select the baudrate, the constellation, packets sizes, error code correction size...)
+### Data Structures & Framing
+- **Serialization:** Uses GNU Radio's `pmt` library. Messages are often dictionaries serialized to PMT strings/blobs.
+- **Packet Format (`PacketConfig`):**
+    - Default size: 48 bytes.
+    - `[1 byte Flag] [N bytes Data] [16 bytes RS ECC]`
+    - **Flags:** `0` (Preamble), `255` (Postamble), `1-N` (Data length).
+- **Error Correction:** Reed-Solomon (via `reedsolo`).
+- **Scrambling:** `AdditiveScrambler` (Mask: `0x48`, Seed: `0x7F`, Register: 7 bits) to ensure DC balance and transitions.
 
-## Setup
+### Signal Processing Pipeline
+**TX Path:**
+1. PMT Dict -> Scrambler -> RS Encoder -> Packetizer.
+2. Protocol Formatter (Access Key: `11100001010110101110100010010011`).
+3. CC Encoder -> Constellation Modulator (BPSK/QPSK/8PSK).
+4. Rotator (Carrier Freq) -> Beeper Mux -> Audio Sink.
 
-- Conda environment: `environment.yml` (Python 3.12, GNU Radio, PySide6)
-- No pip `requirements.txt` or `pyproject.toml` — install via `conda env create -f environment.yml`
+**RX Path:**
+1. Audio Source -> Freq Xlating FIR Filter -> AGC.
+2. Symbol Sync (Gardner TED) -> Correlation Estimator (Access Key).
+3. Linear Equalizer (CMA) -> Costas Loop.
+4. Constellation Decoder -> Diff Decoder -> Map -> FEC Decoder.
+5. Access Code Correlator -> Tagged Stream to PDU.
 
-## Running
+---
 
-- `python main.py` — starts modem (HTTP server + receiver processes)
-- `python main.py --cli` — CLI mode (cmd-based, polls HTTP API at localhost:8000)
-- HTTP API on port 8000 is the primary control interface (see `docs/doc.md` for endpoints)
+## Development Guide
 
-## Architecture
+### Key Files
+- `src/misc/config.py`: Central source of truth for all configurations (Signal, Packet, Ports).
+- `src/audioModem/audioModem.py`: Entry point for logic, state management, and process orchestration.
+- `src/tx/transmitter.py` & `src/rx/demodulator.py`: Core GNU Radio flowgraphs.
 
-Multiprocess architecture with ZMQ IPC (ports 5555–5560):
-- `src/audioModem/audioModem.py` — `ModemController`, orchestrates processes
-- `src/rx/` — receiver: audio_interface, peak_detector, demodulator, packet_decoding
-- `src/tx/` — transmitter: packetizer, transmitter
-- `src/audioModem/http_server.py` — FastAPI server, proxies requests to `ModemController`
-- `src/audioModem/cli.py` — CLI, talks to HTTP API only (no direct imports of rx/tx)
+### Adding New Modulations
+1. Update `CONSTELLATION_MAP` in `src/misc/config.py`.
+2. Ensure the `Demodulator` in `src/rx/demodulator.py` can resolve the constellation name.
+3. Update presets if necessary.
 
-Processes: AudioInterface, PeakDetector, PacketDecoder — all launched in `start_audiomodem()`.
+### Modifying Packet Formats
+- Adjust `PacketConfig` in `src/misc/config.py`.
+- Update `PacketReassembler` in `src/rx/packet_decoding.py` if the flag logic changes.
+- Update `split_payload_into_packet` in `src/tx/packetizer.py`.
 
-## Config
-
-- `src/misc/config.py` — dataclasses: `SignalConfig`, `PacketConfig`, `PortsConfig`
-- Defaults defined at module level: `DEFAULT_SIGNAL_CONFIG`, `DEFAULT_PACKET_CONFIG`, `DEFAULT_PORTS_CONFIG`
-- Runtime config changes broadcast via ZMQ `config_port` (5559) using PMT serialization
+---
 
 ## Gotchas
+- **Logging:** Only in `audiomodem.log` by default. Change in `setup_logging()` to enable console.
+- **GNU Radio:** Hard dependency. Flowgraphs are defined in Python but rely on C++ blocks.
+- **PMT:** `pmt.to_python` and `pmt.to_pmt` are critical for cross-process communication.
+- **ZMQ Binding:** The `PacketDecoder` *binds* to the raw packet port; `Demodulator` workers *connect* to it.
 
-- Logging: writes to `audiomodem.log` (not console); configured in `src/misc/config.py:setup_logging()`
-- No tests, no linter, no typechecker configured — verify by running code
-- `test.py` is a scratch script, not a test suite
-- GNU Radio (`gnuradio`) is a core dependency — code won't run without it
-- ZMQ messages serialized with GNU Radio's `pmt` library, not plain JSON
-- `grc_files/` contains GNU Radio Companion flowgraphs (not imported as Python modules)
+## API Reference (Port 8000)
+- `GET /status`: Returns `is_transmitting` and `queue_size`.
+- `GET /config`: Returns current signal and packet configurations.
+- `POST /transmit`: JSON `{"message": "...", "sender_name": "..."}`.
+- `POST /preset`: JSON `{"preset": "FAST"}` (Options: `FAST`, `MEDIUM`, `SLOW`).
+- `POST /carrier`: JSON `{"frequency": 2500}`.
+- `GET /messages`: Retrieves and flushes the received message queue.
