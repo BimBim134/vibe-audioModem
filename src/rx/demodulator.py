@@ -66,7 +66,7 @@ class Demodulator(gr.top_block):
         self.sig = sig
         self.const_definition = constellation
         self.freq_deviation = 100 / self.sig.samp_rate
-        self.decimation = int(self.sig.sps / 8)
+        self.decimation = 30
 
         ## digital communication variables
         self.pkt = pkt
@@ -91,27 +91,26 @@ class Demodulator(gr.top_block):
             False,
         )
         ## signal preprocessing
-        ### Frequency-translating filter: real float input → complex baseband output.
+        ### Frequency-translating filter: real float input -> complex baseband output
         self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_fcc(
             self.decimation,
             firdes.low_pass(
-                1,
+                1.0,
                 self.sig.samp_rate,
-                self.sig.samp_rate / (2 * self.decimation),
-                500,
+                self.sig.baudrate, #TODO check if decimation needs to be applied here
+                50,
                 window.WIN_HAMMING,
             ),
             self.sig.carrier_freq,
             self.sig.samp_rate,
         )
+
         ### Automatic Gain Control
+        self.analog_agc_xx_0 = analog.agc_cc(1e-4, 1.0, 1.0, 1000)
 
-        self.analog_agc_xx_0 = analog.agc_cc((1e-1), 1.0, 1.0, 0)
-
-        ## GFSK Demodulation
-        self.digital_gfsk_demod_0 = digital.gfsk_demod(
+        ## GMSK Demodulation
+        self.digital_gmsk_demod_0 = digital.gmsk_demod(
             samples_per_symbol=int(self.sig.sps / self.decimation),
-            sensitivity=1.0,
             gain_mu=0.175,
             mu=0.5,
             omega_relative_limit=0.005,
@@ -120,7 +119,7 @@ class Demodulator(gr.top_block):
             log=False,
         )
 
-        ## differential decoding (modulus 2 for binary GFSK)
+        ## differential decoding (modulus 2 for GMSK)
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
             2, digital.DIFF_DIFFERENTIAL
         )
@@ -164,8 +163,8 @@ class Demodulator(gr.top_block):
         # Connections
         self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
-        self.connect((self.analog_agc_xx_0, 0), (self.digital_gfsk_demod_0, 0))
-        self.connect((self.digital_gfsk_demod_0, 0), (self.digital_diff_decoder_bb_0, 0))
+        self.connect((self.analog_agc_xx_0, 0), (self.digital_gmsk_demod_0, 0))
+        self.connect((self.digital_gmsk_demod_0, 0), (self.digital_diff_decoder_bb_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
         self.connect((self.blocks_uchar_to_float_0_0_0, 0),(self.blocks_multiply_const_xx_1_0_0, 0),)
         self.connect((self.blocks_multiply_const_xx_1_0_0, 0),(self.blocks_add_const_vxx_0_0_0, 0),)
