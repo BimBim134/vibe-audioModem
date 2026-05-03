@@ -68,12 +68,6 @@ class Demodulator(gr.top_block):
         self.freq_deviation = 100 / self.sig.samp_rate
         self.decimation = int(self.sig.sps / 8)
 
-        self.variable_adaptive_algorithm_0 = digital.adaptive_algorithm_cma(
-            self.const_definition, 0.001, 1.0
-        ).base()
-
-        self.freq_deviation = 100 / self.sig.samp_rate
-
         ## digital communication variables
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
@@ -114,83 +108,25 @@ class Demodulator(gr.top_block):
 
         self.analog_agc_xx_0 = analog.agc_cc((1e-1), 1.0, 1.0, 0)
 
-        ## symbol synchronization
-        nfilts = 128
-        sps_resamp = self.sig.sps / self.decimation
-        # Generate RRC taps for the PFB Matched Filter
-        self.symbol_sync_taps = firdes.root_raised_cosine(
-            nfilts, nfilts, 1.0, 0.35, 11 * nfilts
+        ## GFSK Demodulation
+        self.digital_gfsk_demod_0 = digital.gfsk_demod(
+            samples_per_symbol=int(self.sig.sps / self.decimation),
+            sensitivity=1.0,
+            gain_mu=0.175,
+            mu=0.5,
+            omega_relative_limit=0.005,
+            freq_error=0.0,
+            verbose=False,
+            log=False,
         )
 
-        self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
-            digital.TED_GARDNER,
-            sps_resamp,
-            0.08,
-            (1 / np.sqrt(2)),
-            1.0,
-            1.5,
-            1,
-            self.const_definition,
-            digital.IR_PFB_MF,
-            nfilts,
-            self.symbol_sync_taps,
-        )
-
-        # Reference symbol generation (1 SPS) for arbitrary constellation
-        bps = self.const_definition.bits_per_symbol()
-        valid_length = len(self.access_key) - (len(self.access_key) % bps)
-        access_key_symbols = [
-            int(self.access_key[i : i + bps], 2)
-            for i in range(0, valid_length, bps)
-        ]
-
-        # Get constellation mapping and points
-        mapping = self.const_definition.pre_diff_code()
-        points = self.const_definition.points()
-        num_points = len(points)
-        if len(mapping) == 0:
-            mapping = list(range(num_points))
-
-        # Handle Gray-coding, Differential encoding and Mapping
-        curr_state = 0
-        self.reference_symbols = []
-        for s in access_key_symbols:
-            gray_sym = mapping[s]
-            curr_state = (gray_sym + curr_state) % num_points
-            self.reference_symbols.append(points[curr_state])
-
-        # Correlation-based frame detection at 1 SPS (matching symbol_sync osps=1)
-        self.digital_corr_est_cc_0 = digital.corr_est_cc(
-            self.reference_symbols, 1, 0, 0.9, digital.THRESHOLD_ABSOLUTE
-        )
-
-        # Fractionally-spaced linear equalizer at 1 SPS.
-        self.digital_linear_equalizer_0 = digital.linear_equalizer(
-            9, 1, self.variable_adaptive_algorithm_0, True, [], "corr_est"
-        )
-        ## Costas loop for carrier phase/frequency recovery
-        order = 2 ** self.const_definition.bits_per_symbol()
-        self.digital_costas_loop_cc_0 = digital.costas_loop_cc(
-            0.0628,  # loop bandwidth (phase_bw)
-            order,  # order depends on the modulation symbol count
-            False,
-        )
-        ## Hard-decision constellation decoder (stateless, no competing PLL)
-        self.digital_constellation_decoder_cb_0 = digital.constellation_decoder_cb(
-            self.const_definition
-        )
-
-        ## constellation decoding
+        ## differential decoding (modulus 2 for binary GFSK)
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
-            (2 ** self.const_definition.bits_per_symbol()), digital.DIFF_DIFFERENTIAL
+            2, digital.DIFF_DIFFERENTIAL
         )
-        self.digital_map_bb_0 = digital.map_bb(self.const_definition.pre_diff_code())
 
         ## convolutionnal error correction
         ### go from [0,1] to [-1, 1]
-        self.blocks_unpack_k_bits_bb_0_0 = blocks.unpack_k_bits_bb(
-            self.const_definition.bits_per_symbol()
-        )
         self.blocks_uchar_to_float_0_0_0 = blocks.uchar_to_float()
         self.blocks_multiply_const_xx_1_0_0 = blocks.multiply_const_ff(2, 1)
         self.blocks_add_const_vxx_0_0_0 = blocks.add_const_ff((-1))
@@ -228,15 +164,9 @@ class Demodulator(gr.top_block):
         # Connections
         self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
-        self.connect((self.analog_agc_xx_0, 0), (self.digital_symbol_sync_xx_0, 0))
-        self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_corr_est_cc_0, 0))
-        self.connect((self.digital_corr_est_cc_0, 0), (self.digital_linear_equalizer_0, 0))
-        self.connect((self.digital_linear_equalizer_0, 0), (self.digital_costas_loop_cc_0, 0))
-        self.connect((self.digital_costas_loop_cc_0, 0),(self.digital_constellation_decoder_cb_0, 0),)
-        self.connect((self.digital_constellation_decoder_cb_0, 0),(self.digital_diff_decoder_bb_0, 0),)
-        self.connect((self.digital_diff_decoder_bb_0, 0), (self.digital_map_bb_0, 0))
-        self.connect((self.digital_map_bb_0, 0), (self.blocks_unpack_k_bits_bb_0_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
+        self.connect((self.analog_agc_xx_0, 0), (self.digital_gfsk_demod_0, 0))
+        self.connect((self.digital_gfsk_demod_0, 0), (self.digital_diff_decoder_bb_0, 0))
+        self.connect((self.digital_diff_decoder_bb_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
         self.connect((self.blocks_uchar_to_float_0_0_0, 0),(self.blocks_multiply_const_xx_1_0_0, 0),)
         self.connect((self.blocks_multiply_const_xx_1_0_0, 0),(self.blocks_add_const_vxx_0_0_0, 0),)
         self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
