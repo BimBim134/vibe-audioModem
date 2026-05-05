@@ -19,6 +19,7 @@
       - [6.1.5.2. CSS (Chirp Spread Spectrum)](#6152-css-chirp-spread-spectrum)
     - [6.1.6. Implementation Notes for GNU Radio](#616-implementation-notes-for-gnu-radio)
 - [7. keep only quit in CLI](#7-keep-only-quit-in-cli)
+- [8. improve test setup](#8-improve-test-setup)
 
 
 
@@ -169,3 +170,12 @@ If you need to decode when the signal is inaudible/invisible, **Spreading** is r
 # 7. keep only quit in CLI
 
 why is there quit, clear, ctrl+D handle ?? it needs to be simplifies
+
+# 8. improve test setup
+
+when `--test` is given to the CLI, the audio interface is not launched and replaced by the transmitter that sends its signals on port 5555 (audio)
+
+to do :
+* add a `--test` args to the cli
+* it does not start the audio interface
+* the transmitter can ouput on port 5555 and not directly on audio interface
