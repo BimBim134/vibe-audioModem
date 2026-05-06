@@ -13,7 +13,7 @@ except ImportError:
 class ModemCLI(cmd.Cmd):
     intro = "\n=== vibe-audio-modem CLI ===\nType 'help' for commands.\n"
 
-    prompt = "modem> "
+    prompt = "Vibe Audiomodem >> "
 
     def __init__(self, base_url: str = "http://localhost:8000"):
         super().__init__()
@@ -42,7 +42,9 @@ class ModemCLI(cmd.Cmd):
             if isinstance(data, str):
                 print(f"\n[Received from {sender}]: {data}\n{self.prompt}", end="")
             else:
-                print(f"\n[Received from {sender}]: (binary data)\n{self.prompt}", end="")
+                print(
+                    f"\n[Received from {sender}]: (binary data)\n{self.prompt}", end=""
+                )
         else:
             print(f"\n[System message]: {msg}\n{self.prompt}", end="")
 
@@ -99,9 +101,13 @@ class ModemCLI(cmd.Cmd):
             except KeyboardInterrupt:
                 self.intr = None
                 print("^C")
+                self._api_post("/quit", {})
+                print("Goodbye!")
                 break
             except EOFError:
                 print("^D")
+                self._api_post("/quit", {})
+                print("Goodbye!")
                 break
         self.postloop()
 
@@ -114,6 +120,21 @@ class ModemCLI(cmd.Cmd):
         if result:
             print(f"Queued: {arg}")
 
+    def do_receive(self, arg):
+        """receive [-n NB_WORKERS] - Start receiver with N workers (default: 1)"""
+        import re
+
+        nb_workers = 1
+        match = re.search(r"-n\s+(\d+)", arg)
+        if match:
+            nb_workers = int(match.group(1))
+        result = self._api_post("/receive", {"nb_workers": nb_workers})
+        if result:
+            if result.get("status") == "ok":
+                print(f"Receiver started with {result.get('nb_workers')} workers")
+            else:
+                print(f"Error: {result.get('error', 'Unknown error')}")
+
     def do_status(self, arg):
         """Show modem status"""
         result = self._api_get("/status")
@@ -121,74 +142,109 @@ class ModemCLI(cmd.Cmd):
             print(f"is_transmitting: {result.get('is_transmitting', 'N/A')}")
             print(f"queue_size: {result.get('queue_size', 'N/A')}")
 
+    def do_setup(self, arg):
+        """setup <json_file_or_inline_json> - Full modem reset with config"""
+        if not arg:
+            print("Usage: setup <json_file_or_inline_json>")
+            return
+        import json
+        import os
+
+        # Check if arg is a file path
+        if os.path.exists(arg.strip()):
+            try:
+                with open(arg.strip(), "r") as f:
+                    data = json.load(f)
+            except Exception as e:
+                print(f"Error reading file: {e}")
+                return
+        else:
+            try:
+                data = json.loads(arg)
+            except json.JSONDecodeError:
+                print("Error: Invalid JSON or file not found")
+                return
+        result = self._api_post("/setup", data)
+        if result:
+            if result.get("status") == "ok":
+                print("Modem setup complete")
+            else:
+                print(f"Error: {result.get('error', 'Unknown error')}")
+
+    def do_stop(self, arg):
+        """stop [-rx] [-tx] - Stop receiver (-rx) and/or transmitter (-tx)"""
+        rx = "-rx" in arg
+        tx = "-tx" in arg
+        if not rx and not tx:
+            print("Usage: stop -rx and/or -tx")
+            return
+        result = self._api_post("/stop", {"rx": rx, "tx": tx})
+        if result:
+            if result.get("status") == "ok":
+                print(f"Stopped: {', '.join(result.get('stopped', []))}")
+            else:
+                print(f"Error: {result.get('error', 'Unknown error')}")
+
     def do_config(self, arg):
         """Show current configuration"""
-        result = self._api_get("/config")
+        result = self._api_get("/configuration")
         if result:
             sig = result.get("signal", {})
+            pkt = result.get("packet", {})
+            port = result.get("port", {})
             print("Signal config:")
             print(f"  samp_rate: {sig.get('samp_rate')}")
             print(f"  carrier_freq: {sig.get('carrier_freq')}")
             print(f"  baudrate: {sig.get('baudrate')}")
             print(f"  constellation: {sig.get('constellation_name')}")
+            print("Packet config:")
+            print(f"  total_packets_len: {pkt.get('total_packets_len')}")
+            print(f"  preamble_packets: {pkt.get('preamble_packets')}")
+            print(f"  postamble_packets: {pkt.get('postamble_packets')}")
+            print(f"  error_correction_len: {pkt.get('error_correction_len')}")
+            print("Port config:")
+            for key, val in port.items():
+                print(f"  {key}: {val}")
 
-    def do_preset(self, arg):
-        """preset <FAST|MEDIUM|SLOW> - Set modulation preset"""
-        if not arg:
-            print("Usage: preset <FAST|MEDIUM|SLOW>")
-            return
-        result = self._api_post("/preset", {"preset": arg.upper()})
+    def do_fft(self, arg):
+        """fft - Get FFT snapshot for monitoring"""
+        result = self._api_get("/fft")
         if result:
             if result.get("status") == "ok":
-                print(f"Preset set: {result.get('preset')} (baudrate={result.get('baudrate')})")
+                fft_data = result.get("fft", [])
+                print(f"FFT snapshot: {len(fft_data)} points")
+                if len(fft_data) > 10:
+                    print(f"  First 5: {fft_data[:5]}")
+                    print(f"  Last 5: {fft_data[-5:]}")
             else:
-                print(f"Error: {result.get('error', 'Unknown error')}")
+                print(f"Error: {result.get('error', 'No FFT data available')}")
 
-    def do_carrier(self, arg):
-        """carrier <freq> - Set carrier frequency (Hz)"""
-        if not arg:
-            print("Usage: carrier <frequency>")
-            return
-        try:
-            freq = float(arg)
-        except ValueError:
-            print("Error: Frequency must be a number")
-            return
-        result = self._api_post("/carrier", {"frequency": freq})
+    def do_logs(self, arg):
+        """logs [lines] - Show last N lines of logs (default: 20)"""
+        lines = 20
+        if arg:
+            try:
+                lines = int(arg)
+            except ValueError:
+                print("Error: lines must be a number")
+                return
+        result = self._api_get(f"/logs?lines={lines}")
         if result:
             if result.get("status") == "ok":
-                print(f"Carrier set to: {result.get('frequency')} Hz")
+                for line in result.get("logs", []):
+                    print(line.rstrip())
             else:
                 print(f"Error: {result.get('error', 'Unknown error')}")
 
     def do_exit(self, arg):
-        """Exit the CLI (cancels queue and stops backend)"""
-        self._api_post("/cancel", {})
-        print("Goodbye!")
-        return True
-
-    def do_quit(self, arg):
-        """Exit the CLI (same as exit)"""
-        self._api_post("/cancel", {})
-        print("Goodbye!")
-        return True
-
-    def do_EOF(self, arg):
-        """Handle Ctrl+D"""
-        print()
-        self._api_post("/cancel", {})
+        """exit - Shutdown modem and exit CLI"""
+        self._api_post("/quit", {})
         print("Goodbye!")
         return True
 
     def do_clear(self, arg):
         """Clear the screen"""
         print("\033[2J\033[H", end="")
-
-    def do_cancel(self, arg):
-        """Cancel pending and in-progress transmissions"""
-        result = self._api_post("/cancel", {})
-        if result:
-            print("Transmission queue cancelled")
 
     def emptyline(self):
         pass

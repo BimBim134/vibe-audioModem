@@ -29,35 +29,7 @@ logger = logging.getLogger(__name__)
 STOP_EVENT = multiprocessing.Event()
 
 
-AUDIO_INTERFACE = {
-    "target": start_audio_interface,
-    "kwargs": {
-        "signal_conf": DEFAULT_SIGNAL_CONFIG,
-        "ports_conf": DEFAULT_PORTS_CONFIG,
-        "stop_event": STOP_EVENT,
-    },
-    "name": "AudioInterfaceProcess",
-}
 
-PEAK_DETECTOR = {
-    "target": search_for_incomming_transmission,
-    "kwargs": {
-        "signal_conf": DEFAULT_SIGNAL_CONFIG,
-        "ports_conf": DEFAULT_PORTS_CONFIG,
-        "stop_event": STOP_EVENT,
-    },
-    "name": "PeakDetectorProcess",
-}
-
-PACKET_DECODER = {
-    "target": listen_for_packets,
-    "kwargs": {
-        "pkt_conf": DEFAULT_PACKET_CONFIG,
-        "ports_conf": DEFAULT_PORTS_CONFIG,
-        "stop_event": STOP_EVENT,
-    },
-    "name": "PacketDecoderProcess",
-}
 
 class ModemController:
     def __init__(
@@ -71,6 +43,9 @@ class ModemController:
         self.pkt_conf = pkt_conf or DEFAULT_PACKET_CONFIG
         self.ports_conf = ports_conf or DEFAULT_PORTS_CONFIG
         self.presets_path = presets_path
+        self.receiver_active = False
+        self.receiver_nb_workers = 1
+        self.receiver_processes = []
 
         self._transmission_queue = queue.Queue()
         self._is_transmitting = False
@@ -101,6 +76,77 @@ class ModemController:
             name="MessageListener"
         )
         self._message_listener_thread.start()
+
+    def _restart_zmq_sockets(self):
+        """Restart ZMQ sockets with current ports config."""
+        self.config_pub_socket.close()
+        self._messages_sub_socket.close()
+        self.config_pub_socket = self.context.socket(zmq.PUB)
+        self.config_pub_socket.bind(f"tcp://*:{self.ports_conf.config_port}")
+        self._messages_sub_socket = self.context.socket(zmq.SUB)
+        self._messages_sub_socket.connect(f"tcp://localhost:{self.ports_conf.messages_port}")
+        self._messages_sub_socket.setsockopt(zmq.SUBSCRIBE, b"")
+        logger.info(f"Restarted ZMQ sockets. Config pub port: {self.ports_conf.config_port}, Messages sub port: {self.ports_conf.messages_port}")
+
+    def _stop_receiver_processes(self):
+        """Stop all active receiver processes."""
+        if not self.receiver_active:
+            return
+        logger.info("Stopping receiver processes...")
+        STOP_EVENT.set()
+        for p in self.receiver_processes:
+            p.join(timeout=2.0)
+            if p.is_alive():
+                p.terminate()
+        self.receiver_processes = []
+        STOP_EVENT.clear()
+        self.receiver_active = False
+        logger.info("Receiver processes stopped.")
+
+    def _start_receiver_processes(self, nb_workers: int = 1):
+        """Start receiver processes (AudioInterface, PeakDetector, PacketDecoder)."""
+        if self.receiver_active:
+            self._stop_receiver_processes()
+        logger.info(f"Starting receiver processes with {nb_workers} workers...")
+        self.receiver_nb_workers = nb_workers
+        # AudioInterface
+        audio_process = multiprocessing.Process(
+            target=start_audio_interface,
+            kwargs={
+                "signal_conf": self.signal_conf,
+                "ports_conf": self.ports_conf,
+                "stop_event": STOP_EVENT,
+            },
+            name="AudioInterfaceProcess",
+        )
+        # PeakDetector with nb_workers
+        peak_process = multiprocessing.Process(
+            target=search_for_incomming_transmission,
+            kwargs={
+                "signal_conf": self.signal_conf,
+                "ports_conf": self.ports_conf,
+                "pkt_conf": self.pkt_conf,
+                "stop_event": STOP_EVENT,
+                "nb_workers": nb_workers,
+            },
+            name="PeakDetectorProcess",
+        )
+        # PacketDecoder
+        packet_process = multiprocessing.Process(
+            target=listen_for_packets,
+            kwargs={
+                "pkt_conf": self.pkt_conf,
+                "ports_conf": self.ports_conf,
+                "stop_event": STOP_EVENT,
+            },
+            name="PacketDecoderProcess",
+        )
+        # Start all processes
+        for p in [audio_process, peak_process, packet_process]:
+            p.start()
+            self.receiver_processes.append(p)
+        self.receiver_active = True
+        logger.info("Receiver processes started.")
 
     def _load_presets(self) -> Dict[str, Any]:
         if self.presets_path and os.path.exists(self.presets_path):
@@ -234,6 +280,73 @@ class ModemController:
 
         return {"status": "queued", "message": message, "sender": sender_name}
 
+    def handle_receive(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        nb_workers = data.get("nb_workers", 1)
+        try:
+            nb_workers = int(nb_workers)
+        except (ValueError, TypeError):
+            return {"status": "error", "error": "nb_workers must be an integer"}
+        self._start_receiver_processes(nb_workers)
+        return {"status": "ok", "receiver_active": True, "nb_workers": nb_workers}
+
+    def handle_setup(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Full modem reset with new config (signal, packet, port)."""
+        signal_cfg = data.get("signal", {})
+        packet_cfg = data.get("packet", {})
+        port_cfg = data.get("port", {})
+
+        # Update signal config
+        if "samp_rate" in signal_cfg:
+            self.signal_conf.samp_rate = signal_cfg["samp_rate"]
+        if "carrier_freq" in signal_cfg:
+            self.signal_conf.carrier_freq = float(signal_cfg["carrier_freq"])
+        if "baudrate" in signal_cfg:
+            self.signal_conf.baudrate = signal_cfg["baudrate"]
+        if "beeper_duration" in signal_cfg:
+            self.signal_conf.beeper_duration = signal_cfg["beeper_duration"]
+        if "constellation_name" in signal_cfg:
+            self.signal_conf.constellation_name = signal_cfg["constellation_name"]
+
+        # Update packet config
+        if "total_packets_len" in packet_cfg:
+            self.pkt_conf.total_packets_len = packet_cfg["total_packets_len"]
+        if "preamble_packets" in packet_cfg:
+            self.pkt_conf.preamble_packets = packet_cfg["preamble_packets"]
+        if "postamble_packets" in packet_cfg:
+            self.pkt_conf.postamble_packets = packet_cfg["postamble_packets"]
+        if "error_correction_len" in packet_cfg:
+            self.pkt_conf.error_correction_len = packet_cfg["error_correction_len"]
+
+        # Update port config (requires ZMQ socket restart)
+        ports_changed = False
+        if "audio_port" in port_cfg:
+            self.ports_conf.audio_port = port_cfg["audio_port"]
+            ports_changed = True
+        if "fft_port" in port_cfg:
+            self.ports_conf.fft_port = port_cfg["fft_port"]
+            ports_changed = True
+        if "fft_size" in port_cfg:
+            self.ports_conf.fft_size = port_cfg["fft_size"]
+        if "raw_packets_port" in port_cfg:
+            self.ports_conf.raw_packets_port = port_cfg["raw_packets_port"]
+        if "messages_port" in port_cfg:
+            self.ports_conf.messages_port = port_cfg["messages_port"]
+            ports_changed = True
+        if "config_port" in port_cfg:
+            self.ports_conf.config_port = port_cfg["config_port"]
+            ports_changed = True
+        if "peak_detector_system_port" in port_cfg:
+            self.ports_conf.peak_detector_system_port = port_cfg["peak_detector_system_port"]
+
+        if ports_changed:
+            self._restart_zmq_sockets()
+
+        # Restart receiver if active to apply new configs
+        if self.receiver_active:
+            self._start_receiver_processes(self.receiver_nb_workers)
+
+        return self.handle_get_config()
+
     def handle_set_preset(self, data: Dict[str, Any]) -> Dict[str, Any]:
         preset_name = data.get("preset")
 
@@ -285,6 +398,15 @@ class ModemController:
                 "postamble_packets": self.pkt_conf.postamble_packets,
                 "error_correction_len": self.pkt_conf.error_correction_len,
             },
+            "port": {
+                "audio_port": self.ports_conf.audio_port,
+                "fft_port": self.ports_conf.fft_port,
+                "fft_size": self.ports_conf.fft_size,
+                "raw_packets_port": self.ports_conf.raw_packets_port,
+                "messages_port": self.ports_conf.messages_port,
+                "config_port": self.ports_conf.config_port,
+                "peak_detector_system_port": self.ports_conf.peak_detector_system_port,
+            },
         }
 
     def handle_get_status(self, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -313,7 +435,34 @@ class ModemController:
         self.cancel_queue()
         return {"status": "cancelled"}
 
+    def handle_stop(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Stop receiver (-rx) and/or transmitter (-tx)."""
+        rx = data.get("rx", False)
+        tx = data.get("tx", False)
+        if isinstance(rx, str):
+            rx = rx.lower() in ("true", "1", "yes")
+        if isinstance(tx, str):
+            tx = tx.lower() in ("true", "1", "yes")
+
+        stopped = []
+        if rx:
+            self._stop_receiver_processes()
+            stopped.append("receiver")
+        if tx:
+            self.cancel_queue()
+            stopped.append("transmitter")
+        if not stopped:
+            return {"status": "error", "error": "Specify rx=true and/or tx=true"}
+        return {"status": "ok", "stopped": stopped}
+
+    def handle_quit(self, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Trigger full graceful shutdown."""
+        logger.info("Quit command received. Setting STOP_EVENT.")
+        STOP_EVENT.set()
+        return {"status": "stopping"}
+
     def shutdown(self):
+        self._stop_receiver_processes()
         self.cancel_queue()
         if self._transmission_thread and self._transmission_thread.is_alive():
             self._transmission_thread.join(timeout=2.0)
@@ -345,43 +494,21 @@ def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=No
     http_thread.start()
     logger.info(f"HTTP server starting on port {http_port}")
 
-    process_configs = [
-        AUDIO_INTERFACE,
-        PEAK_DETECTOR,
-        PACKET_DECODER,
-    ]
-
-    processes = []
-    for config in process_configs:
-        p = multiprocessing.Process(
-            target=config["target"],
-            args=config.get("args", ()),
-            kwargs=config.get("kwargs", {}),
-            name=config.get("name", "Process"),
-        )
-        processes.append(p)
-        p.start()
-
     if cli:
         start_cli(base_url="http://localhost:8000", cli_exit_event=cli_exit_event)
 
     try:
-        while all(p.is_alive() for p in processes):
+        while not STOP_EVENT.is_set():
             if cli_exit_event and cli_exit_event.is_set():
+                STOP_EVENT.set()
                 break
             time.sleep(0.2)
 
-        STOP_EVENT.set()
     except KeyboardInterrupt:
         STOP_EVENT.set()
     finally:
-        for p in processes:
-            p.join(timeout=2.0)
-            if p.is_alive():
-                p.terminate()
-
-    controller.shutdown()
-    logger.info("Shutdown complete.")
+        controller.shutdown()
+        logger.info("Shutdown complete.")
 
 
 if __name__ == "__main__":
