@@ -42,7 +42,9 @@ class ModemCLI(cmd.Cmd):
             if isinstance(data, str):
                 print(f"\n[Received from {sender}]: {data}\n{self.prompt}", end="")
             else:
-                print(f"\n[Received from {sender}]: (binary data)\n{self.prompt}", end="")
+                print(
+                    f"\n[Received from {sender}]: (binary data)\n{self.prompt}", end=""
+                )
         else:
             print(f"\n[System message]: {msg}\n{self.prompt}", end="")
 
@@ -117,8 +119,9 @@ class ModemCLI(cmd.Cmd):
     def do_receive(self, arg):
         """receive [-n NB_WORKERS] - Start receiver with N workers (default: 1)"""
         import re
+
         nb_workers = 1
-        match = re.search(r'-n\s+(\d+)', arg)
+        match = re.search(r"-n\s+(\d+)", arg)
         if match:
             nb_workers = int(match.group(1))
         result = self._api_post("/receive", {"nb_workers": nb_workers})
@@ -142,10 +145,11 @@ class ModemCLI(cmd.Cmd):
             return
         import json
         import os
+
         # Check if arg is a file path
         if os.path.exists(arg.strip()):
             try:
-                with open(arg.strip(), 'r') as f:
+                with open(arg.strip(), "r") as f:
                     data = json.load(f)
             except Exception as e:
                 print(f"Error reading file: {e}")
@@ -165,8 +169,8 @@ class ModemCLI(cmd.Cmd):
 
     def do_stop(self, arg):
         """stop [-rx] [-tx] - Stop receiver (-rx) and/or transmitter (-tx)"""
-        rx = '-rx' in arg
-        tx = '-tx' in arg
+        rx = "-rx" in arg
+        tx = "-tx" in arg
         if not rx and not tx:
             print("Usage: stop -rx and/or -tx")
             return
@@ -229,20 +233,7 @@ class ModemCLI(cmd.Cmd):
                 print(f"Error: {result.get('error', 'Unknown error')}")
 
     def do_exit(self, arg):
-        """Exit the CLI (graceful shutdown)"""
-        self._api_post("/quit", {})
-        print("Goodbye!")
-        return True
-
-    def do_quit(self, arg):
-        """Exit the CLI (graceful shutdown)"""
-        self._api_post("/quit", {})
-        print("Goodbye!")
-        return True
-
-    def do_EOF(self, arg):
-        """Handle Ctrl+D"""
-        print()
+        """exit - Shutdown modem and exit CLI"""
         self._api_post("/quit", {})
         print("Goodbye!")
         return True
