@@ -60,21 +60,18 @@ class Transmitter(gr.top_block):
         ## convolutionnal error correction encoding
         self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
         self.fec_extended_encoder_0 = fec.extended_encoder(encoder_obj_list=self.cc_enc, threading= None, puncpat='11')
-        self.blocks_repack_bits_bb_1_0 = blocks.repack_bits_bb(1, 8, "", False, gr.GR_MSB_FIRST)
 
         ## modulation
-        self.digital_constellation_modulator_0 = digital.generic_mod(
-            constellation=self.const_definition,
-            differential=True,
+        self.digital_diff_encoder_bb_0 = digital.diff_encoder_bb(2)
+        self.digital_gmsk_mod_0 = digital.gmsk_mod(
             samples_per_symbol=self.sig.sps,
-            pre_diff_code=True,
-            excess_bw=0.35,
+            bt=0.35,
             verbose=False,
             log=False,
-            truncate=True)
+            do_unpack=False)
         self.blocks_rotator_cc_0 = blocks.rotator_cc((2 * np.pi * (self.sig.carrier_freq / self.sig.samp_rate)), False)
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
-        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff((1/4))
+        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(1.0)
 
         ## head block to terminate cleanly the flow graph after everything is sent
         self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.sig.beeper_nb_sample + self.get_nb_of_audio_samples())
@@ -95,9 +92,9 @@ class Transmitter(gr.top_block):
         self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
         self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
         self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
-        self.connect((self.fec_extended_encoder_0, 0), (self.blocks_repack_bits_bb_1_0, 0))
-        self.connect((self.blocks_repack_bits_bb_1_0, 0), (self.digital_constellation_modulator_0, 0))
-        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_rotator_cc_0, 0))
+        self.connect((self.fec_extended_encoder_0, 0), (self.digital_diff_encoder_bb_0, 0))
+        self.connect((self.digital_diff_encoder_bb_0, 0), (self.digital_gmsk_mod_0, 0))
+        self.connect((self.digital_gmsk_mod_0, 0), (self.blocks_rotator_cc_0, 0))
         self.connect((self.blocks_rotator_cc_0, 0), (self.blocks_complex_to_real_0, 0))
         self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_multiply_const_vxx_0, 0))
         self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_stream_mux_0, 1))
@@ -116,7 +113,7 @@ class Transmitter(gr.top_block):
             len(self.input_file) * 8 + nb_packet * len(self.access_key) + nb_packet * self.pkt.error_correction_len * 8
         ) * 2
         
-        nb_symbols_transmitted = nb_bits_transmitted / self.const_definition.bits_per_symbol()
+        nb_symbols_transmitted = nb_bits_transmitted # GMSK is 1 bit per symbol
         
         audio_samples_to_transmit = int(nb_symbols_transmitted * self.sig.sps)
         return audio_samples_to_transmit

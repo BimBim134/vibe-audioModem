@@ -24,14 +24,14 @@ The system uses a multiprocess architecture for real-time DSP performance:
 
 ### Networking (ZMQ IPC)
 Processes communicate via ZMQ on `localhost` (ports 5555-5560):
-| Port | Type | Description | Data Type |
-| :--- | :--- | :--- | :--- |
-| 5555 | PUB/SUB | Raw Audio | Float32 |
-| 5556 | PUB/SUB | FFT Spectrum | Float32 Vector |
-| 5557 | PUB/SUB | Raw Packets | PMT (Metadata + Bytes) |
-| 5558 | PUB/SUB | Reassembled Messages | PMT (Dict) |
-| 5559 | PUB/SUB | Config Broadcast | PMT (Dict) |
-| 5560 | PUB/SUB | Peak Detector System | PMT (Dict) |
+| Port | Type    | Description          | Data Type              |
+| :--- | :------ | :------------------- | :--------------------- |
+| 5555 | PUB/SUB | Raw Audio            | Float32                |
+| 5556 | PUB/SUB | FFT Spectrum         | Float32 Vector         |
+| 5557 | PUB/SUB | Raw Packets          | PMT (Metadata + Bytes) |
+| 5558 | PUB/SUB | Reassembled Messages | PMT (Dict)             |
+| 5559 | PUB/SUB | Config Broadcast     | PMT (Dict)             |
+| 5560 | PUB/SUB | Peak Detector System | PMT (Dict)             |
 
 ### Data Structures & Framing
 - **Serialization:** Uses GNU Radio's `pmt` library. Messages are often dictionaries serialized to PMT strings/blobs.
