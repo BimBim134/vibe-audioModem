@@ -250,9 +250,18 @@ class ModemCLI(cmd.Cmd):
         pass
 
 
-def start_cli(base_url: str = "http://localhost:8000", cli_exit_event=None):
+def start_cli(base_url: str = "http://localhost:8000", cli_exit_event=None, test_mode: bool = False):
     sys.stdin = sys.__stdin__
     cli = ModemCLI(base_url=base_url)
+    if test_mode:
+        try:
+            resp = requests.post(f"{base_url}/test", json={"active": True}, timeout=2)
+            if resp.status_code == 200:
+                print("Test mode enabled.")
+            else:
+                print(f"Warning: Failed to enable test mode: {resp.text}")
+        except Exception as e:
+            print(f"Warning: Could not enable test mode: {e}")
     cli.start_message_polling()
     try:
         cli.cmdloop()

@@ -1,16 +1,23 @@
 import sys
 import signal
 import time
-from typing import Any
+from typing import Any, Optional
 import threading
 import logging
 
-from gnuradio import blocks, digital, fec, gr, audio, analog
+from gnuradio import blocks, digital, fec, gr, audio, analog, zeromq
 import numpy as np
 
 from src.tx.packetizer import prepare_data
-from src.misc.config import PacketConfig, SignalConfig
-from src.misc.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, BPSK_CONST
+from src.misc.config import (
+    PacketConfig,
+    SignalConfig,
+    PortsConfig,
+    DEFAULT_PACKET_CONFIG,
+    DEFAULT_SIGNAL_CONFIG,
+    DEFAULT_PORTS_CONFIG,
+    BPSK_CONST,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +27,10 @@ class Transmitter(gr.top_block):
         input_data: Any,
         pkt: PacketConfig,
         sig: SignalConfig,
-        constellation:Any,
-        sender_name: str = "defaut"
+        constellation: Any,
+        sender_name: str = "defaut",
+        test_mode: bool = False,
+        ports_conf: Optional[PortsConfig] = None,
     ):
         """main transmitter class
 
@@ -31,9 +40,15 @@ class Transmitter(gr.top_block):
             sig (SignalConfig): signal description
             constellation (Any): constellation definition
             sender_name (str): name of the sender
+            test_mode (bool): if True, output to ZMQ instead of audio sink
+            ports_conf (PortsConfig): port configuration for ZMQ output
         """
         gr.top_block.__init__(self, "Transmitter", catch_exceptions=True)
         self.flowgraph_started = threading.Event()
+        self.test_mode = test_mode
+        if ports_conf is None:
+            ports_conf = DEFAULT_PORTS_CONFIG
+        self.ports_conf = ports_conf
 
         # Variables
         ## signal related variables
@@ -82,8 +97,13 @@ class Transmitter(gr.top_block):
         ## first beeper, then data transmission
         self.blocks_stream_mux_0 = blocks.stream_mux(gr.sizeof_float*1, (self.sig.beeper_nb_sample, self.get_nb_of_audio_samples()))
 
-        ## out audio
-        self.audio_sink_0 = audio.sink(self.sig.samp_rate, '', True)
+        ## out audio or ZMQ
+        if self.test_mode:
+            self.zmq_pub_sink_0 = zeromq.pub_sink(
+                gr.sizeof_float, 1, f"tcp://*:{self.ports_conf.audio_port}", 0, False, (-1), "", True, True,
+            )
+        else:
+            self.audio_sink_0 = audio.sink(self.sig.samp_rate, '', True)
 
         # Connections between blocks
         self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
@@ -99,7 +119,10 @@ class Transmitter(gr.top_block):
         self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_multiply_const_vxx_0, 0))
         self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_stream_mux_0, 1))
         self.connect((self.blocks_stream_mux_0, 0), (self.blocks_head_0, 0))
-        self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
+        if self.test_mode:
+            self.connect((self.blocks_head_0, 0), (self.zmq_pub_sink_0, 0))
+        else:
+            self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_stream_mux_0, 0))
 
     def get_nb_of_audio_samples(self) -> int:
@@ -127,6 +150,8 @@ def send_data(
     sender_name: str = "defaut",
     handle_signals: bool = True,
     cancel_event=None,
+    test_mode: bool = False,
+    ports_conf: Optional[PortsConfig] = None,
 ):
     if constellation is None:
         if hasattr(sig, 'constellation') and sig.constellation is not None:
@@ -134,7 +159,15 @@ def send_data(
         else:
             constellation = BPSK_CONST
 
-    tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name)
+    tb = Transmitter(
+        input_data,
+        pkt,
+        sig,
+        constellation,
+        sender_name=sender_name,
+        test_mode=test_mode,
+        ports_conf=ports_conf,
+    )
 
     if handle_signals:
         def sig_handler(sig=None, frame=None):

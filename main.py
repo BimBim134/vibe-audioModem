@@ -13,15 +13,15 @@ STOP_EVENT = multiprocessing.Event()
 CLI_EXIT_EVENT = threading.Event()
 
 
-def main(http_port: int = 8000, cli: bool = False):
+def main(http_port: int = 8000, cli: bool = False, test_mode: bool = False):
     if cli:
-        start_audiomodem(http_port=http_port, cli=cli, cli_exit_event=CLI_EXIT_EVENT)
+        start_audiomodem(http_port=http_port, cli=cli, cli_exit_event=CLI_EXIT_EVENT, test_mode=test_mode)
     else:
         import multiprocessing as mp
         modem_process = mp.Process(
             target=start_audiomodem,
             name="AudioModem",
-            kwargs={"cli": False}
+            kwargs={"cli": False, "test_mode": test_mode}
         )
         modem_process.start()
         try:
@@ -30,9 +30,9 @@ def main(http_port: int = 8000, cli: bool = False):
             if modem_process.is_alive():
                 modem_process.terminate()
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Vibe Audio Modem")
     parser.add_argument("--cli", action="store_true", help="Enable CLI terminal interface")
+    parser.add_argument("--test", action="store_true", help="Enable test mode (no audio, TX outputs to ZMQ port 5555)")
     args = parser.parse_args()
-    main(cli=args.cli)
+    main(cli=args.cli, test_mode=args.test)

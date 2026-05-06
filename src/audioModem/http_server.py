@@ -101,6 +101,12 @@ async def quit_modem():
     return _controller.handle_quit()
 
 
+@app.post("/test")
+async def set_test_mode(request: Request):
+    data = await request.json()
+    return _controller.handle_test(data)
+
+
 def run_http_server(host: str = "0.0.0.0", port: int = 8000, stop_event=None):
     logger.info(f"Starting HTTP server on {host}:{port}")
     uvicorn.run(app, host=host, port=port, log_level="info", log_config=None)

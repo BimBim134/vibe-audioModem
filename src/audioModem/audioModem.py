@@ -38,11 +38,13 @@ class ModemController:
         pkt_conf: Optional[PacketConfig] = None,
         ports_conf: Optional[PortsConfig] = None,
         presets_path: Optional[str] = None,
+        test_mode: bool = False,
     ):
         self.signal_conf = deepcopy(signal_conf or DEFAULT_SIGNAL_CONFIG)
         self.pkt_conf = pkt_conf or DEFAULT_PACKET_CONFIG
         self.ports_conf = ports_conf or DEFAULT_PORTS_CONFIG
         self.presets_path = presets_path
+        self.test_mode = test_mode
         self.receiver_active = False
         self.receiver_nb_workers = 1
         self.receiver_processes = []
@@ -69,6 +71,7 @@ class ModemController:
         logger.info("ModemController initialized")
         logger.info(f"Config pub port: {self.ports_conf.config_port}")
         logger.info(f"Subscribing to messages on port {self.ports_conf.messages_port}")
+        logger.info(f"Test mode: {self.test_mode}")
 
         self._message_listener_thread = threading.Thread(
             target=self._listen_for_messages,
@@ -76,6 +79,14 @@ class ModemController:
             name="MessageListener"
         )
         self._message_listener_thread.start()
+
+    def set_test_mode(self, active: bool):
+        """Enable or disable test mode (transmitter outputs to ZMQ instead of audio)."""
+        self.test_mode = active
+        logger.info(f"Test mode set to: {self.test_mode}")
+        if active and self.receiver_active:
+            logger.info("Test mode active: restarting receiver without audio interface...")
+            self._start_receiver_processes(self.receiver_nb_workers)
 
     def _restart_zmq_sockets(self):
         """Restart ZMQ sockets with current ports config."""
@@ -107,18 +118,25 @@ class ModemController:
         """Start receiver processes (AudioInterface, PeakDetector, PacketDecoder)."""
         if self.receiver_active:
             self._stop_receiver_processes()
-        logger.info(f"Starting receiver processes with {nb_workers} workers...")
+        logger.info(f"Starting receiver processes with {nb_workers} workers (test_mode={self.test_mode})...")
         self.receiver_nb_workers = nb_workers
-        # AudioInterface
-        audio_process = multiprocessing.Process(
-            target=start_audio_interface,
-            kwargs={
-                "signal_conf": self.signal_conf,
-                "ports_conf": self.ports_conf,
-                "stop_event": STOP_EVENT,
-            },
-            name="AudioInterfaceProcess",
-        )
+        processes_to_start = []
+
+        # AudioInterface (skip in test mode)
+        if not self.test_mode:
+            audio_process = multiprocessing.Process(
+                target=start_audio_interface,
+                kwargs={
+                    "signal_conf": self.signal_conf,
+                    "ports_conf": self.ports_conf,
+                    "stop_event": STOP_EVENT,
+                },
+                name="AudioInterfaceProcess",
+            )
+            processes_to_start.append(audio_process)
+        else:
+            logger.info("Test mode: skipping AudioInterface process")
+
         # PeakDetector with nb_workers
         peak_process = multiprocessing.Process(
             target=search_for_incomming_transmission,
@@ -141,8 +159,9 @@ class ModemController:
             },
             name="PacketDecoderProcess",
         )
+        processes_to_start.extend([peak_process, packet_process])
         # Start all processes
-        for p in [audio_process, peak_process, packet_process]:
+        for p in processes_to_start:
             p.start()
             self.receiver_processes.append(p)
         self.receiver_active = True
@@ -238,6 +257,8 @@ class ModemController:
                         sender_name=sender_name,
                         handle_signals=False,
                         cancel_event=self._cancel_event,
+                        test_mode=self.test_mode,
+                        ports_conf=self.ports_conf,
                     )
                     if self._cancel_event.is_set():
                         logger.info("Transmission cancelled mid-flight")
@@ -385,6 +406,7 @@ class ModemController:
     def handle_get_config(self, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         return {
             "status": "ok",
+            "test_mode": self.test_mode,
             "signal": {
                 "samp_rate": self.signal_conf.samp_rate,
                 "carrier_freq": self.signal_conf.carrier_freq,
@@ -461,6 +483,14 @@ class ModemController:
         STOP_EVENT.set()
         return {"status": "stopping"}
 
+    def handle_test(self, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Enable or disable test mode."""
+        active = data.get("active", False) if data else False
+        if isinstance(active, str):
+            active = active.lower() in ("true", "1", "yes")
+        self.set_test_mode(active)
+        return {"status": "ok", "test_mode": self.test_mode}
+
     def shutdown(self):
         self._stop_receiver_processes()
         self.cancel_queue()
@@ -477,12 +507,12 @@ class ModemController:
         logger.info("ModemController shutdown complete")
 
 
-def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=None):
+def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=None, test_mode: bool = False):
     from src.audioModem.cli import start_cli
     
     logger.info("Starting audio modem...")
 
-    controller = ModemController()
+    controller = ModemController(test_mode=test_mode)
     set_controller(controller)
 
     http_thread = threading.Thread(
@@ -495,7 +525,7 @@ def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=No
     logger.info(f"HTTP server starting on port {http_port}")
 
     if cli:
-        start_cli(base_url="http://localhost:8000", cli_exit_event=cli_exit_event)
+        start_cli(base_url=f"http://localhost:{http_port}", cli_exit_event=cli_exit_event, test_mode=test_mode)
 
     try:
         while not STOP_EVENT.is_set():
