@@ -98,17 +98,17 @@ class ModemCLI(cmd.Cmd):
                     break
             except SystemExit:
                 break
-        except KeyboardInterrupt:
-            self.intr = None
-            print("^C")
-            self._api_post("/quit", {})
-            print("Goodbye!")
-            break
-        except EOFError:
-            print("^D")
-            self._api_post("/quit", {})
-            print("Goodbye!")
-            break
+            except KeyboardInterrupt:
+                self.intr = None
+                print("^C")
+                self._api_post("/quit", {})
+                print("Goodbye!")
+                break
+            except EOFError:
+                print("^D")
+                self._api_post("/quit", {})
+                print("Goodbye!")
+                break
         self.postloop()
 
     def do_send(self, arg):
