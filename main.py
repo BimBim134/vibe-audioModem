@@ -4,10 +4,11 @@ import multiprocessing
 import threading
 import sys
 
-from src.audioModem.audioModem import start_audiomodem
 from src.misc.config import setup_logging
 
 setup_logging(level=logging.INFO)
+
+from src.audioModem.audioModem import start_audiomodem
 
 STOP_EVENT = multiprocessing.Event()
 CLI_EXIT_EVENT = threading.Event()
