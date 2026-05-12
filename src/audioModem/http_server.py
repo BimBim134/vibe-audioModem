@@ -103,4 +103,30 @@ async def quit_modem():
 
 def run_http_server(host: str = "0.0.0.0", port: int = 8000, stop_event=None):
     logger.info(f"Starting HTTP server on {host}:{port}")
-    uvicorn.run(app, host=host, port=port, log_level="info", log_config=None)
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        log_level="info",
+        log_config={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s: %(processName)s: %(levelname)s: %(message)s",
+                },
+            },
+            "handlers": {
+                "default": {
+                    "formatter": "default",
+                    "class": "logging.FileHandler",
+                    "filename": "audiomodem.log",
+                },
+            },
+        "loggers": {
+            "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+            "uvicorn.error": {"level": "INFO"},
+            "uvicorn.access": {"propagate": False},
+        },
+        },
+    )

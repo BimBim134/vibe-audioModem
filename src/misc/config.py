@@ -41,8 +41,8 @@ def setup_logging(
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("audio_portaudio_source").setLevel(logging.INFO)
 
-
-setup_logging()
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
 
 @dataclass
