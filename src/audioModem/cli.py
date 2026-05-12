@@ -254,14 +254,20 @@ def start_cli(base_url: str = "http://localhost:8000", cli_exit_event=None, test
     sys.stdin = sys.__stdin__
     cli = ModemCLI(base_url=base_url)
     if test_mode:
+        print("Test mode enabled (controller already initialized with --test).")
+    print("Waiting for HTTP server...", end="", flush=True)
+    for _ in range(30):
         try:
-            resp = requests.post(f"{base_url}/test", json={"active": True}, timeout=2)
+            resp = requests.get(f"{base_url}/status", timeout=1)
             if resp.status_code == 200:
-                print("Test mode enabled.")
-            else:
-                print(f"Warning: Failed to enable test mode: {resp.text}")
-        except Exception as e:
-            print(f"Warning: Could not enable test mode: {e}")
+                print(" ready.")
+                break
+        except requests.exceptions.RequestException:
+            pass
+        print(".", end="", flush=True)
+        time.sleep(1)
+    else:
+        print("\nWarning: HTTP server not ready after 30s.")
     cli.start_message_polling()
     try:
         cli.cmdloop()

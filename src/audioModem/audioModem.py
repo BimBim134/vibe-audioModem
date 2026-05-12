@@ -21,6 +21,7 @@ from src.misc.config import (
 from src.rx.audio_interface import start_audio_interface
 from src.rx.peak_detector import search_for_incomming_transmission
 from src.rx.packet_decoding import listen_for_packets
+from src.rx.demodulator import launch_demodulator
 from src.tx.transmitter import send_data
 from src.audioModem.http_server import run_http_server, set_controller
 
@@ -137,19 +138,38 @@ class ModemController:
         else:
             logger.info("Test mode: skipping AudioInterface process")
 
-        # PeakDetector with nb_workers
-        peak_process = multiprocessing.Process(
-            target=search_for_incomming_transmission,
-            kwargs={
-                "signal_conf": self.signal_conf,
-                "ports_conf": self.ports_conf,
-                "pkt_conf": self.pkt_conf,
-                "stop_event": STOP_EVENT,
-                "nb_workers": nb_workers,
-            },
-            name="PeakDetectorProcess",
-        )
-        # PacketDecoder
+        if self.test_mode:
+            logger.info(f"Test mode: starting {nb_workers} demodulator worker(s) directly (bypassing PeakDetector)")
+            for i in range(nb_workers):
+                demod_process = multiprocessing.Process(
+                    target=launch_demodulator,
+                    kwargs={
+                        "pkt": self.pkt_conf,
+                        "sig": self.signal_conf,
+                        "constellation": None,
+                        "constellation_name": self.signal_conf.constellation_name,
+                        "carrier_frequency": self.signal_conf.carrier_freq,
+                        "ports": self.ports_conf,
+                        "command_queue": None,
+                        "status_queue": None,
+                    },
+                    name=f"TestDemodulatorWorker_{i}",
+                )
+                processes_to_start.append(demod_process)
+        else:
+            peak_process = multiprocessing.Process(
+                target=search_for_incomming_transmission,
+                kwargs={
+                    "signal_conf": self.signal_conf,
+                    "ports_conf": self.ports_conf,
+                    "pkt_conf": self.pkt_conf,
+                    "stop_event": STOP_EVENT,
+                    "nb_workers": nb_workers,
+                },
+                name="PeakDetectorProcess",
+            )
+            processes_to_start.append(peak_process)
+
         packet_process = multiprocessing.Process(
             target=listen_for_packets,
             kwargs={
@@ -159,7 +179,7 @@ class ModemController:
             },
             name="PacketDecoderProcess",
         )
-        processes_to_start.extend([peak_process, packet_process])
+        processes_to_start.append(packet_process)
         # Start all processes
         for p in processes_to_start:
             p.start()
