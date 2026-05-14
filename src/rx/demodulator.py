@@ -66,7 +66,6 @@ class Demodulator(gr.top_block):
         self.sig = sig
         self.const_definition = constellation
         self.freq_deviation = 100 / self.sig.samp_rate
-        self.decimation = 30
 
         ## digital communication variables
         self.pkt = pkt
@@ -93,11 +92,11 @@ class Demodulator(gr.top_block):
         ## signal preprocessing
         ### Frequency-translating filter: real float input -> complex baseband output
         self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_fcc(
-            self.decimation,
+            1,
             firdes.low_pass(
                 1.0,
                 self.sig.samp_rate,
-                self.sig.baudrate, #TODO check if decimation needs to be applied here
+                self.sig.baudrate,
                 50,
                 window.WIN_HAMMING,
             ),
@@ -110,7 +109,7 @@ class Demodulator(gr.top_block):
 
         ## GMSK Demodulation
         self.digital_gmsk_demod_0 = digital.gmsk_demod(
-            samples_per_symbol=int(self.sig.sps / self.decimation),
+            samples_per_symbol=self.sig.sps,
             gain_mu=0.175,
             mu=0.5,
             omega_relative_limit=0.005,
