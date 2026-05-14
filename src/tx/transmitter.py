@@ -48,12 +48,14 @@ class Transmitter(gr.top_block):
         self.input_file = prepare_data(input_data, pkt, sender_name=sender_name)
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
-        len_after_mux = pkt.total_packets_len + len(self.access_key) // 8 + 4
-        self.cc_enc = fec.cc_encoder_make(len_after_mux * 8, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
+        # Header: Access Key (4 bytes) + Length (2 bytes) + Length Repeated (2 bytes) = 8 bytes total added by protocol_formatter
+        self.header_len = len(self.access_key) // 8 + 4
+        self.cc_frame_size = (pkt.total_packets_len + self.header_len) * 8
+        self.cc_enc = fec.cc_encoder_make(self.cc_frame_size, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
 
         # Blocks
         ## file source
-        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file, True)
+        self.blocks_vector_source_x_0 = blocks.vector_source_b(self.input_file, False)
 
         ## protocol layer
         self.blocks_stream_to_tagged_stream_0 = blocks.stream_to_tagged_stream(gr.sizeof_char, 1, self.pkt.total_packets_len, "packet_len")
@@ -126,9 +128,8 @@ class Transmitter(gr.top_block):
             int: number of audio sample to transmit
         """
         nb_packet = int(len(self.input_file) / self.pkt.total_packets_len)
-        nb_bits_transmitted = (
-            len(self.input_file) * 8 + nb_packet * len(self.access_key) + nb_packet * self.pkt.error_correction_len * 8
-        ) * 2
+        # Each packet: (Payload [48 bytes] + Header [8 bytes]) * 8 bits * 2 (Rate 1/2 CC)
+        nb_bits_transmitted = nb_packet * (self.pkt.total_packets_len + self.header_len) * 8 * 2
         
         nb_symbols_transmitted = nb_bits_transmitted # GMSK is 1 bit per symbol
         

@@ -29,6 +29,23 @@ def get_constellation_by_name(name):
 logger = logging.getLogger(__name__)
 
 
+class TagValueSetter(gr.sync_block):
+    """Sets the value of a specific tag."""
+    def __init__(self, tag_name, value):
+        gr.sync_block.__init__(self, name="TagValueSetter", in_sig=[np.uint8], out_sig=[np.uint8])
+        self.tag_name = pmt.intern(tag_name)
+        self.value = pmt.from_long(value)
+
+    def work(self, input_items, output_items):
+        n = len(input_items[0])
+        tags = self.get_tags_in_window(0, 0, n)
+        for tag in tags:
+            if pmt.eq(tag.key, self.tag_name):
+                self.add_item_tag(0, tag.offset, self.tag_name, self.value)
+        output_items[0][:] = input_items[0][:]
+        return n
+
+
 class Demodulator(gr.top_block):
     def set_carrier_freq(self, freq):
         """Update the carrier frequency and retune the translating filter."""
@@ -71,8 +88,11 @@ class Demodulator(gr.top_block):
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
         self.hdr_format = digital.header_format_default(self.access_key, 0)
+        # Match transmitter: Header (8 bytes) + RS Payload (48 bytes) = 56 bytes per packet
+        self.header_len = len(self.access_key) // 8 + 4
+        self.cc_frame_size = (pkt.total_packets_len + self.header_len) * 8
         self.cc_dec = fec.cc_decoder.make(
-            8, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True
+            self.cc_frame_size, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, False
         )
 
         ## ports configuration
@@ -141,6 +161,7 @@ class Demodulator(gr.top_block):
         self.digital_correlate_access_code_xx_ts_0 = (
             digital.correlate_access_code_bb_ts(self.access_key, 3, "packet_len")
         )
+        self.tag_fixer = TagValueSetter("packet_len", self.cc_frame_size)
         self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(
             1, 8, "packet_len", True, gr.GR_MSB_FIRST
         )
@@ -169,7 +190,8 @@ class Demodulator(gr.top_block):
         self.connect((self.blocks_multiply_const_xx_1_0_0, 0),(self.blocks_add_const_vxx_0_0_0, 0),)
         self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
         self.connect((self.fec_extended_decoder_0, 0),(self.digital_correlate_access_code_xx_ts_0, 0))
-        self.connect((self.digital_correlate_access_code_xx_ts_0, 0),(self.blocks_repack_bits_bb_0_0, 0),)
+        self.connect((self.digital_correlate_access_code_xx_ts_0, 0), (self.tag_fixer, 0))
+        self.connect((self.tag_fixer, 0), (self.blocks_repack_bits_bb_0_0, 0))
         self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
         self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
         self.msg_connect((self.pdu_set, "pdus"), (self.pdu_set_freq, "pdus"))

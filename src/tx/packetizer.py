@@ -33,7 +33,7 @@ def split_payload_into_packet(
     while pointer + pkt.data_chunck_len < len(mv):
         # construct packet
         data = mv[pointer : pointer + pkt.data_chunck_len]
-        data_len_flag = pkt.data_chunck_len.to_bytes()
+        data_len_flag = pkt.data_chunck_len.to_bytes(1, "big")
 
         # assemble packet
         data_chunck = data_len_flag + data
@@ -47,7 +47,7 @@ def split_payload_into_packet(
     # last packet with filler
     data = mv[pointer:]
     filler = token_bytes(pkt.data_chunck_len - len(data))
-    data_len_flag = len(data).to_bytes()
+    data_len_flag = len(data).to_bytes(1, "big")
 
     # assemble packet
     data_chunck = data_len_flag + data + filler
@@ -68,9 +68,9 @@ def generate_dummy_packet(pkt: config.PacketConfig, mode:str="preamble") -> byte
     """
     data = token_bytes(pkt.data_chunck_len)
     if mode == "preamble":
-        data_len_flag = (0).to_bytes()
+        data_len_flag = (0).to_bytes(1, "big")
     else:
-        data_len_flag = (255).to_bytes()
+        data_len_flag = (255).to_bytes(1, "big")
     return data_len_flag + data
 
 
