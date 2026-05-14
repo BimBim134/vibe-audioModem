@@ -507,7 +507,7 @@ class ModemController:
 
 
 def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=None, test_mode: bool = False):
-    from src.audioModem.cli import start_cli
+    from src.ui.cli import start_cli
     
     logger.info("Starting audio modem...")
 
