@@ -114,6 +114,9 @@ def start_audio_interface(
 
     tb.wait()
     logging.info("audio interface stopped")
+    if input_file and stop_event is not None:
+        logging.info("File playback complete, signaling all processes to stop")
+        stop_event.set()
 
 if __name__ == "__main__":
     start_audio_interface()

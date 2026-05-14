@@ -151,6 +151,8 @@ def search_for_incomming_transmission(
         workers.append(DemodulatorWorker(i, signal_conf, worker_ports, pkt_conf))
 
     fft_buffer = deque(maxlen=fft_buffer_size)
+    no_data_count = 0
+    max_no_data = 50  # ~5 seconds without FFT data → audio source is gone
 
     try:
         while not stop_event.is_set():
@@ -181,7 +183,13 @@ def search_for_incomming_transmission(
                     logger.error(f"Error processing config message: {e}")
 
             if socket not in socks or socks[socket] != zmq.POLLIN:
+                no_data_count += 1
+                if no_data_count > max_no_data:
+                    logger.info("No FFT data for 5 seconds, audio source gone. Exiting.")
+                    break
                 continue
+
+            no_data_count = 0
 
             try:
                 msg = socket.recv(flags=zmq.NOBLOCK)
