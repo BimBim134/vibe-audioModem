@@ -86,7 +86,7 @@ class DemodulatorWorker:
             except:
                 break
 
-    def update_preset(self, sig_conf):
+    def update_preset(self, sig_conf): #TODO to be deleted
         """Send preset update command to worker."""
         self.current_constellation_name = sig_conf.constellation_name
         self.command_queue.put({
