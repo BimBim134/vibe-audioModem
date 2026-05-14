@@ -174,7 +174,6 @@ def config(state):
         click.echo(f"  samp_rate: {sig.get('samp_rate')}")
         click.echo(f"  carrier_freq: {sig.get('carrier_freq')}")
         click.echo(f"  baudrate: {sig.get('baudrate')}")
-        click.echo(f"  constellation: {sig.get('constellation_name')}")
         click.echo("Packet config:")
         click.echo(f"  total_packets_len: {pkt.get('total_packets_len')}")
         click.echo(f"  preamble_packets: {pkt.get('preamble_packets')}")
