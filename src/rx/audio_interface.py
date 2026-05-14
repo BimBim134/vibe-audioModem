@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import signal
 import threading
@@ -82,6 +83,9 @@ def start_audio_interface(
         sig (SignalConfig): signal configuration (mainly to get samplerate)
         fft_size (int, optional): fft windows size. Defaults to 2028.
     """
+    if input_file and not os.path.exists(input_file):
+        logging.error(f"Input file '{input_file}' not found")
+        return
     tb = AudioInterface(signal_conf, ports_conf, input_file=input_file)
     logging.info("audio interface initialized")
 
@@ -110,6 +114,9 @@ def start_audio_interface(
 
     tb.wait()
     logging.info("audio interface stopped")
+    if input_file and stop_event is not None:
+        logging.info("File playback complete, signaling all processes to stop")
+        stop_event.set()
 
 if __name__ == "__main__":
     start_audio_interface()
