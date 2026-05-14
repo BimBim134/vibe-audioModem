@@ -10,7 +10,7 @@ import numpy as np
 
 from src.tx.packetizer import prepare_data
 from src.misc.config import PacketConfig, SignalConfig
-from src.misc.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG, BPSK_CONST
+from src.misc.config import DEFAULT_PACKET_CONFIG, DEFAULT_SIGNAL_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,6 @@ class Transmitter(gr.top_block):
         input_data: Any,
         pkt: PacketConfig,
         sig: SignalConfig,
-        constellation:Any,
         sender_name: str = "defaut",
         output_file: str = None,
         silence_padding: float = 0.0,
@@ -31,7 +30,6 @@ class Transmitter(gr.top_block):
             input_data (Any): input data
             pkt (PacketConfig): packet description
             sig (SignalConfig): signal description
-            constellation (Any): constellation definition
             sender_name (str): name of the sender
         """
         gr.top_block.__init__(self, "Transmitter", catch_exceptions=True)
@@ -40,7 +38,6 @@ class Transmitter(gr.top_block):
         # Variables
         ## signal related variables
         self.sig = sig
-        self.const_definition = constellation
         self.silence_padding = silence_padding
 
         ## digital communication variables
@@ -141,20 +138,13 @@ def send_data(
     input_data: Any,
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    constellation: Any = None,
     sender_name: str = "defaut",
     handle_signals: bool = True,
     cancel_event=None,
     output_file: str = None,
     silence_padding: float = 0.0,
 ):
-    if constellation is None:
-        if hasattr(sig, 'constellation') and sig.constellation is not None:
-            constellation = sig.constellation
-        else:
-            constellation = BPSK_CONST
-
-    tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name, output_file=output_file, silence_padding=silence_padding)
+    tb = Transmitter(input_data, pkt, sig, sender_name=sender_name, output_file=output_file, silence_padding=silence_padding)
 
     if handle_signals:
         def sig_handler(sig=None, frame=None):

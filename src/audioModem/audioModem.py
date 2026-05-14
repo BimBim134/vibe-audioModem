@@ -211,7 +211,6 @@ class ModemController:
             "preset": preset_name,
             "baudrate": self.signal_conf.baudrate,
             "beeper_duration": self.signal_conf.beeper_duration,
-            "constellation_name": self.signal_conf.constellation_name,
         }
         try:
             self.config_pub_socket.send(pmt.serialize_str(pmt.to_pmt(msg)))
@@ -333,8 +332,6 @@ class ModemController:
             self.signal_conf.baudrate = signal_cfg["baudrate"]
         if "beeper_duration" in signal_cfg:
             self.signal_conf.beeper_duration = signal_cfg["beeper_duration"]
-        if "constellation_name" in signal_cfg:
-            self.signal_conf.constellation_name = signal_cfg["constellation_name"]
 
         # Update packet config
         if "total_packets_len" in packet_cfg:
@@ -390,7 +387,6 @@ class ModemController:
         preset = presets[preset_name]
         self.signal_conf.baudrate = preset.get("baudrate", self.signal_conf.baudrate)
         self.signal_conf.beeper_duration = preset.get("beeper_duration", self.signal_conf.beeper_duration)
-        self.signal_conf.constellation_name = preset.get("constellation", self.signal_conf.constellation_name)
 
         self._broadcast_preset_update(preset_name)
 
@@ -398,7 +394,6 @@ class ModemController:
             "status": "ok",
             "preset": preset_name,
             "baudrate": self.signal_conf.baudrate,
-            "constellation": self.signal_conf.constellation_name,
         }
 
     def handle_set_carrier_freq(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -419,7 +414,6 @@ class ModemController:
                 "carrier_freq": self.signal_conf.carrier_freq,
                 "baudrate": self.signal_conf.baudrate,
                 "beeper_duration": self.signal_conf.beeper_duration,
-                "constellation_name": self.signal_conf.constellation_name,
             },
             "packet": {
                 "total_packets_len": self.pkt_conf.total_packets_len,

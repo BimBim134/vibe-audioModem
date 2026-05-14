@@ -1,7 +1,6 @@
 import sys
 import signal
 import threading
-from typing import Any
 import logging
 from datetime import datetime
 import pmt
@@ -16,15 +15,8 @@ from src.misc.config import (
     DEFAULT_PACKET_CONFIG,
     DEFAULT_SIGNAL_CONFIG,
     DEFAULT_PORTS_CONFIG,
-    CONSTELLATION_MAP
 )
 
-
-def get_constellation_by_name(name):
-    """Resolve constellation name to actual constellation object."""
-    if name is None:
-        return "default"
-    return CONSTELLATION_MAP.get(name, CONSTELLATION_MAP["default"])
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +49,6 @@ class Demodulator(gr.top_block):
         self,
         pkt: PacketConfig,
         sig: SignalConfig,
-        constellation: Any,
         ports_conf: PortsConfig,
     ):
         """main Demodulator class
@@ -65,7 +56,6 @@ class Demodulator(gr.top_block):
         Args:
             pkt (PacketConfig): packet configuration
             sig (SignalConfig): signal configuration
-            constellation (Any): constellation definition
             ports_conf(PortsConfig): ports configuration
         """
         gr.top_block.__init__(self, "Demodulator master", catch_exceptions=False)
@@ -81,7 +71,6 @@ class Demodulator(gr.top_block):
         # Variables
         ## signal related variables
         self.sig = sig
-        self.const_definition = constellation
         self.freq_deviation = 100 / self.sig.samp_rate
 
         ## digital communication variables
@@ -201,14 +190,12 @@ class Demodulator(gr.top_block):
 def launch_demodulator(
     pkt: PacketConfig = DEFAULT_PACKET_CONFIG,
     sig: SignalConfig = DEFAULT_SIGNAL_CONFIG,
-    constellation: Any = None,
-    constellation_name: str = None,
     carrier_frequency: float | None = None,
     ports: PortsConfig = DEFAULT_PORTS_CONFIG,
     command_queue=None,
     status_queue=None,
 ):
-    """receives an incomming transmission specified by **pkt**, **sig** and modulated using **constellation** at **carrier_frequency**.
+    """receives an incomming transmission specified by **pkt**, **sig** at **carrier_frequency**.
     Outputs results on raw_packet_port defined in **ports**
 
     In worker mode (command_queue is not None), it waits for frequencies to tune to.
@@ -220,11 +207,6 @@ def launch_demodulator(
 
     if carrier_frequency:
         signal_config.carrier_freq = carrier_frequency
-
-    current_constellation_name = constellation_name or sig.constellation_name
-    current_constellation_obj = constellation or get_constellation_by_name(current_constellation_name)
-    if isinstance(current_constellation_obj, str):
-        current_constellation_obj = CONSTELLATION_MAP["default"]
 
     current_tb = [None]
 
@@ -238,7 +220,7 @@ def launch_demodulator(
     signal.signal(signal.SIGTERM, sig_handler)
 
     if command_queue is None:
-        tb = Demodulator(pkt, signal_config, current_constellation_obj, ports_config)
+        tb = Demodulator(pkt, signal_config, ports_config)
         current_tb[0] = tb
         tb.start()
         tb.flowgraph_started.set()
@@ -264,7 +246,7 @@ def launch_demodulator(
                     signal_config.carrier_freq = freq
 
                 # Create a fresh Demodulator to ensure clean algorithm state
-                tb = Demodulator(pkt, signal_config, current_constellation_obj, ports_config)
+                tb = Demodulator(pkt, signal_config, ports_config)
                 current_tb[0] = tb
 
                 tb.start()
@@ -293,21 +275,16 @@ def launch_demodulator(
                     elif cmd_queue_action == "update_preset":
                         new_baudrate = cmd_queue.get("baudrate")
                         new_beeper_duration = cmd_queue.get("beeper_duration")
-                        new_constellation_name = cmd_queue.get("constellation_name")
                         if new_baudrate:
                             signal_config.baudrate = new_baudrate
                         if new_beeper_duration:
                             signal_config.beeper_duration = new_beeper_duration
-                        if new_constellation_name:
-                            current_constellation_name = new_constellation_name
-                            current_constellation_obj = get_constellation_by_name(current_constellation_name)
-                            signal_config.constellation_name = current_constellation_name
-                        logger.info(f"Preset update received: baudrate={signal_config.baudrate}, constellation={current_constellation_name}")
+                        logger.info(f"Preset update received: baudrate={signal_config.baudrate}")
                         # Restart demodulator with new settings
                         tb.stop()
                         tb.wait()
                         del tb
-                        tb = Demodulator(pkt, signal_config, current_constellation_obj, ports_config)
+                        tb = Demodulator(pkt, signal_config, ports_config)
                         current_tb[0] = tb
                         tb.start()
                         logger.info("Demodulator restarted with new preset")

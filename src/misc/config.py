@@ -3,10 +3,8 @@ some configuration class to keep things tidy
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
-from gnuradio import digital
 from reedsolo import RSCodec
 import numpy as np
 
@@ -78,7 +76,6 @@ class SignalConfig:
     carrier_freq: float
     beeper_duration: float
     baudrate: int
-    constellation_name: Optional[str] = field(default=None)
 
     @property
     def sps(self) -> int:
@@ -123,17 +120,6 @@ DEFAULT_PACKET_CONFIG = PacketConfig(
     postamble_packets=1,
     error_correction_len=16,
 )
-
-BPSK_CONST = digital.constellation_bpsk()
-DQPSK_CONST = digital.constellation_dqpsk()
-PSK8_CONST = digital.constellation_8psk_natural()
-
-CONSTELLATION_MAP = {
-    "default":BPSK_CONST,
-    "bpsk": BPSK_CONST,
-    "qpsk": DQPSK_CONST,
-    "8psk": PSK8_CONST,
-}
 
 DEFAULT_SIGNAL_CONFIG = SignalConfig(
     samp_rate=48000, beeper_duration=3.0, carrier_freq=2500, baudrate=200

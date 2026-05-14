@@ -196,7 +196,6 @@ class ModemCLI(cmd.Cmd):
             print(f"  samp_rate: {sig.get('samp_rate')}")
             print(f"  carrier_freq: {sig.get('carrier_freq')}")
             print(f"  baudrate: {sig.get('baudrate')}")
-            print(f"  constellation: {sig.get('constellation_name')}")
             print("Packet config:")
             print(f"  total_packets_len: {pkt.get('total_packets_len')}")
             print(f"  preamble_packets: {pkt.get('preamble_packets')}")
