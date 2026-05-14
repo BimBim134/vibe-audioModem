@@ -242,6 +242,7 @@ class ModemController:
                         handle_signals=False,
                         cancel_event=self._cancel_event,
                         output_file=item.get("output_file"),
+                        silence_padding=item.get("silence_padding", 0.0),
                     )
                     if self._cancel_event.is_set():
                         logger.info("Transmission cancelled mid-flight")
@@ -256,11 +257,12 @@ class ModemController:
             except Exception as e:
                 logger.error(f"Queue processing error: {e}")
 
-    def _queue_transmission(self, message: str, sender_name: str = "unknown", output_file: str = None):
+    def _queue_transmission(self, message: str, sender_name: str = "unknown", output_file: str = None, silence_padding: float = 0.0):
         item = {
             "message": message,
             "sender_name": sender_name,
             "output_file": output_file,
+            "silence_padding": silence_padding,
         }
         self._transmission_queue.put(item)
         logger.info(f"Transmission queued (queue size: {self._transmission_queue.qsize()})")
@@ -277,12 +279,13 @@ class ModemController:
         message = data.get("message", "")
         sender_name = data.get("sender_name", "HTTP")
         output_file = "test.wav" if self.test_mode else None
+        silence_padding = 10.0 if self.test_mode else 0.0
 
         if not message:
             return {"status": "error", "error": "Message is required"}
 
         self._cancel_event.clear()
-        self._queue_transmission(message, sender_name, output_file=output_file)
+        self._queue_transmission(message, sender_name, output_file=output_file, silence_padding=silence_padding)
 
         return {"status": "queued", "message": message, "sender": sender_name}
 
