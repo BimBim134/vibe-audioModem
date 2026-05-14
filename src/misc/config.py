@@ -122,14 +122,14 @@ DEFAULT_PACKET_CONFIG = PacketConfig(
 )
 
 DEFAULT_SIGNAL_CONFIG = SignalConfig(
-    samp_rate=48000, beeper_duration=3.0, carrier_freq=2500, baudrate=200
+    samp_rate=48000, beeper_duration=3.0, carrier_freq=2500, baudrate=500
 )
 
 
 DEFAULT_PORTS_CONFIG = PortsConfig(
     audio_port=5555,
     fft_port=5556,
-    fft_size=8192,
+    fft_size=4096,
     raw_packets_port=5557,
     messages_port=5558,
     config_port=5559,
