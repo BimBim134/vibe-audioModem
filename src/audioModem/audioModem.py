@@ -49,6 +49,7 @@ class ModemController:
         self.receiver_active = False
         self.receiver_nb_workers = 1
         self.receiver_processes = []
+        self.rx_input_file = None
 
         self._transmission_queue = queue.Queue()
         self._is_transmitting = False
@@ -315,7 +316,8 @@ class ModemController:
         input_file = "test.wav" if self.test_mode else None
         if input_file and not os.path.exists(input_file):
             return {"status": "error", "error": f"Input file '{input_file}' not found. Send a message first to create it."}
-        self._start_receiver_processes(nb_workers, input_file=input_file)
+        self.rx_input_file = input_file
+        self._start_receiver_processes(nb_workers, input_file=self.rx_input_file)
         return {"status": "ok", "receiver_active": True, "nb_workers": nb_workers}
 
     def handle_setup(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -372,7 +374,7 @@ class ModemController:
 
         # Restart receiver if active to apply new configs
         if self.receiver_active:
-            self._start_receiver_processes(self.receiver_nb_workers)
+            self._start_receiver_processes(self.receiver_nb_workers, input_file=self.rx_input_file)
 
         return self.handle_get_config()
 
