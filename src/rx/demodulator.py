@@ -116,7 +116,7 @@ class Demodulator(gr.top_block):
             firdes.low_pass(
                 1.0,
                 self.sig.samp_rate,
-                self.sig.baudrate,
+                self.sig.baudrate*1.5,
                 50,
                 window.WIN_HAMMING,
             ),
@@ -132,7 +132,7 @@ class Demodulator(gr.top_block):
             samples_per_symbol=self.sig.sps,
             gain_mu=0.175,
             mu=0.5,
-            omega_relative_limit=0.005,
+            omega_relative_limit=0.01,
             freq_error=0.0,
             verbose=False,
             log=False,
