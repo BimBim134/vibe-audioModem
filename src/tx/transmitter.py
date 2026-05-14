@@ -21,7 +21,8 @@ class Transmitter(gr.top_block):
         pkt: PacketConfig,
         sig: SignalConfig,
         constellation:Any,
-        sender_name: str = "defaut"
+        sender_name: str = "defaut",
+        output_file: str = None,
     ):
         """main transmitter class
 
@@ -83,7 +84,12 @@ class Transmitter(gr.top_block):
         self.blocks_stream_mux_0 = blocks.stream_mux(gr.sizeof_float*1, (self.sig.beeper_nb_sample, self.get_nb_of_audio_samples()))
 
         ## out audio
-        self.audio_sink_0 = audio.sink(self.sig.samp_rate, '', True)
+        if output_file:
+            self.audio_sink_0 = blocks.wavfile_sink(
+                output_file, 1, self.sig.samp_rate, blocks.FORMAT_WAV, blocks.FORMAT_PCM_16, False
+            )
+        else:
+            self.audio_sink_0 = audio.sink(self.sig.samp_rate, '', True)
 
         # Connections between blocks
         self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_stream_to_tagged_stream_0, 0))
@@ -127,6 +133,7 @@ def send_data(
     sender_name: str = "defaut",
     handle_signals: bool = True,
     cancel_event=None,
+    output_file: str = None,
 ):
     if constellation is None:
         if hasattr(sig, 'constellation') and sig.constellation is not None:
@@ -134,7 +141,7 @@ def send_data(
         else:
             constellation = BPSK_CONST
 
-    tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name)
+    tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name, output_file=output_file)
 
     if handle_signals:
         def sig_handler(sig=None, frame=None):

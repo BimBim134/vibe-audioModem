@@ -38,11 +38,13 @@ class ModemController:
         pkt_conf: Optional[PacketConfig] = None,
         ports_conf: Optional[PortsConfig] = None,
         presets_path: Optional[str] = None,
+        test_mode: bool = False,
     ):
         self.signal_conf = deepcopy(signal_conf or DEFAULT_SIGNAL_CONFIG)
         self.pkt_conf = pkt_conf or DEFAULT_PACKET_CONFIG
         self.ports_conf = ports_conf or DEFAULT_PORTS_CONFIG
         self.presets_path = presets_path
+        self.test_mode = test_mode
         self.receiver_active = False
         self.receiver_nb_workers = 1
         self.receiver_processes = []
@@ -103,7 +105,7 @@ class ModemController:
         self.receiver_active = False
         logger.info("Receiver processes stopped.")
 
-    def _start_receiver_processes(self, nb_workers: int = 1):
+    def _start_receiver_processes(self, nb_workers: int = 1, input_file: str = None):
         """Start receiver processes (AudioInterface, PeakDetector, PacketDecoder)."""
         if self.receiver_active:
             self._stop_receiver_processes()
@@ -116,6 +118,7 @@ class ModemController:
                 "signal_conf": self.signal_conf,
                 "ports_conf": self.ports_conf,
                 "stop_event": STOP_EVENT,
+                "input_file": input_file,
             },
             name="AudioInterfaceProcess",
         )
@@ -238,6 +241,7 @@ class ModemController:
                         sender_name=sender_name,
                         handle_signals=False,
                         cancel_event=self._cancel_event,
+                        output_file=item.get("output_file"),
                     )
                     if self._cancel_event.is_set():
                         logger.info("Transmission cancelled mid-flight")
@@ -252,10 +256,11 @@ class ModemController:
             except Exception as e:
                 logger.error(f"Queue processing error: {e}")
 
-    def _queue_transmission(self, message: str, sender_name: str = "unknown"):
+    def _queue_transmission(self, message: str, sender_name: str = "unknown", output_file: str = None):
         item = {
             "message": message,
             "sender_name": sender_name,
+            "output_file": output_file,
         }
         self._transmission_queue.put(item)
         logger.info(f"Transmission queued (queue size: {self._transmission_queue.qsize()})")
@@ -271,12 +276,13 @@ class ModemController:
     def handle_transmit(self, data: Dict[str, Any]) -> Dict[str, Any]:
         message = data.get("message", "")
         sender_name = data.get("sender_name", "HTTP")
+        output_file = "test.wav" if self.test_mode else None
 
         if not message:
             return {"status": "error", "error": "Message is required"}
 
         self._cancel_event.clear()
-        self._queue_transmission(message, sender_name)
+        self._queue_transmission(message, sender_name, output_file=output_file)
 
         return {"status": "queued", "message": message, "sender": sender_name}
 
@@ -286,7 +292,8 @@ class ModemController:
             nb_workers = int(nb_workers)
         except (ValueError, TypeError):
             return {"status": "error", "error": "nb_workers must be an integer"}
-        self._start_receiver_processes(nb_workers)
+        input_file = "test.wav" if self.test_mode else None
+        self._start_receiver_processes(nb_workers, input_file=input_file)
         return {"status": "ok", "receiver_active": True, "nb_workers": nb_workers}
 
     def handle_setup(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -477,12 +484,12 @@ class ModemController:
         logger.info("ModemController shutdown complete")
 
 
-def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=None):
+def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=None, test_mode: bool = False):
     from src.audioModem.cli import start_cli
     
     logger.info("Starting audio modem...")
 
-    controller = ModemController()
+    controller = ModemController(test_mode=test_mode)
     set_controller(controller)
 
     http_thread = threading.Thread(

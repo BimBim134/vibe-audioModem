@@ -15,7 +15,7 @@ from src.misc.config import SignalConfig, PortsConfig, DEFAULT_SIGNAL_CONFIG, DE
 
 class AudioInterface(gr.top_block):
 
-    def __init__(self, sig: SignalConfig, ports: PortsConfig):
+    def __init__(self, sig: SignalConfig, ports: PortsConfig, input_file: str = None):
         """Gets input audio stream from sound card and computes its FFT. Provides audio and FFT on separated ports.
 
         Args:
@@ -34,7 +34,13 @@ class AudioInterface(gr.top_block):
 
         # Blocks
         ## audio broadcasting
-        self.audio_source = audio.source(self.sig.samp_rate, "", True)
+        if input_file:
+            self.audio_source = blocks.wavfile_source(input_file, False)
+            self.blocks_throttle = blocks.throttle(
+                gr.sizeof_float * 1, self.sig.samp_rate, True
+            )
+        else:
+            self.audio_source = audio.source(self.sig.samp_rate, "", True)
         self.zeromq_pub_sink_audio = zeromq.pub_sink(
             gr.sizeof_float, 1, f"tcp://*:{self.ports.audio_port}", 0, False, (-1), "", True, True,
         )
@@ -52,8 +58,13 @@ class AudioInterface(gr.top_block):
         )
 
         # Connections
-        self.connect((self.audio_source, 0), (self.blocks_stream_to_vector, 0))
-        self.connect((self.audio_source, 0), (self.zeromq_pub_sink_audio, 0))
+        if input_file:
+            self.connect((self.audio_source, 0), (self.blocks_throttle, 0))
+            self.connect((self.blocks_throttle, 0), (self.blocks_stream_to_vector, 0))
+            self.connect((self.blocks_throttle, 0), (self.zeromq_pub_sink_audio, 0))
+        else:
+            self.connect((self.audio_source, 0), (self.blocks_stream_to_vector, 0))
+            self.connect((self.audio_source, 0), (self.zeromq_pub_sink_audio, 0))
         self.connect((self.blocks_stream_to_vector, 0), (self.fft_vxx, 0))
         self.connect((self.fft_vxx, 0), (self.blocks_complex_to_mag, 0))
         self.connect((self.blocks_complex_to_mag, 0), (self.zeromq_pub_sink_fft, 0))
@@ -62,7 +73,8 @@ class AudioInterface(gr.top_block):
 def start_audio_interface(
         signal_conf:SignalConfig=DEFAULT_SIGNAL_CONFIG,
         ports_conf:PortsConfig=DEFAULT_PORTS_CONFIG,
-        stop_event=None
+        stop_event=None,
+        input_file: str = None,
     ):
     """Starts the audio interface.
 
@@ -70,7 +82,7 @@ def start_audio_interface(
         sig (SignalConfig): signal configuration (mainly to get samplerate)
         fft_size (int, optional): fft windows size. Defaults to 2028.
     """
-    tb = AudioInterface(signal_conf, ports_conf)
+    tb = AudioInterface(signal_conf, ports_conf, input_file=input_file)
     logging.info("audio interface initialized")
 
     def sig_handler(sig=None, frame=None):
