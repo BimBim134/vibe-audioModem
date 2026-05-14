@@ -194,23 +194,22 @@ def listen_for_packets(
                         result.get("sender_name", "unknown"),
                         result,
                     )
+                    
+                    data = result.get("data")
                     if result.get("type") == "raw_string":
-                        sender_name = result.get("sender_name", "unknown")
-                        # PMT to_python returns a numpy array for buffers/blobs
-                        # We must convert it to bytes before decoding to string
-                        data = result.get("data")
                         if isinstance(data, np.ndarray):
-                            message_str = data.tobytes().decode("utf-8")
+                            result["data"] = data.tobytes().decode("utf-8", errors="replace")
                         else:
-                            message_str = str(data)
-                        logger.info("Message from %s: %s", sender_name, message_str)
-
-                        result["type"] = "data"
-                        if isinstance(result.get("data"), np.ndarray):
-                            result["data"] = base64.b64encode(
-                                result["data"].tobytes()
-                            ).decode("utf-8")
-                        msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
+                            result["data"] = str(data)
+                        logger.info("Message from %s: %s", result["sender_name"], result["data"])
+                    else:
+                        # For raw_bytes and file, use base64 for JSON compatibility downstream
+                        if isinstance(data, np.ndarray):
+                            result["data"] = base64.b64encode(data.tobytes()).decode("utf-8")
+                    
+                    # Set unified type for CLI/UI display logic
+                    result["type"] = "data"
+                    msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
                 else:
                     logger.debug(
                         "Packet result from %s: %s",
