@@ -100,10 +100,14 @@ def start_audio_interface(
 
     if stop_event is not None:
         def monitor_stop_event():
-            stop_event.wait()
-            logging.info("AudioInterface: stop_event set, stopping flowgraph")
-            tb.stop()
-            tb.wait()
+            while not stop_event.is_set():
+                import time
+                time.sleep(0.5)
+            
+            if tb.flowgraph_started.is_set():
+                logging.info("AudioInterface: stop_event set, stopping flowgraph")
+                tb.stop()
+                tb.wait()
         
         monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
         monitor_thread.start()
@@ -113,10 +117,10 @@ def start_audio_interface(
     tb.flowgraph_started.set()
 
     tb.wait()
+    tb.flowgraph_started.clear()
     logging.info("audio interface stopped")
     if input_file and stop_event is not None:
-        logging.info("File playback complete, signaling all processes to stop")
-        stop_event.set()
+        logging.info("File playback complete.")
 
 if __name__ == "__main__":
     start_audio_interface()

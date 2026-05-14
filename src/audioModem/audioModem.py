@@ -96,7 +96,18 @@ class ModemController:
         if not self.receiver_active:
             return
         logger.info("Stopping receiver processes...")
-        STOP_EVENT.set()
+        
+        # Log before and after to see if it hangs here
+        logger.info("Signal: Setting STOP_EVENT")
+        try:
+            if not STOP_EVENT.is_set():
+                STOP_EVENT.set()
+                logger.info("Signal: STOP_EVENT set")
+            else:
+                logger.info("Signal: STOP_EVENT already set")
+        except Exception as e:
+            logger.error(f"Signal: Failed to set STOP_EVENT: {e}")
+
         for p in self.receiver_processes:
             p.join(timeout=2.0)
             if p.is_alive():
@@ -477,15 +488,6 @@ class ModemController:
         """Trigger full graceful shutdown."""
         logger.info("Quit command received. Signaling shutdown.")
         INTERNAL_STOP_EVENT.set()
-        # Set STOP_EVENT in a separate thread to avoid blocking the HTTP response
-        # if there's any lock contention with child processes.
-        def signal_children():
-            try:
-                STOP_EVENT.set()
-            except Exception as e:
-                logger.error(f"Error signaling children: {e}")
-        
-        threading.Thread(target=signal_children, daemon=True).start()
         return {"status": "stopping"}
 
     def shutdown(self):
@@ -536,8 +538,9 @@ def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=No
         INTERNAL_STOP_EVENT.set()
     finally:
         logger.info("Starting graceful shutdown sequence...")
-        STOP_EVENT.set()
-        controller.shutdown()
+        # controller.shutdown() already calls STOP_EVENT.set() and joins processes
+        if controller:
+            controller.shutdown()
         logger.info("Shutdown complete.")
 
 
