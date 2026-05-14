@@ -118,21 +118,71 @@ def status(state):
         click.echo(f"queue_size: {result.get('queue_size', 'N/A')}")
 
 
-@cli.command()
-@click.argument("config")
+PARAM_MAP = {
+    "samp_rate": ("signal", int),
+    "carrier_freq": ("signal", float),
+    "beeper_duration": ("signal", float),
+    "baudrate": ("signal", int),
+    "constellation_name": ("signal", str),
+    "total_packets_len": ("packet", int),
+    "preamble_packets": ("packet", int),
+    "postamble_packets": ("packet", int),
+    "error_correction_len": ("packet", int),
+    "audio_port": ("port", int),
+    "fft_port": ("port", int),
+    "fft_size": ("port", int),
+    "raw_packets_port": ("port", int),
+    "messages_port": ("port", int),
+    "config_port": ("port", int),
+    "peak_detector_system_port": ("port", int),
+}
+
+
+@cli.group()
+def config():
+    """View or modify modem configuration"""
+
+
+@config.command()
 @click.pass_obj
-def setup(state, config):
+def show(state):
+    """Display current configuration"""
+    result = state._api_get("/configuration")
+    if result:
+        sig = result.get("signal", {})
+        pkt = result.get("packet", {})
+        port = result.get("port", {})
+        click.echo("Signal config:")
+        click.echo(f"  samp_rate: {sig.get('samp_rate')}")
+        click.echo(f"  carrier_freq: {sig.get('carrier_freq')}")
+        click.echo(f"  baudrate: {sig.get('baudrate')}")
+        click.echo(f"  beeper_duration: {sig.get('beeper_duration')}")
+        click.echo(f"  constellation: {sig.get('constellation_name')}")
+        click.echo("Packet config:")
+        click.echo(f"  total_packets_len: {pkt.get('total_packets_len')}")
+        click.echo(f"  preamble_packets: {pkt.get('preamble_packets')}")
+        click.echo(f"  postamble_packets: {pkt.get('postamble_packets')}")
+        click.echo(f"  error_correction_len: {pkt.get('error_correction_len')}")
+        click.echo("Port config:")
+        for key, val in port.items():
+            click.echo(f"  {key}: {val}")
+
+
+@config.command()
+@click.argument("config_json")
+@click.pass_obj
+def setup(state, config_json):
     """Full modem reset with config (JSON file path or inline JSON)"""
-    if os.path.exists(config.strip()):
+    if os.path.exists(config_json.strip()):
         try:
-            with open(config.strip()) as f:
+            with open(config_json.strip()) as f:
                 data = json.load(f)
         except Exception as e:
             click.echo(f"Error reading file: {e}")
             return
     else:
         try:
-            data = json.loads(config)
+            data = json.loads(config_json)
         except json.JSONDecodeError:
             click.echo("Error: Invalid JSON or file not found")
             return
@@ -140,6 +190,30 @@ def setup(state, config):
     if result:
         if result.get("status") == "ok":
             click.echo("Modem setup complete")
+        else:
+            click.echo(f"Error: {result.get('error', 'Unknown error')}")
+
+
+@config.command()
+@click.argument("param")
+@click.argument("value")
+@click.pass_obj
+def set(state, param, value):
+    """Set a configuration parameter (e.g. baudrate 300)"""
+    if param not in PARAM_MAP:
+        valid = ", ".join(sorted(PARAM_MAP))
+        click.echo(f"Error: unknown parameter '{param}'. Valid: {valid}")
+        return
+    section, typ = PARAM_MAP[param]
+    try:
+        converted = typ(value)
+    except ValueError:
+        click.echo(f"Error: '{value}' is not a valid {typ.__name__} for '{param}'")
+        return
+    result = state._api_post("/setup", {section: {param: converted}})
+    if result:
+        if result.get("status") == "ok":
+            click.echo(f"Set {param} = {converted}")
         else:
             click.echo(f"Error: {result.get('error', 'Unknown error')}")
 
@@ -159,29 +233,6 @@ def stop(state, stop_rx, stop_tx):
             click.echo(f"Stopped: {', '.join(result.get('stopped', []))}")
         else:
             click.echo(f"Error: {result.get('error', 'Unknown error')}")
-
-
-@cli.command()
-@click.pass_obj
-def config(state):
-    """Show current configuration"""
-    result = state._api_get("/configuration")
-    if result:
-        sig = result.get("signal", {})
-        pkt = result.get("packet", {})
-        port = result.get("port", {})
-        click.echo("Signal config:")
-        click.echo(f"  samp_rate: {sig.get('samp_rate')}")
-        click.echo(f"  carrier_freq: {sig.get('carrier_freq')}")
-        click.echo(f"  baudrate: {sig.get('baudrate')}")
-        click.echo("Packet config:")
-        click.echo(f"  total_packets_len: {pkt.get('total_packets_len')}")
-        click.echo(f"  preamble_packets: {pkt.get('preamble_packets')}")
-        click.echo(f"  postamble_packets: {pkt.get('postamble_packets')}")
-        click.echo(f"  error_correction_len: {pkt.get('error_correction_len')}")
-        click.echo("Port config:")
-        for key, val in port.items():
-            click.echo(f"  {key}: {val}")
 
 
 @cli.command()
@@ -230,16 +281,18 @@ def clear():
 
 
 @cli.command(name="help")
-@click.argument("command", required=False)
+@click.argument("command", nargs=-1, required=False)
 @click.pass_context
 def help_cmd(ctx, command):
     """Show help for commands"""
     if command:
-        cmd_obj = cli.get_command(ctx, command)
-        if cmd_obj:
-            click.echo(cmd_obj.get_help(ctx))
-        else:
-            click.echo(f"No such command: {command}")
+        cmd_obj = cli
+        for part in command:
+            cmd_obj = cmd_obj.get_command(ctx, part)
+            if cmd_obj is None:
+                click.echo(f"No such command: {' '.join(command)}")
+                return
+        click.echo(cmd_obj.get_help(ctx))
     else:
         click.echo(cli.get_help(ctx))
 
