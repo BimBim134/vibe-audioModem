@@ -23,6 +23,7 @@ class Transmitter(gr.top_block):
         constellation:Any,
         sender_name: str = "defaut",
         output_file: str = None,
+        silence_padding: float = 0.0,
     ):
         """main transmitter class
 
@@ -40,6 +41,7 @@ class Transmitter(gr.top_block):
         ## signal related variables
         self.sig = sig
         self.const_definition = constellation
+        self.silence_padding = silence_padding
 
         ## digital communication variables
         self.pkt = pkt
@@ -74,14 +76,21 @@ class Transmitter(gr.top_block):
         self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(1.0)
 
+        ## silence padding after data to give demodulator time to finish
+        silence_samples = int(self.silence_padding * self.sig.samp_rate)
+
         ## head block to terminate cleanly the flow graph after everything is sent
-        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.sig.beeper_nb_sample + self.get_nb_of_audio_samples())
+        self.blocks_head_0 = blocks.head(gr.sizeof_float*1, self.sig.beeper_nb_sample + self.get_nb_of_audio_samples() + silence_samples)
 
         ## beeper to help receiver to lock to carrier frequency
         self.analog_sig_source_x_0 = analog.sig_source_f(self.sig.samp_rate, analog.GR_SIN_WAVE, self.sig.carrier_freq, 0.77, 0, 0)
 
-        ## first beeper, then data transmission
-        self.blocks_stream_mux_0 = blocks.stream_mux(gr.sizeof_float*1, (self.sig.beeper_nb_sample, self.get_nb_of_audio_samples()))
+        ## first beeper, then data, then silence
+        if silence_samples > 0:
+            self.blocks_stream_mux_0 = blocks.stream_mux(gr.sizeof_float*1, (self.sig.beeper_nb_sample, self.get_nb_of_audio_samples(), silence_samples))
+            self.blocks_const_source_0 = blocks.vector_source_f([0.0], True)
+        else:
+            self.blocks_stream_mux_0 = blocks.stream_mux(gr.sizeof_float*1, (self.sig.beeper_nb_sample, self.get_nb_of_audio_samples()))
 
         ## out audio
         if output_file:
@@ -107,6 +116,8 @@ class Transmitter(gr.top_block):
         self.connect((self.blocks_stream_mux_0, 0), (self.blocks_head_0, 0))
         self.connect((self.blocks_head_0, 0), (self.audio_sink_0, 0))
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_stream_mux_0, 0))
+        if silence_samples > 0:
+            self.connect((self.blocks_const_source_0, 0), (self.blocks_stream_mux_0, 2))
 
     def get_nb_of_audio_samples(self) -> int:
         """ calculate the correct number of audio sample to transmit
@@ -134,6 +145,7 @@ def send_data(
     handle_signals: bool = True,
     cancel_event=None,
     output_file: str = None,
+    silence_padding: float = 0.0,
 ):
     if constellation is None:
         if hasattr(sig, 'constellation') and sig.constellation is not None:
@@ -141,7 +153,7 @@ def send_data(
         else:
             constellation = BPSK_CONST
 
-    tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name, output_file=output_file)
+    tb = Transmitter(input_data, pkt, sig, constellation, sender_name=sender_name, output_file=output_file, silence_padding=silence_padding)
 
     if handle_signals:
         def sig_handler(sig=None, frame=None):

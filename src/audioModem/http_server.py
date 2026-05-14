@@ -97,7 +97,7 @@ async def stop(request: Request):
 
 
 @app.post("/quit")
-async def quit_modem():
+def quit_modem():
     return _controller.handle_quit()
 
 
