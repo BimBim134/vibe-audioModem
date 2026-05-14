@@ -293,6 +293,8 @@ class ModemController:
         except (ValueError, TypeError):
             return {"status": "error", "error": "nb_workers must be an integer"}
         input_file = "test.wav" if self.test_mode else None
+        if input_file and not os.path.exists(input_file):
+            return {"status": "error", "error": f"Input file '{input_file}' not found. Send a message first to create it."}
         self._start_receiver_processes(nb_workers, input_file=input_file)
         return {"status": "ok", "receiver_active": True, "nb_workers": nb_workers}
 
