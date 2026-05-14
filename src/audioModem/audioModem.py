@@ -27,6 +27,7 @@ from src.audioModem.http_server import run_http_server, set_controller
 logger = logging.getLogger(__name__)
 
 STOP_EVENT = multiprocessing.Event()
+INTERNAL_STOP_EVENT = threading.Event()
 
 
 
@@ -101,7 +102,8 @@ class ModemController:
             if p.is_alive():
                 p.terminate()
         self.receiver_processes = []
-        STOP_EVENT.clear()
+        if not INTERNAL_STOP_EVENT.is_set():
+            STOP_EVENT.clear()
         self.receiver_active = False
         logger.info("Receiver processes stopped.")
 
@@ -162,10 +164,8 @@ class ModemController:
 
     def _listen_for_messages(self):
         logger.info("Message listener thread started")
-        while True:
+        while not INTERNAL_STOP_EVENT.is_set():
             try:
-                if STOP_EVENT.is_set():
-                    break
                 message = self._messages_sub_socket.recv(flags=zmq.NOBLOCK)
                 if message:
                     try:
@@ -177,9 +177,11 @@ class ModemController:
                     except Exception as e:
                         logger.error(f"Failed to deserialize message: {e}")
             except zmq.Again:
+                time.sleep(0.1)
                 continue
             except Exception as e:
                 logger.error(f"Message listener error: {e}")
+                time.sleep(0.1)
         logger.info("Message listener thread stopped")
 
     def get_received_messages(self) -> list:
@@ -207,15 +209,19 @@ class ModemController:
             logger.error(f"Failed to broadcast preset: {e}")
 
     def _process_transmission_queue(self):
-        while True:
+        while not INTERNAL_STOP_EVENT.is_set():
             try:
                 if self._cancel_event.is_set():
                     logger.info("Transmission cancelled before processing")
                     with self._transmission_lock:
                         self._is_transmitting = False
-                    break
+                    # Don't break here, wait for next item or None
+                
+                try:
+                    item = self._transmission_queue.get(timeout=1.0)
+                except queue.Empty:
+                    continue
 
-                item = self._transmission_queue.get()
                 if item is None:
                     break
 
@@ -469,8 +475,17 @@ class ModemController:
 
     def handle_quit(self, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Trigger full graceful shutdown."""
-        logger.info("Quit command received. Setting STOP_EVENT.")
-        STOP_EVENT.set()
+        logger.info("Quit command received. Signaling shutdown.")
+        INTERNAL_STOP_EVENT.set()
+        # Set STOP_EVENT in a separate thread to avoid blocking the HTTP response
+        # if there's any lock contention with child processes.
+        def signal_children():
+            try:
+                STOP_EVENT.set()
+            except Exception as e:
+                logger.error(f"Error signaling children: {e}")
+        
+        threading.Thread(target=signal_children, daemon=True).start()
         return {"status": "stopping"}
 
     def shutdown(self):
@@ -510,15 +525,18 @@ def start_audiomodem(http_port: int = 8000, cli: bool = False, cli_exit_event=No
         start_cli(base_url="http://localhost:8000", cli_exit_event=cli_exit_event)
 
     try:
-        while not STOP_EVENT.is_set():
+        while not INTERNAL_STOP_EVENT.is_set():
             if cli_exit_event and cli_exit_event.is_set():
-                STOP_EVENT.set()
+                INTERNAL_STOP_EVENT.set()
                 break
             time.sleep(0.2)
 
     except KeyboardInterrupt:
-        STOP_EVENT.set()
+        logger.info("KeyboardInterrupt received in main loop.")
+        INTERNAL_STOP_EVENT.set()
     finally:
+        logger.info("Starting graceful shutdown sequence...")
+        STOP_EVENT.set()
         controller.shutdown()
         logger.info("Shutdown complete.")
 

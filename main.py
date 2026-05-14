@@ -10,7 +10,6 @@ setup_logging(level=logging.INFO)
 
 from src.audioModem.audioModem import start_audiomodem
 
-STOP_EVENT = multiprocessing.Event()
 CLI_EXIT_EVENT = threading.Event()
 
 
