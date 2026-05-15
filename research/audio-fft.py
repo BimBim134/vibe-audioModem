@@ -18,11 +18,12 @@ def plot_fft(filename):
     idx = int(fft_data.size/2)
     plt.figure(layout="constrained")
     plt.semilogy(freqs[:idx], np.abs(fft_data[:idx]))
-    plt.xlim([1000,4000])
+    plt.xlim([0,10000])
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Amplitude')
     plt.title('FFT of ' + filename)
-    plt.grid()
+    plt.xticks(np.arange(0, 20001, 500))
+    plt.grid(which="both")
     plt.show()
 
 if __name__ == '__main__':
