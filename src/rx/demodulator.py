@@ -105,9 +105,10 @@ class Demodulator(gr.top_block):
             firdes.low_pass(
                 1.0,
                 self.sig.samp_rate,
-                self.sig.baudrate,
-                50,
-                window.WIN_HAMMING,
+                self.sig.baudrate * 1.5,
+                self.sig.baudrate / 3,
+                window.WIN_KAISER,
+                6.76,
             ),
             self.sig.carrier_freq,
             self.sig.samp_rate,
@@ -182,6 +183,7 @@ class Demodulator(gr.top_block):
         self.connect((self.digital_correlate_access_code_xx_ts_0, 0), (self.tag_fixer, 0))
         self.connect((self.tag_fixer, 0), (self.blocks_repack_bits_bb_0_0, 0))
         self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
+
         self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
         self.msg_connect((self.pdu_set, "pdus"), (self.pdu_set_freq, "pdus"))
         self.msg_connect((self.pdu_set_freq, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
