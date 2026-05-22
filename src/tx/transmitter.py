@@ -48,7 +48,7 @@ class Transmitter(gr.top_block):
         # Header: Access Key (4 bytes) + Length (2 bytes) + Length Repeated (2 bytes) = 8 bytes total added by protocol_formatter
         self.header_len = len(self.access_key) // 8 + 4
         self.cc_frame_size = (pkt.total_packets_len + self.header_len) * 8
-        self.cc_enc = fec.cc_encoder_make(self.cc_frame_size, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
+        self.cc_enc = fec.cc_encoder_make(self.cc_frame_size, 7, 2, [79, 109], 0, fec.CC_TERMINATED, False)
 
         # Blocks
         ## file source

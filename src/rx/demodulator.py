@@ -38,6 +38,40 @@ class TagValueSetter(gr.sync_block):
         return n
 
 
+def generate_modulated_sync_word(pkt: PacketConfig, sig: SignalConfig, access_key: str):
+    """Generates the GMSK-modulated complex symbols for the FEC-encoded header."""
+    # 1. Prepare the same header bytes as the transmitter
+    header_bytes = []
+    # Access key is string "1110...", convert to bytes
+    for i in range(0, len(access_key), 8):
+        header_bytes.append(int(access_key[i:i+8], 2))
+
+    # Add length (16 bits, little endian)
+    packet_len = pkt.total_packets_len
+    header_bytes.append(packet_len & 0xFF)
+    header_bytes.append((packet_len >> 8) & 0xFF)
+    # Add length repeated
+    header_bytes.append(packet_len & 0xFF)
+    header_bytes.append((packet_len >> 8) & 0xFF)
+
+    # 2. FEC Encode and Modulate using an ephemeral flowgraph
+    tb = gr.top_block()
+    src = blocks.vector_source_b(header_bytes, False)
+    unpack = blocks.unpack_k_bits_bb(8)
+
+    header_len_bits = len(header_bytes) * 8
+    cc_enc = fec.cc_encoder_make(header_len_bits, 7, 2, [79, 109], 0, fec.CC_TERMINATED, False)
+    enc = fec.extended_encoder(encoder_obj_list=cc_enc, threading=None, puncpat='11')
+
+    mod = digital.gmsk_mod(samples_per_symbol=sig.sps, bt=0.35, verbose=False, log=False, do_unpack=False)
+    sink = blocks.vector_sink_c()
+
+    tb.connect(src, unpack, enc, mod, sink)
+    tb.run()
+
+    return sink.data()
+
+
 class Demodulator(gr.top_block):
     def set_carrier_freq(self, freq):
         """Update the carrier frequency and retune the translating filter."""
@@ -65,23 +99,21 @@ class Demodulator(gr.top_block):
         logger.info(ports_conf)
 
         self.id = datetime.now().isoformat()
-
         self.flowgraph_started = threading.Event()
 
         # Variables
-        ## signal related variables
         self.sig = sig
-        self.freq_deviation = 100 / self.sig.samp_rate
+
 
         ## digital communication variables
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
-        self.hdr_format = digital.header_format_default(self.access_key, 0)
+
         # Match transmitter: Header (8 bytes) + RS Payload (48 bytes) = 56 bytes per packet
         self.header_len = len(self.access_key) // 8 + 4
         self.cc_frame_size = (pkt.total_packets_len + self.header_len) * 8
         self.cc_dec = fec.cc_decoder.make(
-            self.cc_frame_size, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, False
+            self.cc_frame_size, 7, 2, [79, 109], 0, 0, fec.CC_TERMINATED, False
         )
 
         ## ports configuration
@@ -117,18 +149,43 @@ class Demodulator(gr.top_block):
         ### Automatic Gain Control
         self.analog_agc_xx_0 = analog.agc_cc(1e-4, 1.0, 1.0, 1000)
 
-        ## GMSK Demodulation
-        self.digital_gmsk_demod_0 = digital.gmsk_demod(
-            samples_per_symbol=self.sig.sps,
-            gain_mu=0.175,
-            mu=0.5,
-            omega_relative_limit=0.005,
-            freq_error=0.0,
-            verbose=False,
-            log=False,
+        ## Robust Synchronization and Demodulation
+        ### Complex Correlation
+        self.sync_taps = generate_modulated_sync_word(
+            self.pkt, self.sig, self.access_key
+        )
+        self.digital_corr_est_cc_0 = digital.corr_est_cc(
+            self.sync_taps,
+            self.sig.sps,
+            mark_delay=int(len(self.sync_taps) / self.sig.sps - 4),
+            threshold=0.7,
+            threshold_method=digital.THRESHOLD_ABSOLUTE,
         )
 
-        ## differential decoding (modulus 2 for GMSK)
+        ### Symbol Sync
+        self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
+            detector_type=digital.TED_GARDNER,
+            sps=float(self.sig.sps),
+            loop_bw=0.045,
+            damping_factor=1.0,
+            ted_gain=1.0,
+            max_deviation=1.5,
+            osps=1,
+            slicer=None,
+            interp_type=digital.IR_MMSE_8TAP,
+            n_filters=128,
+            taps=[],
+        )
+
+        ### Quadrature Demodulation
+        self.analog_quadrature_demod_cf_0 = analog.quadrature_demod_cf(
+            1.0 / (np.pi / 2.0)
+        )
+
+        ### Binary Slicer
+        self.digital_binary_slicer_fb_0 = digital.binary_slicer_fb()
+
+        ## differential decoding
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
             2, digital.DIFF_DIFFERENTIAL
         )
@@ -147,11 +204,13 @@ class Demodulator(gr.top_block):
             integration_period=10000,
         )
 
-        ## frame synchronization
+        ## Frame Alignment
         self.digital_correlate_access_code_xx_ts_0 = (
             digital.correlate_access_code_bb_ts(self.access_key, 3, "packet_len")
         )
+        # Explicitly fix the tag value because correlate_access_code_bb_ts often leaves it 0
         self.tag_fixer = TagValueSetter("packet_len", self.cc_frame_size)
+
         self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(
             1, 8, "packet_len", True, gr.GR_MSB_FIRST
         )
@@ -164,7 +223,8 @@ class Demodulator(gr.top_block):
             k=pmt.intern("demodulator_id"), v=pmt.intern(self.id)
         )
         self.pdu_set_freq = pdu.pdu_set(
-            k=pmt.intern("carrier_freq"), v=pmt.from_double(float(self.sig.carrier_freq))
+            k=pmt.intern("carrier_freq"),
+            v=pmt.from_double(float(self.sig.carrier_freq)),
         )
         self.zeromq_pub_msg_sink_0 = zeromq.pub_msg_sink(
             f"tcp://127.0.0.1:{self.ports.raw_packets_port}", 100, False
@@ -173,13 +233,22 @@ class Demodulator(gr.top_block):
         # Connections
         self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
-        self.connect((self.analog_agc_xx_0, 0), (self.digital_gmsk_demod_0, 0))
-        self.connect((self.digital_gmsk_demod_0, 0), (self.digital_diff_decoder_bb_0, 0))
+
+        ## Sync & Demod Chain
+        self.connect((self.analog_agc_xx_0, 0), (self.digital_corr_est_cc_0, 0))
+        self.connect((self.digital_corr_est_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
+        self.connect((self.digital_symbol_sync_xx_0, 0), (self.analog_quadrature_demod_cf_0, 0))
+        self.connect((self.analog_quadrature_demod_cf_0, 0), (self.digital_binary_slicer_fb_0, 0))
+
+        ## Decoding Chain
+        self.connect((self.digital_binary_slicer_fb_0, 0), (self.digital_diff_decoder_bb_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
-        self.connect((self.blocks_uchar_to_float_0_0_0, 0),(self.blocks_multiply_const_xx_1_0_0, 0),)
-        self.connect((self.blocks_multiply_const_xx_1_0_0, 0),(self.blocks_add_const_vxx_0_0_0, 0),)
+        self.connect((self.blocks_uchar_to_float_0_0_0, 0), (self.blocks_multiply_const_xx_1_0_0, 0))
+        self.connect((self.blocks_multiply_const_xx_1_0_0, 0), (self.blocks_add_const_vxx_0_0_0, 0))
         self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
-        self.connect((self.fec_extended_decoder_0, 0),(self.digital_correlate_access_code_xx_ts_0, 0))
+        self.connect((self.fec_extended_decoder_0, 0), (self.digital_correlate_access_code_xx_ts_0, 0))
+
+        ## Framing & Output
         self.connect((self.digital_correlate_access_code_xx_ts_0, 0), (self.tag_fixer, 0))
         self.connect((self.tag_fixer, 0), (self.blocks_repack_bits_bb_0_0, 0))
         self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))
@@ -199,8 +268,6 @@ def launch_demodulator(
 ):
     """receives an incomming transmission specified by **pkt**, **sig** at **carrier_frequency**.
     Outputs results on raw_packet_port defined in **ports**
-
-    In worker mode (command_queue is not None), it waits for frequencies to tune to.
     """
     import copy
 
