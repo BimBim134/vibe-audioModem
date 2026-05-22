@@ -126,7 +126,8 @@ class Transmitter(gr.top_block):
         """
         nb_packet = int(len(self.input_file) / self.pkt.total_packets_len)
         # Each packet: (Payload [48 bytes] + Header [8 bytes]) * 8 bits * 2 (Rate 1/2 CC)
-        nb_bits_transmitted = nb_packet * (self.pkt.total_packets_len + self.header_len) * 8 * 2
+        # Plus 12 tail bits (K=7, Rate 1/2) for CC_TERMINATED
+        nb_bits_transmitted = nb_packet * ((self.pkt.total_packets_len + self.header_len) * 8 * 2 + 12)
         
         nb_symbols_transmitted = nb_bits_transmitted # GMSK is 1 bit per symbol
         

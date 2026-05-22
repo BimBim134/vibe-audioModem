@@ -92,13 +92,16 @@ def decode_packet(payload: list, pkt: PacketConfig):
     demod_id = metadata["demodulator_id"]
     carrier_freq = metadata.get("carrier_freq", 0.0)
     raw_packet_data = payload[1].tobytes()
+    
+    logger.info("Received PDU: %d bytes from demod %s", len(raw_packet_data), demod_id)
 
-    # The PDU from the Demodulator is 56 bytes: 
-    # [8 bytes Header (Access Key + Lengths)] + [48 bytes RS Packet]
-    if len(raw_packet_data) == pkt.total_packets_len + 8:
+    # Path B: correlate_access_code_bb_ts strips the 8-byte header, 
+    # so we receive exactly 48 bytes (the RS packet).
+    if len(raw_packet_data) == pkt.total_packets_len:
+        pass 
+    elif len(raw_packet_data) == pkt.total_packets_len + 8:
         raw_packet_data = raw_packet_data[8:]
     elif len(raw_packet_data) == pkt.total_packets_len + 4:
-        # Fallback for formats where the Access Key was already stripped
         raw_packet_data = raw_packet_data[4:]
 
     system_messages = []
@@ -163,7 +166,6 @@ def listen_for_packets(
 
     # Socket for receiving raw packets from demodulators
     socket = context.socket(zmq.SUB)
-    # The decoder binds, and multiple demodulator workers connect to it.
     socket.bind(f"tcp://*:{ports_conf.raw_packets_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
     socket.setsockopt(zmq.RCVTIMEO, 500)
@@ -173,19 +175,14 @@ def listen_for_packets(
     msg_pub_socket.bind(f"tcp://*:{ports_conf.messages_port}")
 
     logger.info(
-        "Packet decoder listening for packets (binding) on port %s",
+        "Packet decoder listening for packets on port %s",
         ports_conf.raw_packets_port,
-    )
-    logger.info(
-        "Packet decoder publishing messages on port %s",
-        ports_conf.messages_port,
     )
 
     try:
         while stop_event is None or not stop_event.is_set():
             try:
                 received = socket.recv()
-                logger.debug("ZMQ received %s bytes", len(received))
                 payload = pmt.to_python(pmt.deserialize_str(received))
                 result, system_messages = decode_packet(payload, pkt_conf)
 
@@ -193,45 +190,26 @@ def listen_for_packets(
                     send_message(msg_pub_socket, msg["type"], **{k: v for k, v in msg.items() if k != "type"})
 
                 if isinstance(result, dict):
-                    logger.info(
-                        "Successfully reassembled message from %s: %s",
-                        result.get("sender_name", "unknown"),
-                        result,
-                    )
-                    
                     data = result.get("data")
                     if result.get("type") == "raw_string":
                         if isinstance(data, np.ndarray):
                             result["data"] = data.tobytes().decode("utf-8", errors="replace")
                         else:
                             result["data"] = str(data)
-                        logger.info("Message from %s: %s", result["sender_name"], result["data"])
                     else:
-                        # For raw_bytes and file, use base64 for JSON compatibility downstream
                         if isinstance(data, np.ndarray):
                             result["data"] = base64.b64encode(data.tobytes()).decode("utf-8")
                     
-                    # Set unified type for CLI/UI display logic
                     result["type"] = "data"
                     msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
-                else:
-                    logger.debug(
-                        "Packet result from %s: %s",
-                        payload[0]["demodulator_id"],
-                        result,
-                    )
 
             except zmq.Again:
                 continue
             except Exception as e:
                 logger.error("Error in packet decoder loop: %s", e)
-                import traceback
-
-                logger.debug(traceback.format_exc())
     except KeyboardInterrupt:
         pass
     finally:
-        logger.info("Packet decoder: closing sockets and context")
         socket.close()
         msg_pub_socket.close()
         context.term()
