@@ -104,7 +104,6 @@ class Demodulator(gr.top_block):
         # Variables
         self.sig = sig
 
-
         ## digital communication variables
         self.pkt = pkt
         self.access_key = "11100001010110101110100010010011"
@@ -154,6 +153,7 @@ class Demodulator(gr.top_block):
         self.sync_taps = generate_modulated_sync_word(
             self.pkt, self.sig, self.access_key
         )
+        # GMSK mod adds ~4 symbols of delay. Adjust mark_delay to hit the start of payload bits.
         self.digital_corr_est_cc_0 = digital.corr_est_cc(
             self.sync_taps,
             self.sig.sps,
@@ -166,7 +166,7 @@ class Demodulator(gr.top_block):
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
             detector_type=digital.TED_GARDNER,
             sps=float(self.sig.sps),
-            loop_bw=0.045,
+            loop_bw=0.040,  # Slightly tighter for stability
             damping_factor=1.0,
             ted_gain=1.0,
             max_deviation=1.5,
@@ -234,13 +234,13 @@ class Demodulator(gr.top_block):
         self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
 
-        ## Sync & Demod Chain
+        # Sync & Demod Chain
         self.connect((self.analog_agc_xx_0, 0), (self.digital_corr_est_cc_0, 0))
         self.connect((self.digital_corr_est_cc_0, 0), (self.digital_symbol_sync_xx_0, 0))
         self.connect((self.digital_symbol_sync_xx_0, 0), (self.analog_quadrature_demod_cf_0, 0))
         self.connect((self.analog_quadrature_demod_cf_0, 0), (self.digital_binary_slicer_fb_0, 0))
 
-        ## Decoding Chain
+        # Decoding Chain
         self.connect((self.digital_binary_slicer_fb_0, 0), (self.digital_diff_decoder_bb_0, 0))
         self.connect((self.digital_diff_decoder_bb_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
         self.connect((self.blocks_uchar_to_float_0_0_0, 0), (self.blocks_multiply_const_xx_1_0_0, 0))
@@ -248,7 +248,7 @@ class Demodulator(gr.top_block):
         self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
         self.connect((self.fec_extended_decoder_0, 0), (self.digital_correlate_access_code_xx_ts_0, 0))
 
-        ## Framing & Output
+        # Framing & Output
         self.connect((self.digital_correlate_access_code_xx_ts_0, 0), (self.tag_fixer, 0))
         self.connect((self.tag_fixer, 0), (self.blocks_repack_bits_bb_0_0, 0))
         self.connect((self.blocks_repack_bits_bb_0_0, 0), (self.pdu_tagged_stream_to_pdu_0, 0))

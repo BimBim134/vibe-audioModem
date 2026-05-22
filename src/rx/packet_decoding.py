@@ -93,8 +93,12 @@ def decode_packet(payload: list, pkt: PacketConfig):
     carrier_freq = metadata.get("carrier_freq", 0.0)
     raw_packet_data = payload[1].tobytes()
 
-    # The PDU might include a 4-byte header (if from our Demodulator)
-    if len(raw_packet_data) == pkt.total_packets_len + 4:
+    # The PDU from the Demodulator is 56 bytes: 
+    # [8 bytes Header (Access Key + Lengths)] + [48 bytes RS Packet]
+    if len(raw_packet_data) == pkt.total_packets_len + 8:
+        raw_packet_data = raw_packet_data[8:]
+    elif len(raw_packet_data) == pkt.total_packets_len + 4:
+        # Fallback for formats where the Access Key was already stripped
         raw_packet_data = raw_packet_data[4:]
 
     system_messages = []
