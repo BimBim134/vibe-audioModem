@@ -71,6 +71,13 @@ class Demodulator(gr.top_block):
         # Variables
         ## signal related variables
         self.sig = sig
+
+        # Calculate decimation to target ~10 samples per symbol for better loop stability
+        self.target_sps = 10
+        self.decimation = int(max(1, self.sig.sps // self.target_sps))
+        self.actual_sps = float(self.sig.samp_rate) / (self.decimation * self.sig.baudrate)
+        logger.info(f"Decimation: {self.decimation}, Actual SPS: {self.actual_sps:.2f}")
+
         self.freq_deviation = 100 / self.sig.samp_rate
 
         ## digital communication variables
@@ -101,7 +108,7 @@ class Demodulator(gr.top_block):
         ## signal preprocessing
         ### Frequency-translating filter: real float input -> complex baseband output
         self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_fcc(
-            1,
+            self.decimation,
             firdes.low_pass(
                 1.0,
                 self.sig.samp_rate,
@@ -119,7 +126,7 @@ class Demodulator(gr.top_block):
 
         ## GMSK Demodulation
         self.digital_gmsk_demod_0 = digital.gmsk_demod(
-            samples_per_symbol=self.sig.sps,
+            samples_per_symbol=self.actual_sps,
             gain_mu=0.175,
             mu=0.5,
             omega_relative_limit=0.005,

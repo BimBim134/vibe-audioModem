@@ -122,7 +122,7 @@ DEFAULT_PACKET_CONFIG = PacketConfig(
 )
 
 DEFAULT_SIGNAL_CONFIG = SignalConfig(
-    samp_rate=48000, beeper_duration=3.0, carrier_freq=2500, baudrate=500
+    samp_rate=48000, beeper_duration=3.0, carrier_freq=2500, baudrate=200
 )
 
 
