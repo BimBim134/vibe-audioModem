@@ -61,3 +61,12 @@ Implementation of Path B was attempted but found to be non-viable in the current
 - **PDU Alignment Ambiguity:** There was persistent confusion between `correlate_access_code_bb_ts` and `protocol_parser_b`. The parser strips the header automatically, while the correlator only tags it. This led to "off-by-8-bytes" errors in the Reed-Solomon decoder.
 - **Differential Decoder Necessity:** Confirmed that FM-demodulated GMSK still requires a `diff_decoder_bb` if the transmitter uses a `diff_encoder_bb`, but the interaction between differential decoding and Viterbi (FEC) decoding makes bit-slips catastrophic for the entire frame.
 - **Python Complexity:** Managing the `mark_delay` and oversampling (SPS) reference taps in a pure-Python `gr.top_block` is brittle compared to using GRC-generated hierarchical blocks.
+
+### 4.5. Modulated Sync Post-Mortem (Attempted late May 2026)
+A "Hybrid" approach was attempted, using `digital.corr_est_cc` (complex correlation) for pre-demodulation sync while keeping the robust `gmsk_demod` for bits. This also failed.
+**Key Learnings:**
+- **Frequency Phase Rotation:** Complex correlation is extremely sensitive to frequency offsets. Even a 4Hz offset at 200 baud causes significant phase rotation over a 45-bit sync word, "washing out" the correlation peak before it can trigger.
+- **The Tagger Trap:** Mixing unencoded Sync bits with CC-Encoded Payload bits required precise length-tag propagation. The `fec.extended_encoder` strips tags, and re-tagging manually led to `tagged_stream_mux` failures when bit-counts (encoded vs unencoded) were mismatched by even 1 bit.
+- **Transition Continuity:** Moving the `diff_encoder_bb` to the payload-only path (to make the sync word deterministic) caused a "state break" at the boundary. The `gmsk_demod` loop often lost timing or phase lock exactly at the transition from the unencoded Sync word to the encoded Payload.
+- **Baseline Fragility:** Even after simplifying back to a bit-level baseline (Preamble + Access Key + Encoded Payload), the system remained unresponsive, suggesting that the 200 baudrate limit might be tied to a deeper GMSK loop parameter mismatch or SNR limitation in the current audio environment.
+
