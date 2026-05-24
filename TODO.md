@@ -1,12 +1,16 @@
 - [1. replace the CLI by a TUI](#1-replace-the-cli-by-a-tui)
 - [2. create a webUI](#2-create-a-webui)
-  - [3.1. add the possibility the launch only the webUI](#31-add-the-possibility-the-launch-only-the-webui)
+  - [2.1. add the possibility the launch only the webUI](#21-add-the-possibility-the-launch-only-the-webui)
 - [3. see why it's only working at baudrate = 200](#3-see-why-its-only-working-at-baudrate--200)
-- [4. improve frame synchronization](#4-improve-frame-synchronization)
-    - [4.1. Path A: The "Gated" Approach (Modular)](#41-path-a-the-gated-approach-modular)
-    - [4.2. Path B: The "Proper" Reconstruction (Discrete Blocks)](#42-path-b-the-proper-reconstruction-discrete-blocks)
-    - [4.3. The FEC/Sync Paradox](#43-the-fecsync-paradox)
-    - [4.4. Path B Post-Mortem (Attempted May 2026)](#44-path-b-post-mortem-attempted-may-2026)
+- [4. create an helper to add channel impairement to test.wav](#4-create-an-helper-to-add-channel-impairement-to-testwav)
+- [5. add some sort of signal vizualisation in CLI](#5-add-some-sort-of-signal-vizualisation-in-cli)
+- [6. option to calibrate the peak detector by measure the ambiant noise to estimate the noise floor so it can be substracted](#6-option-to-calibrate-the-peak-detector-by-measure-the-ambiant-noise-to-estimate-the-noise-floor-so-it-can-be-substracted)
+- [7. improve frame synchronization](#7-improve-frame-synchronization)
+    - [7.0.1. Path A: The "Gated" Approach (Modular)](#701-path-a-the-gated-approach-modular)
+    - [7.0.2. Path B: The "Proper" Reconstruction (Discrete Blocks)](#702-path-b-the-proper-reconstruction-discrete-blocks)
+    - [7.0.3. The FEC/Sync Paradox](#703-the-fecsync-paradox)
+    - [7.0.4. Path B Post-Mortem (Attempted May 2026)](#704-path-b-post-mortem-attempted-may-2026)
+    - [7.0.5. Modulated Sync Post-Mortem (Attempted late May 2026)](#705-modulated-sync-post-mortem-attempted-late-may-2026)
 
 
 # 1. replace the CLI by a TUI
@@ -26,12 +30,18 @@ test done :
 * starting config baudrate 500, then config set baudrate 200 : pass : deltaf 3.91 Hz
 * starting config baudrate 200, then config set baudrate 500 : fail
 
-# 4. improve frame synchronization
+# 4. create an helper to add channel impairement to test.wav
+
+# 5. add some sort of signal vizualisation in CLI
+
+# 6. option to calibrate the peak detector by measure the ambiant noise to estimate the noise floor so it can be substracted
+
+# 7. improve frame synchronization
 Current synchronization uses `digital.correlate_access_code_bb_ts` which operates on bits *after* demodulation. This is sensitive to noise and timing jitter, likely contributing to the baudrate limitations.
 
 **Proper implementation plan:**
 
-### 4.1. Path A: The "Gated" Approach (Modular)
+### 7.0.1. Path A: The "Gated" Approach (Modular)
 Keep the `gmsk_demod` block but use a trigger to gate the payload.
 1.  **Correlation:** Place `digital.corr_est_cc` after the AGC. It correlates against the **modulated** Access Key.
 2.  **Demuxing:** Use `digital.header_payload_demux`.
@@ -39,7 +49,7 @@ Keep the `gmsk_demod` block but use a trigger to gate the payload.
     *   **Payload Port:** Only flows when a valid correlation is found.
 *Pros: Easier to implement within the current architecture.*
 
-### 4.2. Path B: The "Proper" Reconstruction (Discrete Blocks)
+### 7.0.2. Path B: The "Proper" Reconstruction (Discrete Blocks)
 Break open the `gmsk_demod` hierarchy to allow the correlator to guide the timing recovery.
 1.  **Complex Correlation:** `digital.corr_est_cc` finds the modulated sync word and outputs a `time_est` tag.
 2.  **Symbol Sync:** `digital.symbol_sync_xx` replaces the internal clock recovery. Configure it to **reset its state** when the `time_est` tag is received. This ensures perfect symbol alignment at the very start of the packet.
@@ -47,13 +57,13 @@ Break open the `gmsk_demod` hierarchy to allow the correlator to guide the timin
 4.  **FEC Decoding:** Move the CC/RS decoding to the end of the chain, operating on the synchronized bitstream.
 *Pros: Maximum robustness at high baudrates (500+).*
 
-### 4.3. The FEC/Sync Paradox
+### 7.0.3. The FEC/Sync Paradox
 Currently, the Access Key is encoded inside the Convolutional Code (CC).
 *   **Discovery:** In `CC_STREAMING` mode, the encoded bits for the Access Key depend on the previous data sent, making correlation difficult.
 *   **Solution:** In the `Transmitter`, the CC encoder should be **reset** or switched to `CC_TERMINATED` at the start of every packet. This ensures the modulated Access Key is always identical and deterministic, allowing `corr_est_cc` to find it reliably.
 *   **Alternative:** Move the Access Key (or a Barker sequence preamble) *outside* the FEC-encoded block entirely.
 
-### 4.4. Path B Post-Mortem (Attempted May 2026)
+### 7.0.4. Path B Post-Mortem (Attempted May 2026)
 Implementation of Path B was attempted but found to be non-viable in the current architecture.
 **Encountered Problems:**
 - **Symbol Sync Instability:** The `digital.symbol_sync_cc` block (Gardner TED) proved significantly more sensitive to initial frequency offsets and gain variations than the integrated M&M loop in `gmsk_demod`. Without AGC and FLL perfectly tuned, timing lock was frequently lost.
@@ -62,7 +72,7 @@ Implementation of Path B was attempted but found to be non-viable in the current
 - **Differential Decoder Necessity:** Confirmed that FM-demodulated GMSK still requires a `diff_decoder_bb` if the transmitter uses a `diff_encoder_bb`, but the interaction between differential decoding and Viterbi (FEC) decoding makes bit-slips catastrophic for the entire frame.
 - **Python Complexity:** Managing the `mark_delay` and oversampling (SPS) reference taps in a pure-Python `gr.top_block` is brittle compared to using GRC-generated hierarchical blocks.
 
-### 4.5. Modulated Sync Post-Mortem (Attempted late May 2026)
+### 7.0.5. Modulated Sync Post-Mortem (Attempted late May 2026)
 A "Hybrid" approach was attempted, using `digital.corr_est_cc` (complex correlation) for pre-demodulation sync while keeping the robust `gmsk_demod` for bits. This also failed.
 **Key Learnings:**
 - **Frequency Phase Rotation:** Complex correlation is extremely sensitive to frequency offsets. Even a 4Hz offset at 200 baud causes significant phase rotation over a 45-bit sync word, "washing out" the correlation peak before it can trigger.
