@@ -83,14 +83,15 @@ class DemodulatorWorker:
             except:
                 break
 
-    def update_preset(self, sig_conf): #TODO to be deleted
+    def update_preset(self, sig_conf):
         """Send preset update command to worker."""
         self.command_queue.put({
             "action": "update_preset",
             "baudrate": sig_conf.baudrate,
             "beeper_duration": sig_conf.beeper_duration,
+            "carrier_freq": sig_conf.carrier_freq,
         })
-        logger.info(f"Sent preset update to worker {self.worker_id}: baudrate={sig_conf.baudrate}")
+        logger.info(f"Sent config update to worker {self.worker_id}: baudrate={sig_conf.baudrate}, freq={sig_conf.carrier_freq}")
 
     def terminate(self):
         self.command_queue.put(None)
@@ -157,17 +158,20 @@ def search_for_incomming_transmission(
                 try:
                     raw_config = config_socket.recv(flags=zmq.NOBLOCK)
                     config_payload = pmt.to_python(pmt.deserialize_str(raw_config))
-                    if isinstance(config_payload, dict) and config_payload.get("type") == "preset_update":
-                        preset_name = config_payload.get("preset", "unknown")
+                    if isinstance(config_payload, dict) and config_payload.get("type") in ["preset_update", "config_update"]:
+                        preset_name = config_payload.get("preset", "manual_update")
                         new_baudrate = config_payload.get("baudrate")
                         new_beeper_duration = config_payload.get("beeper_duration")
+                        new_carrier_freq = config_payload.get("carrier_freq")
 
                         if new_baudrate:
                             signal_conf.baudrate = new_baudrate
                         if new_beeper_duration:
                             signal_conf.beeper_duration = new_beeper_duration
+                        if new_carrier_freq:
+                            signal_conf.carrier_freq = new_carrier_freq
 
-                        logger.info(f"Received preset '{preset_name}': baudrate={signal_conf.baudrate}")
+                        logger.info(f"Received {config_payload.get('type')} '{preset_name}': baudrate={signal_conf.baudrate}, freq={signal_conf.carrier_freq}")
 
                         for worker in workers:
                             worker.update_preset(signal_conf)

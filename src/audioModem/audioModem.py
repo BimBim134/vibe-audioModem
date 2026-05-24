@@ -97,28 +97,26 @@ class ModemController:
         if not self.receiver_active:
             return
         logger.info("Stopping receiver processes...")
-        
-        # Log before and after to see if it hangs here
-        logger.info("Signal: Setting STOP_EVENT")
-        try:
-            if not STOP_EVENT.is_set():
-                STOP_EVENT.set()
-                logger.info("Signal: STOP_EVENT set")
-            else:
-                logger.info("Signal: STOP_EVENT already set")
-        except Exception as e:
-            logger.error(f"Signal: Failed to set STOP_EVENT: {e}")
+
+        if not STOP_EVENT.is_set():
+            STOP_EVENT.set()
 
         for p in self.receiver_processes:
+            logger.info(f"Waiting for {p.name} to exit...")
             p.join(timeout=2.0)
             if p.is_alive():
+                logger.info(f"Terminating {p.name}...")
                 p.terminate()
+                p.join()
+
         self.receiver_processes = []
         if not INTERNAL_STOP_EVENT.is_set():
             STOP_EVENT.clear()
         self.receiver_active = False
-        logger.info("Receiver processes stopped.")
 
+        # Give OS time to release resources (like ALSA devices)
+        time.sleep(0.5)
+        logger.info("Receiver processes stopped.")
     def _start_receiver_processes(self, nb_workers: int = 1, input_file: str = None):
         """Start receiver processes (AudioInterface, PeakDetector, PacketDecoder)."""
         if self.receiver_active:
@@ -212,12 +210,26 @@ class ModemController:
             "preset": preset_name,
             "baudrate": self.signal_conf.baudrate,
             "beeper_duration": self.signal_conf.beeper_duration,
+            "carrier_freq": self.signal_conf.carrier_freq,
         }
         try:
             self.config_pub_socket.send(pmt.serialize_str(pmt.to_pmt(msg)))
             logger.info(f"Broadcast preset update: {preset_name}")
         except Exception as e:
             logger.error(f"Failed to broadcast preset: {e}")
+
+    def _broadcast_config_update(self):
+        msg = {
+            "type": "config_update",
+            "baudrate": self.signal_conf.baudrate,
+            "beeper_duration": self.signal_conf.beeper_duration,
+            "carrier_freq": self.signal_conf.carrier_freq,
+        }
+        try:
+            self.config_pub_socket.send(pmt.serialize_str(pmt.to_pmt(msg)))
+            logger.info("Broadcast manual config update")
+        except Exception as e:
+            logger.error(f"Failed to broadcast config update: {e}")
 
     def _process_transmission_queue(self):
         while not INTERNAL_STOP_EVENT.is_set():
@@ -325,53 +337,93 @@ class ModemController:
         packet_cfg = data.get("packet", {})
         port_cfg = data.get("port", {})
 
+        restart_needed = False
+        broadcast_needed = False
+
         # Update signal config
         if "samp_rate" in signal_cfg:
-            self.signal_conf.samp_rate = signal_cfg["samp_rate"]
+            new_samp_rate = int(signal_cfg["samp_rate"])
+            if self.signal_conf.samp_rate != new_samp_rate:
+                self.signal_conf.samp_rate = new_samp_rate
+                restart_needed = True
+
         if "carrier_freq" in signal_cfg:
-            self.signal_conf.carrier_freq = float(signal_cfg["carrier_freq"])
+            new_freq = float(signal_cfg["carrier_freq"])
+            if self.signal_conf.carrier_freq != new_freq:
+                self.signal_conf.carrier_freq = new_freq
+                broadcast_needed = True
+
         if "baudrate" in signal_cfg:
-            self.signal_conf.baudrate = signal_cfg["baudrate"]
+            new_baudrate = int(signal_cfg["baudrate"])
+            if self.signal_conf.baudrate != new_baudrate:
+                self.signal_conf.baudrate = new_baudrate
+                broadcast_needed = True
+
         if "beeper_duration" in signal_cfg:
-            self.signal_conf.beeper_duration = signal_cfg["beeper_duration"]
+            new_duration = float(signal_cfg["beeper_duration"])
+            if self.signal_conf.beeper_duration != new_duration:
+                self.signal_conf.beeper_duration = new_duration
+                broadcast_needed = True
 
         # Update packet config
         if "total_packets_len" in packet_cfg:
-            self.pkt_conf.total_packets_len = packet_cfg["total_packets_len"]
+            if self.pkt_conf.total_packets_len != packet_cfg["total_packets_len"]:
+                self.pkt_conf.total_packets_len = packet_cfg["total_packets_len"]
+                restart_needed = True
         if "preamble_packets" in packet_cfg:
-            self.pkt_conf.preamble_packets = packet_cfg["preamble_packets"]
+            if self.pkt_conf.preamble_packets != packet_cfg["preamble_packets"]:
+                self.pkt_conf.preamble_packets = packet_cfg["preamble_packets"]
+                restart_needed = True
         if "postamble_packets" in packet_cfg:
-            self.pkt_conf.postamble_packets = packet_cfg["postamble_packets"]
+            if self.pkt_conf.postamble_packets != packet_cfg["postamble_packets"]:
+                self.pkt_conf.postamble_packets = packet_cfg["postamble_packets"]
+                restart_needed = True
         if "error_correction_len" in packet_cfg:
-            self.pkt_conf.error_correction_len = packet_cfg["error_correction_len"]
+            if self.pkt_conf.error_correction_len != packet_cfg["error_correction_len"]:
+                self.pkt_conf.error_correction_len = packet_cfg["error_correction_len"]
+                restart_needed = True
 
         # Update port config (requires ZMQ socket restart)
         ports_changed = False
         if "audio_port" in port_cfg:
-            self.ports_conf.audio_port = port_cfg["audio_port"]
-            ports_changed = True
+            if self.ports_conf.audio_port != port_cfg["audio_port"]:
+                self.ports_conf.audio_port = port_cfg["audio_port"]
+                ports_changed = True
         if "fft_port" in port_cfg:
-            self.ports_conf.fft_port = port_cfg["fft_port"]
-            ports_changed = True
+            if self.ports_conf.fft_port != port_cfg["fft_port"]:
+                self.ports_conf.fft_port = port_cfg["fft_port"]
+                ports_changed = True
         if "fft_size" in port_cfg:
-            self.ports_conf.fft_size = port_cfg["fft_size"]
+            if self.ports_conf.fft_size != port_cfg["fft_size"]:
+                self.ports_conf.fft_size = port_cfg["fft_size"]
+                restart_needed = True
         if "raw_packets_port" in port_cfg:
-            self.ports_conf.raw_packets_port = port_cfg["raw_packets_port"]
+            if self.ports_conf.raw_packets_port != port_cfg["raw_packets_port"]:
+                self.ports_conf.raw_packets_port = port_cfg["raw_packets_port"]
+                ports_changed = True
         if "messages_port" in port_cfg:
-            self.ports_conf.messages_port = port_cfg["messages_port"]
-            ports_changed = True
+            if self.ports_conf.messages_port != port_cfg["messages_port"]:
+                self.ports_conf.messages_port = port_cfg["messages_port"]
+                ports_changed = True
         if "config_port" in port_cfg:
-            self.ports_conf.config_port = port_cfg["config_port"]
-            ports_changed = True
+            if self.ports_conf.config_port != port_cfg["config_port"]:
+                self.ports_conf.config_port = port_cfg["config_port"]
+                ports_changed = True
         if "peak_detector_system_port" in port_cfg:
-            self.ports_conf.peak_detector_system_port = port_cfg["peak_detector_system_port"]
+            if self.ports_conf.peak_detector_system_port != port_cfg["peak_detector_system_port"]:
+                self.ports_conf.peak_detector_system_port = port_cfg["peak_detector_system_port"]
+                ports_changed = True
 
         if ports_changed:
             self._restart_zmq_sockets()
+            restart_needed = True
 
         # Restart receiver if active to apply new configs
         if self.receiver_active:
-            self._start_receiver_processes(self.receiver_nb_workers, input_file=self.rx_input_file)
+            if restart_needed:
+                self._start_receiver_processes(self.receiver_nb_workers, input_file=self.rx_input_file)
+            elif broadcast_needed:
+                self._broadcast_config_update()
 
         return self.handle_get_config()
 

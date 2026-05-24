@@ -284,11 +284,14 @@ def launch_demodulator(
                     elif cmd_queue_action == "update_preset":
                         new_baudrate = cmd_queue.get("baudrate")
                         new_beeper_duration = cmd_queue.get("beeper_duration")
+                        new_carrier_freq = cmd_queue.get("carrier_freq")
                         if new_baudrate:
                             signal_config.baudrate = new_baudrate
                         if new_beeper_duration:
                             signal_config.beeper_duration = new_beeper_duration
-                        logger.info(f"Preset update received: baudrate={signal_config.baudrate}")
+                        if new_carrier_freq:
+                            signal_config.carrier_freq = new_carrier_freq
+                        logger.info(f"Config update received: baudrate={signal_config.baudrate}, freq={signal_config.carrier_freq}")
                         # Restart demodulator with new settings
                         tb.stop()
                         tb.wait()
