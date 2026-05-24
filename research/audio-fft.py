@@ -28,8 +28,8 @@ def plot_fft_interactive(filename):
     plt.subplots_adjust(bottom=0.25)  # Make room for sliders
 
     # Initial parameters
-    init_decimation = 20
-    init_smooth = 1000
+    init_decimation = 5
+    init_smooth = 70
 
     # Initialize plot lines with dummy data to establish the plot object
     line_raw, = ax.semilogy([0], [1e-6], alpha=0.3, label='Raw (Decimated)', color='tab:blue')
