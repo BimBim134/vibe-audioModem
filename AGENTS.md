@@ -65,7 +65,7 @@ Processes communicate via ZMQ on `localhost` (ports 5555-5560):
 - `src/misc/config.py`: Central source of truth for all configurations (Signal, Packet, Ports).
 - `src/audioModem/audioModem.py`: Entry point for logic, state management, and process orchestration.
 - `src/tx/transmitter.py` & `src/rx/demodulator.py`: Core GNU Radio flowgraphs.
-- `src/rx/peak_detector.py`: Logic for signal discovery and worker dispatching.
+- `src/rx/peak_detector.py`, `src/rx/signal_processor.py` & `src/rx/worker_manager.py`: Modular logic for robust signal discovery and worker dispatching.
 
 ### Modifying Packet Formats
 - Adjust `PacketConfig` in `src/misc/config.py`.
@@ -88,6 +88,11 @@ Processes communicate via ZMQ on `localhost` (ports 5555-5560):
 - `GET /fft`: Returns a single FFT snapshot (JSON list of floats).
 - `GET /logs?lines=N`: Returns the last N lines of the log file.
 - `POST /transmit`: JSON `{"message": "...", "sender_name": "..."}`.
+- `POST /receive`: JSON `{"nb_workers": N}` (Start receiver processes).
+- `POST /setup`: JSON with partial `signal`, `packet`, or `port` config to reconfigure/reset the modem.
+- `POST /stop`: JSON `{"rx": true, "tx": true}` to stop specific subsystems.
+- `POST /quit`: Gracefully shuts down all processes.
+: JSON `{"message": "...", "sender_name": "..."}`.
 - `POST /receive`: JSON `{"nb_workers": N}` (Start receiver processes).
 - `POST /setup`: JSON with partial `signal`, `packet`, or `port` config to reconfigure/reset the modem.
 - `POST /stop`: JSON `{"rx": true, "tx": true}` to stop specific subsystems.
