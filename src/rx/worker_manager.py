@@ -109,12 +109,21 @@ class WorkerManager:
                 for pf in detected_freqs:
                     if abs(pf - worker.active_freq) <= bandwidth / 2:
                         found = True
-                        worker.missed_frames = 0
                         break
+                
                 if not found:
                     worker.missed_frames += 1
+                    # Only log every 10 missed frames to avoid spam
+                    if worker.missed_frames % 10 == 0:
+                        logger.debug(f"Worker {worker.worker_id} at {worker.active_freq:.1f}Hz missed {worker.missed_frames} frames")
+                    
                     if worker.missed_frames > persistence_threshold:
+                        logger.info(f"Worker {worker.worker_id} lost signal at {worker.active_freq:.1f}Hz after {worker.missed_frames} missed frames")
                         worker.stop_tuning()
+                else:
+                    if worker.missed_frames > 0:
+                         logger.info(f"Worker {worker.worker_id} at {worker.active_freq:.1f}Hz regained signal (was missed for {worker.missed_frames} frames)")
+                    worker.missed_frames = 0
 
     def dispatch_peaks(self, detected_freqs, baudrate):
         """Dispatch detected peaks to idle workers."""

@@ -93,8 +93,11 @@ def decode_packet(payload: list, pkt: PacketConfig):
     carrier_freq = metadata.get("carrier_freq", 0.0)
     raw_packet_data = payload[1].tobytes()
 
-    # The PDU might include a 4-byte header (if from our Demodulator)
-    if len(raw_packet_data) == pkt.total_packets_len + 4:
+    # The PDU includes a 4-byte Access Key + 4-byte Protocol Header = 8 bytes
+    if len(raw_packet_data) == pkt.total_packets_len + 8:
+        raw_packet_data = raw_packet_data[8:]
+    elif len(raw_packet_data) == pkt.total_packets_len + 4:
+        # Legacy or different config
         raw_packet_data = raw_packet_data[4:]
 
     system_messages = []
@@ -181,8 +184,10 @@ def listen_for_packets(
         while stop_event is None or not stop_event.is_set():
             try:
                 received = socket.recv()
-                logger.debug("ZMQ received %s bytes", len(received))
+                # logger.debug("ZMQ received %s bytes", len(received))
                 payload = pmt.to_python(pmt.deserialize_str(received))
+                demod_id = payload[0].get("demodulator_id", "unknown")
+                logger.info(f"PDU received from {demod_id}, data len: {len(payload[1])}")
                 result, system_messages = decode_packet(payload, pkt_conf)
 
                 for msg in system_messages:

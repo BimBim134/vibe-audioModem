@@ -3,6 +3,7 @@ some configuration class to keep things tidy
 """
 
 import logging
+import sys
 from dataclasses import dataclass
 
 from reedsolo import RSCodec
@@ -12,26 +13,28 @@ import numpy as np
 def setup_logging(
     level=logging.DEBUG,
     log_file: str = "audiomodem.log",
-    console: bool = False
+    console: bool = True
 ):
     """
     Configure logging for the entire application.
     Logs to file by default. Can optionally enable console output.
-    
-    Args:
-        level: Log level (default: DEBUG)
-        log_file: Path to log file (default: "audiomodem.log")
-        console: If True, also output to stdout (default: False)
     """
+    root = logging.getLogger()
+    root.setLevel(level)
+    
+    # Remove existing handlers
+    for handler in root.handlers[:]:
+        root.removeHandler(handler)
+
     handlers = [logging.FileHandler(log_file, mode="a")]
     if console:
-        handlers.append(logging.StreamHandler())
+        handlers.append(logging.StreamHandler(sys.stdout))
     
-    logging.basicConfig(
-        format="%(asctime)s: %(processName)s: %(levelname)s: %(message)s",
-        level=level,
-        handlers=handlers,
-    )
+    formatter = logging.Formatter("%(asctime)s: %(processName)s: %(levelname)s: %(message)s")
+    for h in handlers:
+        h.setFormatter(formatter)
+        root.addHandler(h)
+
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("PIL").setLevel(logging.WARNING)
 

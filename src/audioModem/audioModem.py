@@ -259,10 +259,12 @@ class ModemController:
 
                 message_text = item["message"]
                 sender_name = item.get("sender_name", "unknown")
+                output_file = item.get("output_file")
 
-                logger.info(f"Processing transmission: {message_text[:50]}... from {sender_name}")
+                logger.info(f"Processing transmission: {message_text[:50]}... from {sender_name} (output: {output_file})")
 
                 try:
+                    logger.debug("Calling send_data...")
                     send_data(
                         message_text,
                         pkt=self.pkt_conf,
@@ -270,15 +272,17 @@ class ModemController:
                         sender_name=sender_name,
                         handle_signals=False,
                         cancel_event=self._cancel_event,
-                        output_file=item.get("output_file"),
+                        output_file=output_file,
                         silence_padding=item.get("silence_padding", 0.0),
                     )
                     if self._cancel_event.is_set():
                         logger.info("Transmission cancelled mid-flight")
                     else:
-                        logger.info("Transmission completed successfully")
+                        logger.info(f"Transmission to {output_file} completed successfully")
                 except Exception as e:
                     logger.error(f"Transmission failed: {e}")
+                    import traceback
+                    logger.debug(traceback.format_exc())
 
                 with self._transmission_lock:
                     self._is_transmitting = False

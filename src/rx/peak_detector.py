@@ -80,6 +80,7 @@ def search_for_incomming_transmission(
                     raw_config = config_socket.recv(flags=zmq.NOBLOCK)
                     config_payload = pmt.to_python(pmt.deserialize_str(raw_config))
                     if isinstance(config_payload, dict) and config_payload.get("type") in ["preset_update", "config_update"]:
+                        logger.info(f"Received {config_payload.get('type')}: {config_payload}")
                         new_baudrate = config_payload.get("baudrate")
                         if new_baudrate:
                             signal_conf.baudrate = new_baudrate

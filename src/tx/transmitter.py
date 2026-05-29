@@ -48,7 +48,7 @@ class Transmitter(gr.top_block):
         # Header: Access Key (4 bytes) + Length (2 bytes) + Length Repeated (2 bytes) = 8 bytes total added by protocol_formatter
         self.header_len = len(self.access_key) // 8 + 4
         self.cc_frame_size = (pkt.total_packets_len + self.header_len) * 8
-        self.cc_enc = fec.cc_encoder_make(self.cc_frame_size, 7, 2, [79, 109], 0, fec.CC_STREAMING, False)
+        self.cc_enc = fec.cc_encoder_make(self.cc_frame_size, 7, 2, [79, 109], 0, fec.CC_STREAMING, True)
 
         # Blocks
         ## file source
@@ -64,7 +64,6 @@ class Transmitter(gr.top_block):
         self.fec_extended_encoder_0 = fec.extended_encoder(encoder_obj_list=self.cc_enc, threading= None, puncpat='11')
 
         ## modulation
-        self.digital_diff_encoder_bb_0 = digital.diff_encoder_bb(2)
         self.digital_gmsk_mod_0 = digital.gmsk_mod(
             samples_per_symbol=self.sig.sps,
             bt=0.35,
@@ -105,9 +104,8 @@ class Transmitter(gr.top_block):
         self.connect((self.blocks_stream_to_tagged_stream_0, 0), (self.digital_protocol_formatter_bb_0, 0))
         self.connect((self.digital_protocol_formatter_bb_0, 0), (self.blocks_tagged_stream_mux_0, 0))
         self.connect((self.blocks_tagged_stream_mux_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.fec_extended_encoder_0, 0))
-        self.connect((self.fec_extended_encoder_0, 0), (self.digital_diff_encoder_bb_0, 0))
-        self.connect((self.digital_diff_encoder_bb_0, 0), (self.digital_gmsk_mod_0, 0))
+        # Bypassing FEC encoding
+        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.digital_gmsk_mod_0, 0))
         self.connect((self.digital_gmsk_mod_0, 0), (self.blocks_rotator_cc_0, 0))
         self.connect((self.blocks_rotator_cc_0, 0), (self.blocks_complex_to_real_0, 0))
         self.connect((self.blocks_complex_to_real_0, 0), (self.blocks_multiply_const_vxx_0, 0))

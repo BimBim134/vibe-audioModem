@@ -22,18 +22,20 @@ logger = logging.getLogger(__name__)
 
 
 class TagValueSetter(gr.sync_block):
-    """Sets the value of a specific tag."""
-    def __init__(self, tag_name, value):
+    """Maps a source tag to a destination tag with a fixed value."""
+    def __init__(self, src_tag, dst_tag, value):
         gr.sync_block.__init__(self, name="TagValueSetter", in_sig=[np.uint8], out_sig=[np.uint8])
-        self.tag_name = pmt.intern(tag_name)
+        self.src_tag = pmt.intern(src_tag)
+        self.dst_tag = pmt.intern(dst_tag)
         self.value = pmt.from_long(value)
 
     def work(self, input_items, output_items):
         n = len(input_items[0])
         tags = self.get_tags_in_window(0, 0, n)
         for tag in tags:
-            if pmt.eq(tag.key, self.tag_name):
-                self.add_item_tag(0, tag.offset, self.tag_name, self.value)
+            if pmt.eq(tag.key, self.src_tag):
+                logger.info(f"Synchronized! Mapping {pmt.symbol_to_string(self.src_tag)} to {pmt.symbol_to_string(self.dst_tag)} (value={pmt.to_long(self.value)}) at offset {tag.offset}")
+                self.add_item_tag(0, tag.offset, self.dst_tag, self.value)
         output_items[0][:] = input_items[0][:]
         return n
 
@@ -75,8 +77,8 @@ class Demodulator(gr.top_block):
         # Calculate decimation to target ~10 samples per symbol for better loop stability
         self.target_sps = 10
         self.decimation = int(max(1, self.sig.sps // self.target_sps))
-        self.actual_sps = float(self.sig.samp_rate) / (self.decimation * self.sig.baudrate)
-        logger.info(f"Decimation: {self.decimation}, Actual SPS: {self.actual_sps:.2f}")
+        self.actual_sps = int(self.sig.samp_rate / (self.decimation * self.sig.baudrate))
+        logger.info(f"Decimation: {self.decimation}, Actual SPS: {self.actual_sps}")
 
         self.freq_deviation = 100 / self.sig.samp_rate
 
@@ -88,7 +90,7 @@ class Demodulator(gr.top_block):
         self.header_len = len(self.access_key) // 8 + 4
         self.cc_frame_size = (pkt.total_packets_len + self.header_len) * 8
         self.cc_dec = fec.cc_decoder.make(
-            self.cc_frame_size, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, False
+            self.cc_frame_size, 7, 2, [79, 109], 0, 0, fec.CC_STREAMING, True
         )
 
         ## ports configuration
@@ -105,6 +107,10 @@ class Demodulator(gr.top_block):
             "",
             False,
         )
+        
+        # Diagnostic rate probe
+        self.rate_probe = blocks.probe_rate(gr.sizeof_float, 1000, 0.15)
+        
         ## signal preprocessing
         ### Frequency-translating filter: real float input -> complex baseband output
         self.freq_xlating_fir_filter_xxx_0 = freq_xlating_fir_filter_fcc(
@@ -135,11 +141,6 @@ class Demodulator(gr.top_block):
             log=False,
         )
 
-        ## differential decoding (modulus 2 for GMSK)
-        self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(
-            2, digital.DIFF_DIFFERENTIAL
-        )
-
         ## convolutionnal error correction
         ### go from [0,1] to [-1, 1]
         self.blocks_uchar_to_float_0_0_0 = blocks.uchar_to_float()
@@ -155,10 +156,14 @@ class Demodulator(gr.top_block):
         )
 
         ## frame synchronization
+        # Use a distinct tag name for correlation to avoid conflicts
         self.digital_correlate_access_code_xx_ts_0 = (
-            digital.correlate_access_code_bb_ts(self.access_key, 3, "packet_len")
+            digital.correlate_access_code_bb_ts(self.access_key, 3, "sync_key")
         )
-        self.tag_fixer = TagValueSetter("packet_len", self.cc_frame_size)
+        # Map 'sync_key' to 'packet_len' with the correct bit count
+        self.pdu_len_bits = (pkt.total_packets_len + 8) * 8
+        self.tag_fixer = TagValueSetter("sync_key", "packet_len", self.pdu_len_bits)
+        
         self.blocks_repack_bits_bb_0_0 = blocks.repack_bits_bb(
             1, 8, "packet_len", True, gr.GR_MSB_FIRST
         )
@@ -178,11 +183,11 @@ class Demodulator(gr.top_block):
         )
 
         # Connections
+        self.connect((self.audio_source_0, 0), (self.rate_probe, 0))
         self.connect((self.audio_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_agc_xx_0, 0))
         self.connect((self.analog_agc_xx_0, 0), (self.digital_gmsk_demod_0, 0))
-        self.connect((self.digital_gmsk_demod_0, 0), (self.digital_diff_decoder_bb_0, 0))
-        self.connect((self.digital_diff_decoder_bb_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
+        self.connect((self.digital_gmsk_demod_0, 0), (self.blocks_uchar_to_float_0_0_0, 0))
         self.connect((self.blocks_uchar_to_float_0_0_0, 0),(self.blocks_multiply_const_xx_1_0_0, 0),)
         self.connect((self.blocks_multiply_const_xx_1_0_0, 0),(self.blocks_add_const_vxx_0_0_0, 0),)
         self.connect((self.blocks_add_const_vxx_0_0_0, 0), (self.fec_extended_decoder_0, 0))
@@ -194,6 +199,10 @@ class Demodulator(gr.top_block):
         self.msg_connect((self.pdu_tagged_stream_to_pdu_0, "pdus"), (self.pdu_set, "pdus"))
         self.msg_connect((self.pdu_set, "pdus"), (self.pdu_set_freq, "pdus"))
         self.msg_connect((self.pdu_set_freq, "pdus"), (self.zeromq_pub_msg_sink_0, "in"))
+
+        # Monitor rate via messages
+        self.msg_debug = blocks.message_debug()
+        self.msg_connect((self.rate_probe, "rate"), (self.msg_debug, "print"))
 
 
 def launch_demodulator(
@@ -254,6 +263,12 @@ def launch_demodulator(
                 if freq:
                     signal_config.carrier_freq = freq
 
+                # If already running, stop old one first
+                if current_tb[0] is not None:
+                    current_tb[0].stop()
+                    current_tb[0].wait()
+                    current_tb[0] = None
+
                 # Create a fresh Demodulator to ensure clean algorithm state
                 tb = Demodulator(pkt, signal_config, ports_config)
                 current_tb[0] = tb
@@ -281,6 +296,20 @@ def launch_demodulator(
                         if status_queue:
                             status_queue.put({"status": "ready"})
                         break
+                    elif cmd_queue_action == "start":
+                        # Retune: restart with new freq
+                        new_freq = cmd_queue.get("freq")
+                        if new_freq:
+                            signal_config.carrier_freq = new_freq
+                            tb.stop()
+                            tb.wait()
+                            del tb
+                            tb = Demodulator(pkt, signal_config, ports_config)
+                            current_tb[0] = tb
+                            tb.start()
+                            logger.info("Demodulator retuned to %.2f Hz", new_freq)
+                            if status_queue:
+                                status_queue.put({"status": "running", "freq": new_freq})
                     elif cmd_queue_action == "update_preset":
                         new_baudrate = cmd_queue.get("baudrate")
                         new_beeper_duration = cmd_queue.get("beeper_duration")
@@ -291,7 +320,7 @@ def launch_demodulator(
                             signal_config.beeper_duration = new_beeper_duration
                         if new_carrier_freq:
                             signal_config.carrier_freq = new_carrier_freq
-                        logger.info(f"Config update received: baudrate={signal_config.baudrate}, freq={signal_config.carrier_freq}")
+                        logger.info(f"Config update received (running): baudrate={signal_config.baudrate}, freq={signal_config.carrier_freq}")
                         # Restart demodulator with new settings
                         tb.stop()
                         tb.wait()
@@ -309,6 +338,17 @@ def launch_demodulator(
                     current_tb[0] = None
                 if status_queue:
                     status_queue.put({"status": "ready"})
+            elif action == "update_preset":
+                new_baudrate = cmd.get("baudrate")
+                new_beeper_duration = cmd.get("beeper_duration")
+                new_carrier_freq = cmd.get("carrier_freq")
+                if new_baudrate:
+                    signal_config.baudrate = new_baudrate
+                if new_beeper_duration:
+                    signal_config.beeper_duration = new_beeper_duration
+                if new_carrier_freq:
+                    signal_config.carrier_freq = new_carrier_freq
+                logger.info(f"Config update received (idle): baudrate={signal_config.baudrate}, freq={signal_config.carrier_freq}")
 
 
 if __name__ == "__main__":
