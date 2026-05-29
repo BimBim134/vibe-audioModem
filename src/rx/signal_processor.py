@@ -38,53 +38,65 @@ class SignalProcessor:
         self.persistence_window = persistence_window
         self.candidate_peaks = {} # freq_bin -> [hit_count, age]
 
+        # Noise floor calibration state
+        self.calibration_frames = 10
+        self.noise_floor = None
+        self.is_calibrated = False
+        self._calibration_buffer = []
+
+    def _compute_noise_floor(self, spectrum):
+        kernel_size = int(self.baudrate * 2 / self.freq_resolution)
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        nf = medfilt(spectrum, kernel_size=kernel_size)
+        return np.maximum(nf, 1e-6)
+
     def process_frame(self, real_spectrum):
         """Process a single FFT frame and return detected frequencies."""
         self.fft_buffer.append(real_spectrum)
-        
+
         # 1. Averaging
         avg_spectrum = np.mean(self.fft_buffer, axis=0)
-        
+
         processed_spectrum = avg_spectrum
 
         # 2. Smoothing (Optional)
         if self.enable_smoothing:
-            # Simple moving average for smoothing
             window_size = 5
-            processed_spectrum = np.convolve(processed_spectrum, np.ones(window_size)/window_size, mode='same')
+            processed_spectrum = np.convolve(
+                processed_spectrum, np.ones(window_size) / window_size, mode="same"
+            )
 
-        # 3. Noise Floor Estimation (Optional)
-        detection_spectrum = processed_spectrum
-        if self.enable_noise_floor:
-            # Median filter to estimate background noise floor
-            # kernel_size should be larger than the expected signal bandwidth
-            kernel_size = int(self.baudrate * 2 / self.freq_resolution)
-            if kernel_size % 2 == 0:
-                kernel_size += 1
-            
-            noise_floor = medfilt(processed_spectrum, kernel_size=kernel_size)
-            # Avoid division by zero
-            noise_floor = np.maximum(noise_floor, 1e-6)
-            detection_spectrum = processed_spectrum / noise_floor
+        # 3. Noise Floor — calibrate once, then hold constant
+        if self.enable_noise_floor and self.noise_floor is None:
+            self._calibration_buffer.append(real_spectrum)
+            if len(self._calibration_buffer) >= self.calibration_frames:
+                cal_avg = np.mean(self._calibration_buffer, axis=0)
+                self.noise_floor = self._compute_noise_floor(cal_avg)
+                self.is_calibrated = True
+                self._calibration_buffer = []
+                logger.info("Noise floor calibrated (fixed)")
+            # During calibration: detect peaks on raw spectrum (old behaviour)
+            detection_spectrum = processed_spectrum
+            use_noise_floor_norm = False
+        elif self.enable_noise_floor and self.is_calibrated:
+            detection_spectrum = processed_spectrum / self.noise_floor
+            use_noise_floor_norm = True
+        else:
+            detection_spectrum = processed_spectrum
+            use_noise_floor_norm = False
 
         # 4. Peak Detection
-        # distance: ensure peaks are separated by at least half the baudrate
         distance = max(1, int(self.baudrate / (2 * self.freq_resolution)))
-        
-        # We want to detect peaks that are significantly above the local noise
-        if self.enable_noise_floor:
-            # detection_spectrum is already normalized by noise floor
-            # min_prominence is the SNR ratio threshold (e.g. 3.0 = 10dB)
+
+        if use_noise_floor_norm:
             prominence = self.min_prominence
-            # Also require a minimum absolute level to avoid picking up noise in silence
-            min_height = 1.0 # SNR must be at least 1.0 (obviously)
+            min_height = 1.0
         else:
-            # Prominence relative to the mean of the spectrum
             avg_val = np.mean(avg_spectrum)
             prominence = self.min_prominence * avg_val
-            min_height = prominence # Peak must be at least this high
+            min_height = prominence
 
-        # Ensure min_height and prominence are at least a small epsilon to avoid float issues
         min_height = max(min_height, 1e-6)
         prominence = max(prominence, 1e-7)
 
@@ -92,15 +104,15 @@ class SignalProcessor:
             detection_spectrum,
             distance=distance,
             prominence=prominence,
-            height=min_height
+            height=min_height,
         )
 
         detected_freqs = peaks * self.freq_resolution
-        
+
         # 5. Persistence (Optional)
         if self.persistence_hits > 1:
             return self._apply_persistence(peaks)
-        
+
         return detected_freqs.tolist()
 
     def _apply_persistence(self, current_peaks):
@@ -152,8 +164,17 @@ class SignalProcessor:
         
         return confirmed_peaks
 
+    def recalibrate(self):
+        """Reset noise floor so it is re-estimated on the next frames."""
+        self.noise_floor = None
+        self.is_calibrated = False
+        self._calibration_buffer = []
+        logger.info("Noise floor recalibration triggered")
+
     def set_options(self, **kwargs):
         """Update processing options dynamically."""
+        if kwargs.pop("recalibrate_noise_floor", False):
+            self.recalibrate()
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)

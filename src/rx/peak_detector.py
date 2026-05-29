@@ -92,7 +92,7 @@ def search_for_incomming_transmission(
 
                         # Update robustness options if present in config
                         processor_opts = {}
-                        for opt in ['enable_smoothing', 'enable_noise_floor', 'persistence_hits', 'min_prominence']:
+                        for opt in ['enable_smoothing', 'enable_noise_floor', 'persistence_hits', 'min_prominence', 'recalibrate_noise_floor']:
                             if opt in config_payload:
                                 processor_opts[opt] = config_payload[opt]
                         if processor_opts:
