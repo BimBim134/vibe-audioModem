@@ -24,8 +24,8 @@ def search_for_incomming_transmission(
     persistence: int = 50,
     fft_buffer_size: int = 10,
     min_prominence: float = 2.0,
-    enable_smoothing: bool = True,
-    enable_noise_floor: bool = True,
+    enable_smoothing: bool = False,
+    enable_noise_floor: bool = False,
     persistence_hits: int = 3,
 ):
     """
