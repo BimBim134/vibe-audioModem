@@ -15,8 +15,8 @@ class SignalProcessor:
         baudrate,
         buffer_size=10,
         min_prominence=2.0,
-        enable_smoothing=True,
-        enable_noise_floor=True,
+        enable_smoothing=False,
+        enable_noise_floor=False,
         persistence_hits=3,
         persistence_window=5
     ):
