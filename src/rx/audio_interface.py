@@ -35,7 +35,7 @@ class AudioProbe(gr.sync_block):
             rms = float(np.sqrt(np.mean(block**2)))
             peak = float(np.max(np.abs(block)))
             logging.info(
-                "AudioProbe [%s]: %.1fs, RMS=%.4f, peak=%.4f",
+                "AudioProbe %s mode: %.1fs, RMS=%.4f, peak=%.4f",
                 self._label,
                 self.counter / self.samp_rate,
                 rms,
