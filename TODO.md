@@ -6,6 +6,7 @@
 - [5. option to calibrate the peak detector by measure the ambiant noise to estimate the noise floor so it can be substracted](#5-option-to-calibrate-the-peak-detector-by-measure-the-ambiant-noise-to-estimate-the-noise-floor-so-it-can-be-substracted)
 - [6. improve the peak detector for noisy signal](#6-improve-the-peak-detector-for-noisy-signal)
 - [7. add a clear log function](#7-add-a-clear-log-function)
+- [full test suite to validate/caracterize the app](#full-test-suite-to-validatecaracterize-the-app)
 
 
 # 1. replace the CLI by a TUI
@@ -24,6 +25,7 @@ test done :
 * baudrate 200, carrier freq 2000 : pass deltaf : 3.91 Hz
 * starting config baudrate 500, then config set baudrate 200 : pass : deltaf 3.91 Hz
 * starting config baudrate 200, then config set baudrate 500 : fail
+* baudrate 220 : pass
 
 added decimation, seemed to help a little bit.
 
@@ -34,3 +36,5 @@ added decimation, seemed to help a little bit.
 # 6. improve the peak detector for noisy signal
 
 # 7. add a clear log function
+
+# full test suite to validate/caracterize the app
