@@ -5,6 +5,8 @@ some configuration class to keep things tidy
 import logging
 from dataclasses import dataclass
 
+import zmq
+from zmq.utils.monitor import parse_monitor_message
 from reedsolo import RSCodec
 import numpy as np
 
@@ -135,6 +137,14 @@ DEFAULT_PORTS_CONFIG = PortsConfig(
     config_port=5559,
     peak_detector_system_port=5560,
 )
+
+
+def log_zmq_monitor_event(event) -> str:
+    """Parse a ZMQ monitor multipart event into a readable string."""
+    parsed = parse_monitor_message(event)
+    name = parsed["event"].name
+    addr = parsed["endpoint"].decode("utf-8", errors="replace")
+    return f"{name} {addr}"
 
 
 if __name__ == "__main__":

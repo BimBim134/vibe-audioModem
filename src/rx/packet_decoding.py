@@ -6,7 +6,7 @@ import base64
 from reedsolo import ReedSolomonError
 import numpy as np
 
-from src.misc.config import PacketConfig
+from src.misc.config import PacketConfig, log_zmq_monitor_event
 from src.misc.config import DEFAULT_PACKET_CONFIG, DEFAULT_PORTS_CONFIG, PortsConfig
 from src.misc.scrambling import Unscrambler
 
@@ -163,6 +163,8 @@ def listen_for_packets(
     socket.bind(f"tcp://*:{ports_conf.raw_packets_port}")
     socket.setsockopt(zmq.SUBSCRIBE, b"")
     socket.setsockopt(zmq.RCVTIMEO, 500)
+    socket.setsockopt(zmq.IMMEDIATE, 1)
+    monitor = socket.get_monitor_socket(zmq.EVENT_ALL)
 
     # Socket for forwarding successfully reassembled messages
     msg_pub_socket = context.socket(zmq.PUB)
@@ -177,57 +179,80 @@ def listen_for_packets(
         ports_conf.messages_port,
     )
 
+    poller = zmq.Poller()
+    poller.register(socket, zmq.POLLIN)
+    poller.register(monitor, zmq.POLLIN)
+
     try:
         while stop_event is None or not stop_event.is_set():
             try:
-                received = socket.recv()
-                logger.debug("ZMQ received %s bytes", len(received))
-                payload = pmt.to_python(pmt.deserialize_str(received))
-                result, system_messages = decode_packet(payload, pkt_conf)
+                socks = dict(poller.poll(500))
+            except zmq.ZMQError:
+                break
 
-                for msg in system_messages:
-                    send_message(msg_pub_socket, msg["type"], **{k: v for k, v in msg.items() if k != "type"})
-
-                if isinstance(result, dict):
+            if monitor in socks and socks[monitor] == zmq.POLLIN:
+                try:
+                    event = monitor.recv_multipart()
                     logger.info(
-                        "Successfully reassembled message from %s: %s",
-                        result.get("sender_name", "unknown"),
-                        result,
+                        "ZMQ monitor [%s] %s",
+                        ports_conf.raw_packets_port,
+                        log_zmq_monitor_event(event),
                     )
-                    
-                    data = result.get("data")
-                    if result.get("type") == "raw_string":
-                        if isinstance(data, np.ndarray):
-                            result["data"] = data.tobytes().decode("utf-8", errors="replace")
+                except Exception as e:
+                    logger.debug("ZMQ monitor error: %s", e)
+
+            if socket in socks and socks[socket] == zmq.POLLIN:
+                try:
+                    received = socket.recv(zmq.NOBLOCK)
+                    logger.debug("ZMQ received %s bytes", len(received))
+                    payload = pmt.to_python(pmt.deserialize_str(received))
+                    result, system_messages = decode_packet(payload, pkt_conf)
+
+                    for msg in system_messages:
+                        send_message(msg_pub_socket, msg["type"], **{k: v for k, v in msg.items() if k != "type"})
+
+                    if isinstance(result, dict):
+                        logger.info(
+                            "Successfully reassembled message from %s: %s",
+                            result.get("sender_name", "unknown"),
+                            result,
+                        )
+                        
+                        data = result.get("data")
+                        if result.get("type") == "raw_string":
+                            if isinstance(data, np.ndarray):
+                                result["data"] = data.tobytes().decode("utf-8", errors="replace")
+                            else:
+                                result["data"] = str(data)
+                            logger.info("Message from %s: %s", result["sender_name"], result["data"])
                         else:
-                            result["data"] = str(data)
-                        logger.info("Message from %s: %s", result["sender_name"], result["data"])
+                            # For raw_bytes and file, use base64 for JSON compatibility downstream
+                            if isinstance(data, np.ndarray):
+                                result["data"] = base64.b64encode(data.tobytes()).decode("utf-8")
+                        
+                        # Set unified type for CLI/UI display logic
+                        result["type"] = "data"
+                        msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
                     else:
-                        # For raw_bytes and file, use base64 for JSON compatibility downstream
-                        if isinstance(data, np.ndarray):
-                            result["data"] = base64.b64encode(data.tobytes()).decode("utf-8")
-                    
-                    # Set unified type for CLI/UI display logic
-                    result["type"] = "data"
-                    msg_pub_socket.send(pmt.serialize_str(pmt.to_pmt(result)))
-                else:
-                    logger.debug(
-                        "Packet result from %s: %s",
-                        payload[0]["demodulator_id"],
-                        result,
-                    )
+                        logger.debug(
+                            "Packet result from %s: %s",
+                            payload[0]["demodulator_id"],
+                            result,
+                        )
 
-            except zmq.Again:
-                continue
-            except Exception as e:
-                logger.error("Error in packet decoder loop: %s", e)
-                import traceback
+                except zmq.Again:
+                    continue
+                except Exception as e:
+                    logger.error("Error in packet decoder loop: %s", e)
+                    import traceback
 
-                logger.debug(traceback.format_exc())
+                    logger.debug(traceback.format_exc())
     except KeyboardInterrupt:
         pass
     finally:
         logger.info("Packet decoder: closing sockets and context")
+        if monitor:
+            monitor.close()
         socket.close()
         msg_pub_socket.close()
         context.term()

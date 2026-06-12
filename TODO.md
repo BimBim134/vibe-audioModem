@@ -5,6 +5,7 @@
 - [4. add some sort of signal vizualisation in CLI](#4-add-some-sort-of-signal-vizualisation-in-cli)
 - [5. option to calibrate the peak detector by measure the ambiant noise to estimate the noise floor so it can be substracted](#5-option-to-calibrate-the-peak-detector-by-measure-the-ambiant-noise-to-estimate-the-noise-floor-so-it-can-be-substracted)
 - [6. improve the peak detector for noisy signal](#6-improve-the-peak-detector-for-noisy-signal)
+- [7. add a clear log function](#7-add-a-clear-log-function)
 
 
 # 1. replace the CLI by a TUI
@@ -31,3 +32,5 @@ added decimation, seemed to help a little bit.
 # 5. option to calibrate the peak detector by measure the ambiant noise to estimate the noise floor so it can be substracted
 
 # 6. improve the peak detector for noisy signal
+
+# 7. add a clear log function
