@@ -88,6 +88,7 @@ def decode_packet(payload: list, pkt: PacketConfig):
                       "data corrupted", etc.) indicating the current state.
             - system_messages: List of dicts with type="system" to send to web UI.
     """
+    logger.debug("decoding single packet")
     metadata = payload[0]
     demod_id = metadata["demodulator_id"]
     carrier_freq = metadata.get("carrier_freq", 0.0)
