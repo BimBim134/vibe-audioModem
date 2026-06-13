@@ -104,7 +104,17 @@ class SignalProcessor:
             detection_spectrum,
             distance=distance,
             prominence=prominence,
-            height=min_height,
+        )
+
+        logger.debug(
+            "process_frame: avg_spectrum mean=%.4f, prominence=%.4f, min_height=%.4f, "
+            "distance=%d, peaks=%d, freqs=%s",
+            float(np.mean(avg_spectrum)),
+            prominence,
+            min_height,
+            distance,
+            len(peaks),
+            (peaks * self.freq_resolution).tolist() if len(peaks) > 0 else [],
         )
 
         detected_freqs = peaks * self.freq_resolution
@@ -153,6 +163,11 @@ class SignalProcessor:
 
         self.candidate_peaks = updated_candidates
 
+        logger.debug(
+            "persistence: candidates=%s",
+            {int(k): v for k, v in self.candidate_peaks.items()},
+        )
+
         # 3. Filter confirmed peaks
         confirmed_peaks = []
         for cp_bin in current_peaks:
@@ -162,6 +177,10 @@ class SignalProcessor:
                     confirmed_peaks.append(cp_bin * self.freq_resolution)
                     break
         
+        logger.debug(
+            "persistence: confirmed_peaks=%s",
+            confirmed_peaks,
+        )
         return confirmed_peaks
 
     def recalibrate(self):

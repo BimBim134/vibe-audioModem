@@ -6,7 +6,7 @@ import sys
 
 from src.misc.config import setup_logging
 
-setup_logging(level=logging.INFO)
+setup_logging(level=logging.DEBUG)
 
 from src.audioModem.audioModem import start_audiomodem
 
