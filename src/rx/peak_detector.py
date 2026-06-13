@@ -26,7 +26,7 @@ def search_for_incomming_transmission(
     min_prominence: float = 2.0,
     enable_smoothing: bool = False,
     enable_noise_floor: bool = False,
-    persistence_hits: int = 3,
+    persistence_hits: int = 1,
 ):
     """
     Main orchestrator for signal detection and worker management.
