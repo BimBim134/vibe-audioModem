@@ -6,7 +6,7 @@
 - [5. option to calibrate the peak detector by measure the ambiant noise to estimate the noise floor so it can be substracted](#5-option-to-calibrate-the-peak-detector-by-measure-the-ambiant-noise-to-estimate-the-noise-floor-so-it-can-be-substracted)
 - [6. improve the peak detector for noisy signal](#6-improve-the-peak-detector-for-noisy-signal)
 - [7. add a clear log function](#7-add-a-clear-log-function)
-- [full test suite to validate/caracterize the app](#full-test-suite-to-validatecaracterize-the-app)
+- [8. full test suite to validate/caracterize the app](#8-full-test-suite-to-validatecaracterize-the-app)
 
 
 # 1. replace the CLI by a TUI
@@ -37,4 +37,4 @@ added decimation, seemed to help a little bit.
 
 # 7. add a clear log function
 
-# full test suite to validate/caracterize the app
+# 8. full test suite to validate/caracterize the app
