@@ -1,0 +1,18 @@
+{
+  "modem": "vibemodem.core.long_convolutional_modem:LongConvolutionalModem",
+  "preset": "standard",
+  "machine": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "cpu_count": 12,
+    "numpy": "2.5.4"
+  },
+  "recording_seconds": 25.88,
+  "receive_seconds": 0.3601784550010052,
+  "real_time_factor": 71.85327062366285,
+  "repeats": 7,
+  "code_decode_seconds": {
+    "clean": 0.00016968999989330769,
+    "failing": 0.07712114799869596
+  }
+}

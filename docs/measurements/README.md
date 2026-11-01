@@ -31,56 +31,65 @@ uv run python -m bench.threshold --modem vibemodem.core.baseline:BaselineModem \
     --out docs/measurements/baseline-modem.json --html docs/measurements/baseline-modem.html
 ```
 
-## Three codes compared: thresholds -15 dB, -15.5 dB, -16 dB
+## Four codes compared: thresholds -15, -15.5, -16 and -15.5 dB
 
-The same modem (8-FSK in about 100 Hz, fixed Frame with a CRC-32, same preamble) with three different error-correcting codes, each rate 1/2 on a Frame of 200 information bits:
+The same modem (8-FSK in about 100 Hz, fixed Frame with a CRC-32, same preamble) with four different error-correcting codes, each of rate about 1/2 on a Frame of 200 information bits:
 
 - **Baseline**: convolutional code, constraint length 7, soft-decision Viterbi decoding (`vibemodem.core.baseline:BaselineModem`).
 - **LDPC**: repeat-accumulate LDPC code, 400 coded bits, normalised min-sum, at most 50 iterations (`vibemodem.core.ldpc_modem:LdpcModem`).
 - **Turbo**: two recursive 8-state convolutional codes (4G polynomials) with a spread-8 interleaver, half the parity bits kept, trellises terminated, max-log-MAP decoding with extrinsic scaling 0.75 and at most 8 iterations (`vibemodem.core.turbo_modem:TurboModem`).
+- **Long convolutional**: the code of WSPR, constraint length 32 (polynomials f2d05351 and e4613c47 in hexadecimal), 31 tail bits, decoded by the Fano sequential algorithm with soft values scaled to a mean size of 2.5, a threshold step of 3 and a budget of 1,000 steps per bit, after which it gives up (`vibemodem.core.long_convolutional_modem:LongConvolutionalModem`).
 
-Files: `baseline-modem.json`, `ldpc-modem.json`, `turbo-modem.json` (and their `.html`), and `codes-comparison.html`, which puts the three curves on one chart. Each result file records the code it measured (kind, block length, coded length and its settings, with a digest of the LDPC rules or of the turbo interleaver), so a retuned code cannot pass for the one measured here.
+Files: `baseline-modem.json`, `ldpc-modem.json`, `turbo-modem.json`, `long-convolutional-modem.json` (and their `.html`), and `codes-comparison.html`, which puts the four curves on one chart. Each result file records the code it measured (kind, block length, coded length and its settings, with a digest of the LDPC rules or of the turbo interleaver), so a retuned code cannot pass for the one measured here.
 
-The three runs are paired: same SNR grid (-18 to -12 dB in 0.5 dB steps), same seed, 300 Messages of 12 bytes per SNR, same hidden start and frequency shift for each trial number, same white noise at the start of each recording. What differs follows from the codes: the convolutional and the turbo code both send 412 coded bits (138 data symbols, 13.6 s), the LDPC code 400 (134 symbols, 13.3 s, 3% shorter).
+The four runs are paired: same SNR grid (-18 to -12 dB in 0.5 dB steps), same seed, 300 Messages of 12 bytes per SNR, same hidden start and frequency shift for each trial number, same white noise at the start of each recording. What differs follows from the codes: the baseline and the turbo code send 412 coded bits (138 data symbols, 13.6 s), the LDPC code 400 (134 symbols, 3% shorter), and the long convolutional code 462 (154 symbols, 14.9 s, **9% longer**, because its tail is 31 bits).
 
-| SNR (dB) | Baseline | LDPC | Turbo |
-| :-- | :-- | :-- | :-- |
-| -17.5 | 7/300 (2.3%) | 15/300 (5.0%) | 31/300 (10.3%) |
-| -17.0 | 44/300 (14.7%) | 78/300 (26.0%) | 121/300 (40.3%) |
-| -16.5 | 108/300 (36.0%) | 197/300 (65.7%) | 246/300 (82.0%) |
-| -16.0 | 178/300 (59.3%) | 269/300 (89.7%) | 287/300 (95.7%) |
-| -15.5 | 255/300 (85.0%) | 290/300 (96.7%) | 300/300 (100%) |
-| -15.0 | 286/300 (95.3%) | 299/300 (99.7%) | 300/300 (100%) |
-| **Success threshold** | **-15 dB** | **-15.5 dB** | **-16 dB** |
+| SNR (dB) | Baseline | LDPC | Turbo | Long convolutional |
+| :-- | :-- | :-- | :-- | :-- |
+| -17.5 | 7/300 (2.3%) | 15/300 (5.0%) | 31/300 (10.3%) | 28/300 (9.3%) |
+| -17.0 | 44/300 (14.7%) | 78/300 (26.0%) | 121/300 (40.3%) | 143/300 (47.7%) |
+| -16.5 | 108/300 (36.0%) | 197/300 (65.7%) | 246/300 (82.0%) | 240/300 (80.0%) |
+| -16.0 | 178/300 (59.3%) | 269/300 (89.7%) | 287/300 (95.7%) | 283/300 (94.3%) |
+| -15.5 | 255/300 (85.0%) | 290/300 (96.7%) | 300/300 (100%) | 298/300 (99.3%) |
+| -15.0 | 286/300 (95.3%) | 299/300 (99.7%) | 300/300 (100%) | 300/300 (100%) |
+| **Success threshold** | **-15 dB** | **-15.5 dB** | **-16 dB** | **-15.5 dB** |
 
-How to read it:
+How to read it, in two comparisons.
 
-- The whole curve moves left from the baseline to LDPC to turbo. Interpolating between measured points, 50% of Messages arrive at about -16.2, -16.7 and -16.9 dB, and 95% at about -15.0, -15.6 and -16.0 dB. Against the baseline the gain at 95% is about 0.6 dB for LDPC and 1.0 dB for turbo; turbo beats LDPC by about 0.4 dB at 95% and only about 0.2 dB at 50%.
-- The gaps are clear where the curves are steep: at -16 dB, 287 (turbo), 269 (LDPC) and 178 (baseline) of 300; the 95% intervals are 92.7 to 97.5%, 85.7 to 92.6% and 53.7 to 64.7%. At -16.5 dB, turbo (77.3 to 85.9%) and LDPC (60.1 to 70.8%) do not overlap either.
-- The thresholds are steps of 0.5 dB, each known to about 2%, and turbo's own value is borderline: 287 of 300 at -16 dB is 95.7%, while 95% itself lies inside its interval (92.7 to 97.5%). Quote it as about -16 dB. Read the curves, not the single step; differences under 0.5 dB between candidates are noise.
-- No wrong Message was handed over by any modem in any trial. The CRC-32 is the final check for all three: the LDPC decoder can settle on a wrong codeword and the turbo decoder always returns bits, and then the Frame's CRC-32 rejects them.
-- These measurements are on white noise only, with no fading, drift, clipping or SSB filter, which may rank the codes differently.
-- Simulating the three codes alone on white noise agrees with the ranking. `python -m bench.code_curves --code vibemodem.core.convolutional:ConvolutionalCode` (or `vibemodem.core.ldpc:LdpcCode`, `vibemodem.core.turbo:TurboCode`) `--ebn0-from 1.5 --ebn0-to 2.5 --frames 800 --seed 1` gives the share of frames lost (Eb/N0 is the energy per information bit over the noise density, so the codes' rates are accounted for):
+**1. In the modem, at equal SNR** (what the table above shows). Interpolating between measured points, 50% of Messages arrive at about -16.2 (baseline), -16.7 (LDPC), -16.9 (turbo) and -17.0 dB (long convolutional), and 95% at about -15.0, -15.6, -16.0 and -15.9 dB. Against the baseline the gain at 95% is about 0.6 dB for LDPC, 1.0 dB for turbo and 0.9 dB for the long code. The long code's curve is the steepest: it receives more Messages than turbo at -17 dB (143 against 121 of 300, intervals 42.1 to 53.3% and 34.9 to 46.0%, which just overlap) and a hair fewer at -16 dB (283 against 287). Its threshold is -15.5 dB because 283 of 300 at -16 dB is 94.3%, just under the 95% bar (interval 91.1 to 96.4%), so it is nearly level with turbo. **Caution:** at equal SNR its Transmission lasts 9% longer, so it carries about 0.4 dB more energy, which helps it in this comparison.
 
-  | Eb/N0 | Convolutional | LDPC | Turbo |
-  | :-- | :-- | :-- | :-- |
-  | 1.5 dB | 30.6% | 24.9% | 12.5% |
-  | 2.0 dB | 16.4% | 7.0% | 2.0% |
-  | 2.5 dB | 6.0% | 1.1% | 0.1% |
+**2. Code alone, at equal energy per information bit.** `python -m bench.code_curves --code <module:Class> --ebn0-from 1.5 --ebn0-to 3 --frames 800 --seed 1` gives the share of frames lost on white noise (Eb/N0 is the energy per information bit over the noise density, so different rates and lengths are accounted for). The long code is run with `--set` defaults, the others with theirs:
 
-- The turbo interleaver: at 200 bits, shuffles with a spread of 8, 9 or 10 and the 4G polynomial interleaver all lost the same share of frames within the noise of an exploratory simulation (800 frames per point, not kept), so the choice does not matter measurably. The spread rule (four fifths of the largest reachable spread) was picked because it builds instantly for any size, and a test pins the resulting code.
-- All three measurements were run again with the final code (after the modem was restructured to take any code, and after the codes learned to describe themselves in the result files) and gave exactly the same counts, point for point.
+| Eb/N0 | Convolutional (baseline) | LDPC | Turbo | Long convolutional |
+| :-- | :-- | :-- | :-- | :-- |
+| 1.5 dB | 30.6% | 24.9% | 12.5% | 17.2% |
+| 2.0 dB | 16.4% | 7.0% | 2.0% | 4.4% |
+| 2.5 dB | 6.0% | 1.1% | 0.1% | 1.2% |
+| 3.0 dB | 1.8% | 0.1% | 0.1% | 0.2% |
+
+Per unit of energy, the order is turbo, then the long code and LDPC (the long code ahead at 1.5 and 2.0 dB, level at 2.5 dB), then the baseline. So part of the long code's good showing in the modem comes from its longer Transmission, not from the code alone.
+
+The same command also tells silence from error: `no_answer` counts the lost frames for which the decoder returned nothing, and the rest are frames for which it returned wrong bits. Over the 3,200 frames of the table above (800 at each Eb/N0), 438 convolutional and 118 turbo frames were lost, every one of them with a wrong answer (those decoders always answer, so only the CRC-32 stops them from being delivered); 265 LDPC frames were lost, 263 of them silently; and **all 185 lost frames of the long code were silent: it never returned a wrong word**. So for the LDPC and long codes the decoder itself catches nearly every failure, and the CRC-32 is a second line of defence rather than the only one.
+
+Other points:
+
+- No wrong Message was handed over by any modem in any trial. The CRC-32 is the final check for all four: the LDPC decoder can settle on a wrong codeword (2 of its 265 lost frames above), the turbo and convolutional decoders always return bits, and the long code's decoder gives up instead of answering (0 wrong answers in 185 lost frames).
+- The thresholds are steps of 0.5 dB, each known to about 2%, and turbo's and the long code's own values sit on the 95% edge. Quote them as about -16 and -15.5 dB. Read the curves, not the single step; differences under 0.5 dB between candidates are noise.
+- These measurements are on white noise only, with no fading, drift, clipping or SSB filter, which may rank the codes differently. A sequential decoder in particular gives up when the signal is weak, which a fading channel makes more likely.
+- The turbo interleaver: at 200 bits, shuffles with a spread of 8, 9 or 10 and the 4G polynomial interleaver all lost the same share of frames within the noise of an exploratory simulation (800 frames per point, not kept), so the choice does not matter measurably; spread 8 was kept because it builds instantly for any size. The settings of the long code come from sweeps of `bench.code_curves --set` (see the comment at the top of `long_convolutional.py`).
+- The first three measurements were run again with their final code and gave exactly the same counts, point for point; so was the long code's, after the fixes that followed its review.
 - An earlier run of the LDPC modem on a grid starting at -19 dB gave the same threshold but did not pair its noise with the baseline's, so it was replaced.
 
 ### Speed
 
-`python -m bench.speed` times how long a candidate takes to receive a recording of about 24 s holding one Transmission (5 s of silence in front, 6 s after, noise at -14 dB, shifted by 300 Hz), as the median of 7 receptions, and the time of the code alone. The `speed-*.json` files hold the results with the machine they were measured on, an Intel Core i5-12400F desktop (12 threads); run the command again on the machines you care about.
+`python -m bench.speed` times how long a candidate takes to receive a recording of about 24 s holding one Transmission (5 s of silence in front, 6 s after, noise at -14 dB, shifted by 300 Hz), as the median of 7 receptions, and the time of the code alone. The `speed-*.json` files hold the results with the machine they were measured on, an Intel Core i5-12400F desktop (12 threads); run the command again on the machines you care about. The recordings are a little different in length because the Transmissions are.
 
-| | Baseline | LDPC | Turbo |
-| :-- | :-- | :-- | :-- |
-| Whole recording | 138 ms, 178 times real time | 119 ms, 203 times real time | 218 ms, 113 times real time |
-| Code alone, clean Frame | about 1 to 2 ms | 0.02 ms (stops at once) | 2.9 ms |
-| Code alone, soft values that never decode | about 1 to 2 ms | 3.4 ms (the full 50 iterations) | 11.5 ms (the full 8 iterations) |
+| | Baseline | LDPC | Turbo | Long convolutional |
+| :-- | :-- | :-- | :-- | :-- |
+| Recording | 24.6 s | 24.3 s | 24.6 s | 25.9 s |
+| Whole recording | 138 ms, 178 times real time | 119 ms, 203 times | 218 ms, 113 times | 360 ms, 72 times |
+| Code alone, clean Frame | about 1 to 2 ms | 0.02 ms (stops at once) | 2.9 ms | 0.17 ms (no backing up) |
+| Code alone, soft values that never decode | about 1 to 2 ms | 3.4 ms (50 iterations) | 11.5 ms (8 iterations) | 77 ms (the full budget) |
 
-- The LDPC recording is a little shorter (24.3 s against 24.6 s) because its Transmission is. Most of the time is the search for the preamble over every start time and audio frequency (about 70 ms); decoding the code is a few to a dozen milliseconds. All three are far faster than real time, and turbo is the slowest, about twice as slow as LDPC overall.
+- Most of the time is not the code: the baseline's code takes 1 to 2 ms of its 138 ms, the rest is the search for the preamble over every start time and audio frequency. All four are far faster than real time. The long code is the slowest, and its decoding time depends on the noise, from 0.17 ms on a clean word to the full budget (77 ms) when it gives up. The modem may try up to three places per recording, so the worst case is the search plus about 3 x 77 ms; the 360 ms above is one recording at -14 dB, not a worst case.
 - This is a desktop processor, faster than many laptops, and no laptop was measured: on a laptop several times slower the modems should still receive tens of times faster than real time, but that is an extrapolation, not a measurement.

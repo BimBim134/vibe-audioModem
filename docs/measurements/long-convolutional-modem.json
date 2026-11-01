@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.long_convolutional_modem:LongConvolutionalModem",
+  "code": {
+    "info_bits": 200,
+    "coded_bits": 462,
+    "kind": "long-convolutional",
+    "constraint_length": 32,
+    "polynomials_hex": [
+      "f2d05351",
+      "e4613c47"
+    ],
+    "tail_bits": 31,
+    "decoder": "fano",
+    "confidence": 2.5,
+    "threshold_step": 3.0,
+    "max_cycles_per_bit": 1000
+  },
+  "preset": "standard",
+  "seed": 1,
+  "trials": 300,
+  "message_bytes": 12,
+  "max_lead_in_s": 10.0,
+  "tail_s": 1.0,
+  "freq_offset_range_hz": [
+    -1100.0,
+    1100.0
+  ],
+  "reference_bandwidth_hz": 2500,
+  "required_success_rate": 0.95,
+  "channel": {
+    "sample_rate": 48000,
+    "fading_doppler_hz": null,
+    "clock_drift_ppm": 0.0,
+    "freq_offset_hz": 0.0,
+    "impulse_rate_hz": 0.0,
+    "impulse_duration_s": 0.001,
+    "impulse_amplitude": 1.0,
+    "band_filter": false,
+    "clip_level": null
+  },
+  "curve": [
+    {
+      "snr_db": -18.0,
+      "trials": 300,
+      "successes": 5,
+      "false_receptions": 0,
+      "success_rate": 0.016666666666666666
+    },
+    {
+      "snr_db": -17.5,
+      "trials": 300,
+      "successes": 28,
+      "false_receptions": 0,
+      "success_rate": 0.09333333333333334
+    },
+    {
+      "snr_db": -17.0,
+      "trials": 300,
+      "successes": 143,
+      "false_receptions": 0,
+      "success_rate": 0.4766666666666667
+    },
+    {
+      "snr_db": -16.5,
+      "trials": 300,
+      "successes": 240,
+      "false_receptions": 0,
+      "success_rate": 0.8
+    },
+    {
+      "snr_db": -16.0,
+      "trials": 300,
+      "successes": 283,
+      "false_receptions": 0,
+      "success_rate": 0.9433333333333334
+    },
+    {
+      "snr_db": -15.5,
+      "trials": 300,
+      "successes": 298,
+      "false_receptions": 0,
+      "success_rate": 0.9933333333333333
+    },
+    {
+      "snr_db": -15.0,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -14.5,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -14.0,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -13.5,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -13.0,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -12.5,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -12.0,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    }
+  ],
+  "threshold_db": -15.5
+}

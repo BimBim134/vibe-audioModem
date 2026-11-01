@@ -64,3 +64,51 @@ def test_arguments_that_cannot_be_simulated_are_refused(tmp_path, bad):
         main([*arguments, *bad])
     assert stop.value.code == 2
     assert not (tmp_path / "x.json").exists()
+
+
+def test_settings_given_on_the_command_line_reach_the_code_and_are_recorded(tmp_path):
+    out = tmp_path / "set.json"
+    main(
+        [
+            "--code", "vibemodem.core.ldpc:LdpcCode", "--set", "max_iterations=7",
+            "--set", "normalisation=0.9", "--ebn0-from", "10", "--ebn0-to", "10",
+            "--frames", "3", "--out", str(out),
+        ]
+    )  # fmt: skip
+    code = json.loads(out.read_text())["code"]
+    assert (code["max_iterations"], code["normalisation"]) == (7, 0.9)
+
+
+@pytest.mark.parametrize("bad", ["no-equals-sign", "max_iterations=not json", "unknown_setting=1"])
+def test_a_setting_that_cannot_be_applied_is_refused(tmp_path, bad):
+    arguments = ["--code", "vibemodem.core.ldpc:LdpcCode", "--out", str(tmp_path / "x.json")]
+    with pytest.raises(SystemExit) as stop:
+        main([*arguments, "--set", bad])
+    assert stop.value.code == 2
+
+
+def test_frames_lost_are_split_between_no_answer_and_a_wrong_answer(tmp_path):
+    out = tmp_path / "split.json"
+    # LDPC says nothing when no codeword satisfies its rules; the convolutional code always answers.
+    for code, expect_silence in (
+        ("vibemodem.core.ldpc:LdpcCode", True),
+        ("vibemodem.core.convolutional:ConvolutionalCode", False),
+    ):
+        main(
+            [
+                "--code",
+                code,
+                "--ebn0-from",
+                "-6",
+                "--ebn0-to",
+                "-6",
+                "--frames",
+                "20",
+                "--out",
+                str(out),
+            ]
+        )
+        point = json.loads(out.read_text())["curve"][0]
+        assert point["errors"] >= 18
+        assert (point["no_answer"] > 0) is expect_silence
+        assert point["no_answer"] <= point["errors"]

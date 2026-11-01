@@ -7,6 +7,7 @@ import pytest
 
 from vibemodem.core.convolutional import ConvolutionalCode
 from vibemodem.core.ldpc import LdpcCode
+from vibemodem.core.long_convolutional import LongConvolutionalCode
 from vibemodem.core.turbo import TurboCode
 
 INFO_BITS = 200
@@ -15,6 +16,7 @@ CODES = [
     pytest.param(ConvolutionalCode(INFO_BITS), id="convolutional"),
     pytest.param(LdpcCode(), id="ldpc"),
     pytest.param(TurboCode(INFO_BITS), id="turbo"),
+    pytest.param(LongConvolutionalCode(INFO_BITS), id="long-convolutional"),
 ]
 
 
@@ -99,7 +101,7 @@ def test_bits_other_than_0_and_1_are_refused(code):
 @pytest.mark.parametrize("code", CODES)
 def test_a_code_describes_itself_in_plain_data_for_the_result_files(code):
     description = json.loads(json.dumps(code.parameters))  # must survive a trip through JSON
-    assert description["kind"] in {"convolutional", "ldpc", "turbo"}
+    assert description["kind"] in {"convolutional", "ldpc", "turbo", "long-convolutional"}
 
 
 @pytest.mark.parametrize(
@@ -110,6 +112,9 @@ def test_a_code_describes_itself_in_plain_data_for_the_result_files(code):
         (TurboCode(INFO_BITS, iterations=4), TurboCode(INFO_BITS)),
         (TurboCode(INFO_BITS, scaling=0.5), TurboCode(INFO_BITS)),
         (TurboCode(INFO_BITS, interleaver=range(INFO_BITS)), TurboCode(INFO_BITS)),
+        (LongConvolutionalCode(INFO_BITS, threshold_step=2.0), LongConvolutionalCode(INFO_BITS)),
+        (LongConvolutionalCode(INFO_BITS, confidence=3.0), LongConvolutionalCode(INFO_BITS)),
+        (LongConvolutionalCode(INFO_BITS, max_cycles_per_bit=9), LongConvolutionalCode(INFO_BITS)),
     ],
 )
 def test_a_retuned_code_does_not_describe_itself_as_the_default_one(tuned, default):
