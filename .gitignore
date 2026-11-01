@@ -166,3 +166,5 @@ grc_files/**/*py
 grc_files/test_out
 test.py
 *.wav
+# Tooling caches
+.ruff_cache/
