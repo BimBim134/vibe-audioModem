@@ -9,13 +9,13 @@ This file replaces the agent's local memory directory. **Keep durable project co
 - Wants to be asked questions first (`/grill-with-docs`) before building the glossary/ADRs.
 - When told "do nothing for now", do nothing until asked.
 
-## Product constraints (from `docs/architect_opinion.md`, confirmed by owner)
+## Product constraints (from `docs/legacy/architect_opinion.md`, confirmed by owner)
 
 One-way broadcast for radio amateurs (no ACK/ARQ). Robustness over speed (KPI = correct delivery under noise). Dynamic multi-carrier detection is core (no fixed channel plan). Non-technical users → easy install on Windows/macOS/Linux. Simplest architecture that works. Small messages first, 30-minute transmission ceiling (~10–12 KB). Presets by default, advanced settings hidden. Must work across HF SSB, VHF FM, handheld, direct sound card. Remote control is optional and needs auth/TLS. Keep GNU Radio unless packaging proves impractical.
 
 ## Decisions and direction
 
-- 2026-10-31: independent architecture review written (`docs/architect_opinion.md`); roadmap in `TODO.md` (Phase 0 P0 bugs + tests + packaging spike first).
+- 2026-10-31: independent architecture review written (`docs/legacy/architect_opinion.md`); roadmap in `TODO.md` (Phase 0 P0 bugs + tests + packaging spike first).
 - Target topology: one DSP process, in-process queues, optional FastAPI adapter; protocol v2 adds CRC-32, msg_id, fragment index/total, interleaver, optional repetition; keep RS + convolutional code until characterised.
 - Do NOT: fix a channel plan, drop the known preamble, trade decode probability for airtime, raise baud rate just because it can be fixed.
 - 2026-11-01: engineering skills configured — GitHub Issues via `gh` (repo `BimBim134/vibe-audioModem`), default triage labels, single-context domain docs (`GLOSSARY.md` + `docs/adr/` at root); triage labels created on GitHub, `gh` upgraded to 2.103.3 via the official apt source. See `AGENTS.md` and `docs/agents/*.md`.
@@ -29,12 +29,12 @@ One-way broadcast for radio amateurs (no ACK/ARQ). Robustness over speed (KPI = 
 
 - Run from repo root (absolute `from src...` imports, relative log/WAV paths).
 - `--test` mode needs one TX before RX (creates `test.wav`).
-- `docs/doc.md` header says branch `gfsk-test`; the code is GMSK. Some research/diagram docs are stale (see `project-map.md`).
+- `docs/legacy/doc.md` header says branch `gfsk-test`; the code is GMSK. It describes the legacy prototype; see `docs/legacy/README.md`.
 - GNU Radio is not guaranteed installed in the agent environment; DSP changes may be untestable there.
 
 ## Refonte — décisions du grilling (2026-11-01)
 
-- **Rewrite complet, repartir de zéro.** Le code actuel est figé sous un commit tagué (`legacy-v0`, tag à créer) et sert uniquement de lecture. Il n'est PAS un oracle : on ne suppose pas que ses signaux sont valides.
+- **Rewrite complet, repartir de zéro.** Le code actuel est figé sous un commit tagué (tag `legacy-v0`, créé) et sert uniquement de lecture. Il n'est PAS un oracle : on ne suppose pas que ses signaux sont valides.
 - Aucun bug P0/P1/P2 n'est corrigé dans le code legacy : ils deviennent des exigences « à ne pas reproduire » pour le nouveau code.
 - Ordre : (1) spike d'empaquetage (porte GNU Radio, quelques jours, Windows puis macOS) ; (2) banc de mesure (simulateur de canal + taux de réception correcte) ; (3) cœur DSP.
 - Architecture : cœur DSP sans E/S (octets → échantillons, échantillons → messages), couches séparées pour carte son / WAV / UI.
@@ -58,5 +58,5 @@ One-way broadcast for radio amateurs (no ACK/ARQ). Robustness over speed (KPI = 
 - Licence : **GPL-3.0-only, confirmée par le propriétaire (2026-11-01).** Nouveau paquet : `src/vibemodem/` (`core/` sans E/S, `io/`, `app/`) + `bench/` pour le banc de mesure.
 - Roadmap : `TODO.md` réécrit (9 étapes 0–8 avec critères de fin). `TODO.md` = haut niveau ; le détail = tickets GitHub via `/to-spec` puis `/to-tickets`.
 - Matériel de test réel : deux ordinateurs + câble audio ; ensuite haut-parleur/micro ; ensuite deux radios + cartes son. Le récepteur garde l'audio brut et des indicateurs de performance à chaque réception pour rejouer et affiner au banc.
-- Avancement (2026-11-01) : #2 fermé (socle, CI verte). #4 simulateur de canal implémenté (`bench/channel.py`, 30 tests) mais ticket laissé ouvert. #3 spike d'empaquetage : builds Windows et macOS produits et testés par la CI (PyInstaller) ; reste à faire par le propriétaire la vérification manuelle (enregistrement 5 s sur une machine propre), voir `docs/packaging-spike.md`.
+- Avancement (2026-11-01) : #2 fermé (socle, CI verte). #4 simulateur de canal implémenté (`bench/channel.py`, 30 tests) mais ticket laissé ouvert. #3 spike d'empaquetage : builds Windows et macOS produits et testés par la CI (PyInstaller) ; reste à faire par le propriétaire la vérification manuelle (enregistrement 5 s sur une machine propre), voir `docs/packaging/packaging-spike.md`.
 - Spike d'empaquetage #3 validé par le propriétaire (2026-11-01) : build Windows testé à la main sur une machine propre, tout fonctionne. macOS : testé par la CI uniquement, pas à la main. Décision : PyInstaller est le candidat retenu pour l'installeur.

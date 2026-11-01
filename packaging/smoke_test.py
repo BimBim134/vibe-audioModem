@@ -3,7 +3,7 @@
 Usage: python packaging/smoke_test.py <path-to-packaged-executable> [--require-audio-library]
 
 It cannot check recording from a real microphone: CI machines have no audio input.
-That part is verified by hand on a clean machine (see docs/procedure-packaging-check.md).
+That part is verified by hand on a clean machine (see docs/packaging/procedure-packaging-check.md).
 """
 
 import json

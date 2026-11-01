@@ -1,6 +1,6 @@
 # Roadmap — Vibe AudioModem rewrite
 
-High-level roadmap only. Each step becomes GitHub tickets later (`/to-spec`, then `/to-tickets`). Vocabulary: `GLOSSARY.md`. Decisions: `docs/adr/` and `docs/agents/memory.md`. The previous 470-line TODO is in git history; the architecture review that motivated the rewrite is `docs/architect_opinion.md`.
+High-level roadmap only. Each step becomes GitHub tickets later (`/to-spec`, then `/to-tickets`). Vocabulary: `GLOSSARY.md`. Decisions: `docs/adr/` and `docs/agents/memory.md`. The previous 470-line TODO is in git history; the architecture review that motivated the rewrite is `docs/legacy/architect_opinion.md`.
 
 ## Goal
 

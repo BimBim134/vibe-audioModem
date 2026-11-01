@@ -43,22 +43,8 @@ pythonpath = ["."]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-# The legacy prototype (tag legacy-v0) is kept in the tree for reference only.
-extend-exclude = [
-    "src/__init__.py",
-    "src/audioModem",
-    "src/misc",
-    "src/rx",
-    "src/tx",
-    "src/ui",
-    "research",
-    "grc_files",
-    "docs",
-    "*.md",
-    "main.py",
-    "profile_memory.py",
-    "view_profile.py",
-]
+# Markdown holds code samples that are not ours to format.
+extend-exclude = ["docs", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
