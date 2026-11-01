@@ -32,6 +32,14 @@ uv run python -m bench.threshold --modem bench.toy:ToyModem --snr-from -14 --snr
 
 It prints the curve and the threshold and writes everything to `result.json`. The same seed gives the same file (it holds no date or commit on purpose).
 
+Add `--html report.html` to also write a human-readable report (success-rate curve with 95% confidence bars, counts, threshold). To compare several candidates on one chart, ranked by threshold:
+
+```bash
+uv run python -m bench.report toy.json other.json --out compare.html
+```
+
+The report is a single offline HTML file (no script, no link), so it can be opened anywhere and kept as a CI artifact. It flags results measured on different terms (message length, channel, Preset) as not directly comparable.
+
 How to read the result:
 
 - A trial counts as received only if the candidate returns exactly the Message that was sent. A wrong Message handed over, even next to the right one, makes the trial fail and is counted in `false_receptions`.

@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from bench.channel import REFERENCE_BANDWIDTH_HZ, ChannelConfig, apply_channel
+from bench.report import write_report
 from vibemodem.core.modem import Modem
 
 REQUIRED_SUCCESS_RATE = 0.95
@@ -169,6 +170,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--message-bytes", type=int, default=2, help="length of each Message")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--out", required=True, type=Path, help="JSON file to write")
+    parser.add_argument("--html", type=Path, help="also write a human-readable HTML report")
     args = parser.parse_args(argv)
 
     channel = ChannelConfig()
@@ -191,6 +193,8 @@ def main(argv: list[str] | None = None) -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     result = _result(args, channel, points, threshold)
     args.out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    if args.html:
+        write_report([result], args.html)
 
 
 if __name__ == "__main__":

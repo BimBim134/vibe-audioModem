@@ -48,3 +48,7 @@ extend-exclude = ["docs", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# The report is built from HTML, CSS and SVG strings that read worse when wrapped.
+"bench/report.py" = ["E501"]
