@@ -93,3 +93,44 @@ Other points:
 
 - Most of the time is not the code: the baseline's code takes 1 to 2 ms of its 138 ms, the rest is the search for the preamble over every start time and audio frequency. All four are far faster than real time. The long code is the slowest, and its decoding time depends on the noise, from 0.17 ms on a clean word to the full budget (77 ms) when it gives up. The modem may try up to three places per recording, so the worst case is the search plus about 3 x 77 ms; the 360 ms above is one recording at -14 dB, not a worst case.
 - This is a desktop processor, faster than many laptops, and no laptop was measured: on a laptop several times slower the modems should still receive tens of times faster than real time, but that is an extrapolation, not a measurement.
+
+## Four codes on radio-like channels: turbo ahead under fading
+
+The same four modems on three named channels (`bench/scenarios.py`, `--scenario`), 200 Messages of 12 bytes per SNR, seed 1, hidden start up to 10 s, frequency shift of +-1100 Hz, the same noise and the same start for each trial number across codes. Files: `scenarios/<scenario>-<code>.json` and `.html`, and `scenarios/<scenario>-comparison.html` with the four curves.
+
+- **ssb**: white noise through the 300 to 2,700 Hz band filter of an SSB receiver (grid -18 to -13 dB).
+- **hf-fading**: the same plus Rayleigh fading at 1 Hz Doppler (grid -16 to -2 dB).
+- **dirty**: hf-fading plus 5 impulses per second of 1 ms at 20 dB over the noise, clipping at 3 times the RMS and 50 ppm of clock drift (grid -16 to -2 dB).
+
+| Level reached | Scenario | Baseline | LDPC | Turbo | Long convolutional |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| 95% (the Success threshold) | ssb | -14 | -15 | **-16** | **-16** |
+| 95% | hf-fading | not reached | -2 | **-5** | not reached |
+| 95% | dirty | -3 | -2 | **-5** | not reached |
+| 90% (interpolated) | ssb | -15.1 | -16.0 | **-16.1** | **-16.1** |
+| 90% | hf-fading | -5.8 | -10.0 | **-11.5** | -7.0 |
+| 90% | dirty | -5.8 | -9.6 | **-11.3** | -5.5 |
+| 80% (interpolated) | hf-fading | -8.1 | -11.4 | **-12.4** | -8.9 |
+| 80% | dirty | -7.5 | -11.1 | **-12.1** | -8.6 |
+
+Number of Messages received out of 200, selected SNRs (dB):
+
+| Scenario | SNR | Baseline | LDPC | Turbo | Long convolutional |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| ssb | -16 | 137 | 180 | 194 | 195 |
+| ssb | -17 | 27 | 56 | 72 | 81 |
+| hf-fading | -13 | 19 | 116 | 144 | 73 |
+| hf-fading | -10 | 111 | 180 | 188 | 156 |
+| hf-fading | -5 | 189 | 193 | 191 | 185 |
+| dirty | -13 | 9 | 100 | 129 | 59 |
+| dirty | -10 | 94 | 173 | 187 | 148 |
+| dirty | -5 | 188 | 194 | 191 | 181 |
+
+What it shows:
+
+- **Turbo is first or tied in every scenario.** On ssb it ties with the long code (about 1.5 dB over the baseline at 95%). Under fading it is about 1.5 dB ahead of LDPC and 4 to 6 dB ahead of the long code at 90%.
+- **The long code loses its edge under fading.** Its steep white-noise curve flattens: when fading drops the signal, the sequential decoder spends its budget and gives up, so it ends below LDPC.
+- **Under fading no code reliably reaches 95%.** Every curve levels off between 94% and 98% even at +SNR, far above the noise (the pilot at +12 dB lost 1 to 2% too). The failures there are not decoding errors but preambles not found after a deep fade, and nothing in the code can fix that. A time interleaver and repetition (ticket #11) are the answer, so for fading, compare codes at 80% and 90%, not at the single 95% bar. The 95% thresholds above for LDPC and turbo (-2 and -5 dB) are crossings of a plateau, not signs of a weak code.
+- **No wrong Message in any trial** (0 false receptions over all 12 measurements).
+- Same caveats as above: the long code's transmission is 9% longer (about 0.4 dB), counts have an interval of a few percent at 200 trials, and differences under 0.5 dB are noise.
+- Reproduce one: `python -m bench.threshold --modem vibemodem.core.turbo_modem:TurboModem --scenario hf-fading --snr-from -16 --snr-to -2 --snr-step 1 --trials 200 --message-bytes 12 --seed 1 --max-lead-in-s 10 --tail-s 1 --freq-offset-from -1100 --freq-offset-to 1100 --out ...` (ssb uses `--snr-from -18 --snr-to -13`).

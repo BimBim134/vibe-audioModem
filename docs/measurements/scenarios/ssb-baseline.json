@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.baseline:BaselineModem",
+  "scenario": "ssb",
+  "code": {
+    "info_bits": 200,
+    "coded_bits": 412,
+    "kind": "convolutional",
+    "constraint_length": 7,
+    "polynomials_octal": [
+      "171",
+      "133"
+    ],
+    "tail_bits": 6
+  },
+  "preset": "standard",
+  "seed": 1,
+  "trials": 200,
+  "message_bytes": 12,
+  "max_lead_in_s": 10.0,
+  "tail_s": 1.0,
+  "freq_offset_range_hz": [
+    -1100.0,
+    1100.0
+  ],
+  "reference_bandwidth_hz": 2500,
+  "required_success_rate": 0.95,
+  "channel": {
+    "sample_rate": 48000,
+    "fading_doppler_hz": null,
+    "clock_drift_ppm": 0.0,
+    "freq_offset_hz": 0.0,
+    "impulse_rate_hz": 0.0,
+    "impulse_duration_s": 0.001,
+    "impulse_amplitude": 1.0,
+    "band_filter": true,
+    "clip_level": null,
+    "impulse_over_noise_db": null,
+    "clip_rms_multiple": null
+  },
+  "curve": [
+    {
+      "snr_db": -18.0,
+      "trials": 200,
+      "successes": 0,
+      "false_receptions": 0,
+      "success_rate": 0.0
+    },
+    {
+      "snr_db": -17.0,
+      "trials": 200,
+      "successes": 27,
+      "false_receptions": 0,
+      "success_rate": 0.135
+    },
+    {
+      "snr_db": -16.0,
+      "trials": 200,
+      "successes": 137,
+      "false_receptions": 0,
+      "success_rate": 0.685
+    },
+    {
+      "snr_db": -15.0,
+      "trials": 200,
+      "successes": 185,
+      "false_receptions": 0,
+      "success_rate": 0.925
+    },
+    {
+      "snr_db": -14.0,
+      "trials": 200,
+      "successes": 198,
+      "false_receptions": 0,
+      "success_rate": 0.99
+    },
+    {
+      "snr_db": -13.0,
+      "trials": 200,
+      "successes": 200,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    }
+  ],
+  "threshold_db": -14.0
+}
