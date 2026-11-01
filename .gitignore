@@ -168,3 +168,4 @@ test.py
 *.wav
 # Tooling caches
 .ruff_cache/
+!packaging/*.spec
