@@ -30,13 +30,7 @@ Sizes of the uploaded archives: about 58 MB (Windows) and 35 MB (macOS). An unpa
 
 ### Manual check on a clean machine
 
-1. On GitHub, open the repository's Actions tab, the latest successful `Package` run, and download the `vibemodem-windows` or `vibemodem-macos` artifact. Unzip it.
-2. Start the application by double-clicking (`VibeModem.exe` inside the folder on Windows, `VibeModem.app` on macOS). No terminal window should appear.
-3. A page should open in the browser. If it does not, note it.
-4. Check that your microphone appears in the "Audio input" list, click **Record 5 seconds**, make some noise, and confirm that the result shows 240,000 samples and a non-zero level.
-5. Click **DSP self-test**: it should report a detected frequency of 1000.
-6. Click **Quit** and confirm that the application stops (no leftover process).
-7. Write down anything that failed or needed a manual step in this file.
+Follow [`procedure-packaging-check.md`](procedure-packaging-check.md), step by step, then report the result on issue #3.
 
 ## Warnings users will see (the builds are not signed)
 
