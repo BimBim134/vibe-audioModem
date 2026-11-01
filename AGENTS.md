@@ -1,3 +1,8 @@
+## Project context (read first)
+
+- `docs/agents/memory.md`: portable project memory (owner preferences, decisions, open items). Update it there, not in `~/.claude`.
+- `docs/agents/project-map.md`: concise map of the repository and runtime.
+
 ## Agent skills
 
 ### Issue tracker
