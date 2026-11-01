@@ -1,4 +1,81 @@
-# Vibe AudioModem — complete code walkthrough
+- [1. Vibe AudioModem — complete code walkthrough](#1-vibe-audiomodem--complete-code-walkthrough)
+- [2. What this project is](#2-what-this-project-is)
+- [3. Repository map](#3-repository-map)
+- [4. Requirements and how to run it](#4-requirements-and-how-to-run-it)
+  - [4.1. Environment](#41-environment)
+  - [4.2. Launch commands](#42-launch-commands)
+  - [4.3. Main process model](#43-main-process-model)
+- [5. High-level architecture](#5-high-level-architecture)
+  - [5.1. Processes, threads, and sockets](#51-processes-threads-and-sockets)
+  - [5.2. Transmit path](#52-transmit-path)
+  - [5.3. Receive path](#53-receive-path)
+  - [5.4. Why so many processes?](#54-why-so-many-processes)
+- [6. Configuration in depth](#6-configuration-in-depth)
+  - [6.1. `PacketConfig`](#61-packetconfig)
+  - [6.2. `SignalConfig`](#62-signalconfig)
+  - [6.3. `PortsConfig`](#63-portsconfig)
+  - [6.4. Defaults in one place](#64-defaults-in-one-place)
+  - [6.5. Logging](#65-logging)
+- [7. The wire protocol](#7-the-wire-protocol)
+  - [7.1. Layer 1 — application payload](#71-layer-1--application-payload)
+  - [7.2. Layer 2 — scrambling and chunking](#72-layer-2--scrambling-and-chunking)
+  - [7.3. Layer 3 — Reed–Solomon](#73-layer-3--reedsolomon)
+  - [7.4. Layer 4 — GNU Radio header, convolutional coding, GMSK](#74-layer-4--gnu-radio-header-convolutional-coding-gmsk)
+  - [7.5. Example timing](#75-example-timing)
+- [8. Transmitter in detail](#8-transmitter-in-detail)
+  - [8.1. `Transmitter(gr.top_block)`](#81-transmittergrtop_block)
+  - [8.2. `send_data()`](#82-send_data)
+  - [8.3. Output choices](#83-output-choices)
+  - [8.4. Transmitter notes](#84-transmitter-notes)
+- [9. Receiver in detail](#9-receiver-in-detail)
+  - [9.1. `AudioInterface` — audio capture and FFT](#91-audiointerface--audio-capture-and-fft)
+  - [9.2. Peak detector orchestration](#92-peak-detector-orchestration)
+  - [9.3. `SignalProcessor` — FFT → frequencies](#93-signalprocessor--fft--frequencies)
+  - [9.4. `WorkerManager` and demodulator lifecycle](#94-workermanager-and-demodulator-lifecycle)
+  - [9.5. `Demodulator` flowgraph](#95-demodulator-flowgraph)
+    - [9.5.1. Frame-length subtlety](#951-frame-length-subtlety)
+  - [9.6. Packet decoding and reassembly](#96-packet-decoding-and-reassembly)
+- [10. `ModemController` — the control plane](#10-modemcontroller--the-control-plane)
+  - [10.1. State owned by the controller](#101-state-owned-by-the-controller)
+  - [10.2. Background threads](#102-background-threads)
+  - [10.3. Receiver lifecycle](#103-receiver-lifecycle)
+  - [10.4. Configuration propagation](#104-configuration-propagation)
+  - [10.5. Shutdown](#105-shutdown)
+- [11. HTTP API (actual, port 8000)](#11-http-api-actual-port-8000)
+  - [11.1. Request/response details](#111-requestresponse-details)
+  - [11.2. Endpoint drift from the old notes](#112-endpoint-drift-from-the-old-notes)
+- [12. CLI (`src/ui/cli.py`)](#12-cli-srcuiclipy)
+  - [12.1. Command reference](#121-command-reference)
+  - [12.2. Message polling](#122-message-polling)
+- [13. ZeroMQ message schemas](#13-zeromq-message-schemas)
+  - [13.1. Audio (5555)](#131-audio-5555)
+  - [13.2. FFT (5556)](#132-fft-5556)
+  - [13.3. Raw packets (5557)](#133-raw-packets-5557)
+  - [13.4. Messages (5558)](#134-messages-5558)
+  - [13.5. Config (5559)](#135-config-5559)
+  - [13.6. Peak detector system status (5560)](#136-peak-detector-system-status-5560)
+- [14. End-to-end walkthrough](#14-end-to-end-walkthrough)
+  - [14.1. Sending `"hello"`](#141-sending-hello)
+  - [14.2. Receiving it](#142-receiving-it)
+  - [14.3. When the signal disappears](#143-when-the-signal-disappears)
+- [15. Sharp edges, bugs, and important limitations](#15-sharp-edges-bugs-and-important-limitations)
+  - [15.1. Known functional limitations](#151-known-functional-limitations)
+  - [15.2. Bugs / dead code](#152-bugs--dead-code)
+  - [15.3. Race/ordering issues to be aware of](#153-raceordering-issues-to-be-aware-of)
+  - [15.4. Old notes vs current reality](#154-old-notes-vs-current-reality)
+- [16. `research/` and `grc_files/`](#16-research-and-grc_files)
+  - [16.1. `research/`](#161-research)
+  - [16.2. `grc_files/`](#162-grc_files)
+  - [16.3. Utility scripts at the repository root](#163-utility-scripts-at-the-repository-root)
+- [17. Glossary](#17-glossary)
+- [18. Where to change things](#18-where-to-change-things)
+- [19. Original quick-reference (corrected)](#19-original-quick-reference-corrected)
+  - [19.1. Packet configuration](#191-packet-configuration)
+  - [19.2. Signal configuration](#192-signal-configuration)
+  - [19.3. Single packet on the wire](#193-single-packet-on-the-wire)
+
+
+# 1. Vibe AudioModem — complete code walkthrough
 
 > This document explains the repository from the ground up: what it does, how the
 > processes talk to each other, how a message is turned into sound, how sound is
@@ -8,7 +85,7 @@
 
 ---
 
-## 1. What this project is
+# 2. What this project is
 
 Vibe AudioModem is an experimental **software-defined radio over an audio link**.
 It sends digital packets through a normal sound card (or a WAV file) using
@@ -32,7 +109,7 @@ explicitly in section 14.
 
 ---
 
-## 2. Repository map
+# 3. Repository map
 
 | Path                            | Role                                                                                                                                        |
 | :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -57,9 +134,9 @@ explicitly in section 14.
 
 ---
 
-## 3. Requirements and how to run it
+# 4. Requirements and how to run it
 
-### 3.1 Environment
+## 4.1. Environment
 
 `environment.yml` creates a Conda env named `vibe-audiomodem` with Python 3.12,
 GNU Radio, NumPy, SciPy, Matplotlib, `reedsolo`, `pyzmq`, FastAPI, Uvicorn,
@@ -78,7 +155,7 @@ Important practical notes:
   `main.py`. The project assumes a Conda/GNU Radio installation, not a plain
   `pip` environment.
 
-### 3.2 Launch commands
+## 4.2. Launch commands
 
 Run from the repository root (imports are absolute: `from src...`, and log/WAV
 paths are relative to the current directory).
@@ -101,7 +178,7 @@ python main.py --cli --test # handy local loopback (also used by .vscode/launch.
 - You must send at least once before starting the receiver, otherwise
   `POST /receive` returns an error because `test.wav` does not exist.
 
-### 3.3 Main process model
+## 4.3. Main process model
 
 `main.py`:
 
@@ -123,9 +200,9 @@ python main.py --cli --test # handy local loopback (also used by .vscode/launch.
 
 ---
 
-## 4. High-level architecture
+# 5. High-level architecture
 
-### 4.1 Processes, threads, and sockets
+## 5.1. Processes, threads, and sockets
 
 ```mermaid
 flowchart TD
@@ -177,7 +254,7 @@ Key point: **audio, FFT, raw packets, and messages never pass through Python
 queues between processes** — they go through ZeroMQ. Python `queue.Queue` is
 used only *inside* the controller for transmission and received-message queues.
 
-### 4.2 Transmit path
+## 5.2. Transmit path
 
 ```mermaid
 flowchart LR
@@ -194,7 +271,7 @@ flowchart LR
     R --> A["real audio<br>3 s beeper + data (+ silence)"]
 ```
 
-### 4.3 Receive path
+## 5.3. Receive path
 
 ```mermaid
 flowchart LR
@@ -212,7 +289,7 @@ flowchart LR
     PMT --> OUT["publish message on 5558"]
 ```
 
-### 4.4 Why so many processes?
+## 5.4. Why so many processes?
 
 - GNU Radio flowgraphs are blocking and CPU-heavy; each demodulator must be
   independent so several carriers can be decoded at once.
@@ -227,13 +304,13 @@ and propagated via ZMQ, and lifecycle bugs are easy to introduce.
 
 ---
 
-## 5. Configuration in depth
+# 6. Configuration in depth
 
 All configuration lives in `src/misc/config.py` as frozen-by-convention
 dataclasses. They are mutable at runtime; the controller modifies them and
 recreates processes when necessary.
 
-### 5.1 `PacketConfig`
+## 6.1. `PacketConfig`
 
 | Field | Default | Unit | Meaning |
 | :--- | :---: | :---: | :--- |
@@ -258,7 +335,7 @@ The full RS codeword is:
                          └──────── 32-byte RS message ────────┘
 ```
 
-### 5.2 `SignalConfig`
+## 6.2. `SignalConfig`
 
 | Field | Default | Unit | Meaning |
 | :--- | :---: | :---: | :--- |
@@ -279,7 +356,7 @@ Derived properties and useful numbers:
 - Total airtime ≈ `beeper_duration + number_of_packets * 4.48 s` (plus optional
   silence padding in test mode).
 
-### 5.3 `PortsConfig`
+## 6.3. `PortsConfig`
 
 | Field | Default | Bound by | Consumed by |
 | :--- | :---: | :--- | :--- |
@@ -294,7 +371,7 @@ Derived properties and useful numbers:
 All ZMQ sockets use TCP on localhost except the controller's config PUB which
 binds `tcp://*:<port>`, and the peak-detector system PUB which also binds `*`.
 
-### 5.4 Defaults in one place
+## 6.4. Defaults in one place
 
 ```python
 DEFAULT_PACKET_CONFIG = PacketConfig(
@@ -314,7 +391,7 @@ DEFAULT_PORTS_CONFIG = PortsConfig(
 )
 ```
 
-### 5.5 Logging
+## 6.5. Logging
 
 `setup_logging()` in `src/misc/config.py:14`:
 
@@ -329,12 +406,12 @@ DEFAULT_PORTS_CONFIG = PortsConfig(
 
 ---
 
-## 6. The wire protocol
+# 7. The wire protocol
 
 This is the most important part to understand. There are **four nested framing
 layers**.
 
-### 6.1 Layer 1 — application payload
+## 7.1. Layer 1 — application payload
 
 `prepare_data()` in `src/tx/packetizer.py` uses `functools.singledispatch` on the
 input type:
@@ -353,7 +430,7 @@ sequence.
 `filepath` instead of `input_data`. It would also need to serialize the NumPy
 array correctly. Only `str` and `bytes` are safe today.
 
-### 6.2 Layer 2 — scrambling and chunking
+## 7.2. Layer 2 — scrambling and chunking
 
 **Scrambling** (`src/misc/scrambling.py`):
 
@@ -381,7 +458,7 @@ output: [actual_chunk_len: 1 byte][chunk data][random filler to 31 bytes]
 - `0` is reserved for preamble and `255` for postamble.
 - The receiver ignores filler by only copying `decoded_payload[1:len+1]`.
 
-### 6.3 Layer 3 — Reed–Solomon
+## 7.3. Layer 3 — Reed–Solomon
 
 Each 32-byte chunk message is encoded with `RSCodec(16)`, producing a 48-byte
 codeword:
@@ -408,7 +485,7 @@ packet (48 bytes)
 The preamble/postamble are **framing markers**, not the RF sync word. The actual
 bit-level sync word is the 32-bit access code in the GNU Radio header.
 
-### 6.4 Layer 4 — GNU Radio header, convolutional coding, GMSK
+## 7.4. Layer 4 — GNU Radio header, convolutional coding, GMSK
 
 Transmitter (`src/tx/transmitter.py`):
 
@@ -441,7 +518,7 @@ The GNU Radio header means the true physical frame is **56 bytes**
 (8 header + 48 RS), not 48. The 48-byte number in `PacketConfig` is the
 RS codeword size; remember this when reasoning about timing or debugging.
 
-### 6.5 Example timing
+## 7.5. Example timing
 
 For a message whose serialized PMT + metadata is `n` bytes:
 
@@ -455,11 +532,11 @@ Example: a short message that produces 4 data chunks → 6 packets → about
 
 ---
 
-## 7. Transmitter in detail
+# 8. Transmitter in detail
 
 File: `src/tx/transmitter.py`.
 
-### 7.1 `Transmitter(gr.top_block)`
+## 8.1. `Transmitter(gr.top_block)`
 
 Constructor steps:
 
@@ -499,7 +576,7 @@ samples = symbols * sps
 
 It is used to size the `head` block so the flowgraph terminates cleanly.
 
-### 7.2 `send_data()`
+## 8.2. `send_data()`
 
 - Builds a `Transmitter`.
 - Optionally installs SIGINT/SIGTERM handlers (disabled when called from the
@@ -514,13 +591,13 @@ The controller always calls `send_data(..., handle_signals=False,
 cancel_event=...)` so that cancellation is cooperative and the HTTP server keeps
 running.
 
-### 7.3 Output choices
+## 8.3. Output choices
 
 - Default: `audio.sink(samp_rate, '', True)` → system default output device.
 - Test mode: `blocks.wavfile_sink("test.wav", 1, samp_rate,
   FORMAT_WAV, FORMAT_PCM_16, False)` → mono 16-bit WAV.
 
-### 7.4 Transmitter notes
+## 8.4. Transmitter notes
 
 - The beeper is not a synchronization preamble processed by the receiver. It is
   a simple strong carrier that makes the peak detector fire and gives the AGC /
@@ -532,9 +609,9 @@ running.
 
 ---
 
-## 8. Receiver in detail
+# 9. Receiver in detail
 
-### 8.1 `AudioInterface` — audio capture and FFT
+## 9.1. `AudioInterface` — audio capture and FFT
 
 File: `src/rx/audio_interface.py`.
 
@@ -568,7 +645,7 @@ monitor thread that stops the flowgraph when `stop_event` is set. A file source
 ends naturally when the file is exhausted; the peak detector notices after 5 s of
 no FFT data and exits.
 
-### 8.2 Peak detector orchestration
+## 9.2. Peak detector orchestration
 
 File: `src/rx/peak_detector.py`.
 
@@ -608,7 +685,7 @@ On an FFT message:
 If no FFT data arrives for 50 polls (about 5 s), the detector assumes the audio
 source is gone and exits.
 
-### 8.3 `SignalProcessor` — FFT → frequencies
+## 9.3. `SignalProcessor` — FFT → frequencies
 
 File: `src/rx/signal_processor.py`.
 
@@ -655,7 +732,7 @@ Important: because the controller does not pass `persistence_hits`, the default
 value `3` from `search_for_incomming_transmission` is used, so **persistence is
 active even though smoothing and noise floor are disabled**.
 
-### 8.4 `WorkerManager` and demodulator lifecycle
+## 9.4. `WorkerManager` and demodulator lifecycle
 
 Files: `src/rx/worker_manager.py`, `src/rx/demodulator.py`.
 
@@ -704,7 +781,7 @@ Worker process behavior (`launch_demodulator`):
       flowgraph, restart with the new settings, report `running`.
   - Idle `stop` → report `ready`.
 
-### 8.5 `Demodulator` flowgraph
+## 9.5. `Demodulator` flowgraph
 
 File: `src/rx/demodulator.py`.
 
@@ -747,7 +824,7 @@ Demodulation:
   `carrier_freq`.
 - `zeromq.pub_msg_sink("tcp://127.0.0.1:5557")` publishes PDUs.
 
-#### Frame-length subtlety
+### 9.5.1. Frame-length subtlety
 
 The receiver expects the PDU to be **52 bytes**:
 `[2-byte length][2-byte repeated length][48-byte RS codeword]`, not 56. The
@@ -758,7 +835,7 @@ header (56 bytes), the current decoder will not strip it and Reed–Solomon
 decoding will likely fail. This is a brittle point to keep in mind when changing
 GNU Radio versions or blocks.
 
-### 8.6 Packet decoding and reassembly
+## 9.6. Packet decoding and reassembly
 
 File: `src/rx/packet_decoding.py`.
 
@@ -809,11 +886,11 @@ Status/system messages published include:
 
 ---
 
-## 9. `ModemController` — the control plane
+# 10. `ModemController` — the control plane
 
 File: `src/audioModem/audioModem.py`.
 
-### 9.1 State owned by the controller
+## 10.1. State owned by the controller
 
 | Attribute | Purpose |
 | :--- | :--- |
@@ -828,7 +905,7 @@ File: `src/audioModem/audioModem.py`.
 | `_messages_sub_socket` | SUB to 5558. |
 | `_message_listener_thread` | Daemon thread converting PMT messages into `_received_messages`. |
 
-### 9.2 Background threads
+## 10.2. Background threads
 
 - **Message listener**: loops on `recv(NOBLOCK)`, deserializes PMT, pushes dicts
   into `_received_messages`. Sleeps 100 ms when no message.
@@ -838,7 +915,7 @@ File: `src/audioModem/audioModem.py`.
 - **HTTP server thread**: Uvicorn, daemon.
 - **CLI thread/loop**: only in `--cli` mode; runs on the main thread.
 
-### 9.3 Receiver lifecycle
+## 10.3. Receiver lifecycle
 
 `_start_receiver_processes(nb_workers, input_file)`:
 
@@ -864,7 +941,7 @@ Note: the `STOP_EVENT` is a **global module-level** multiprocessing event, not
 per-controller. This is fine for a single modem instance but would be a problem
 for multiple controllers in one process.
 
-### 9.4 Configuration propagation
+## 10.4. Configuration propagation
 
 `handle_setup(data)` accepts:
 
@@ -930,7 +1007,7 @@ Behavior:
 
 `handle_cancel_queue()` is implemented but has **no HTTP route**.
 
-### 9.5 Shutdown
+## 10.5. Shutdown
 
 `shutdown()`:
 
@@ -946,7 +1023,7 @@ it dies when the process exits.
 
 ---
 
-## 10. HTTP API (actual, port 8000)
+# 11. HTTP API (actual, port 8000)
 
 File: `src/audioModem/http_server.py`.
 
@@ -966,7 +1043,7 @@ TLS. It is intended for local/lab use.
 | POST | `/stop` | `{"rx": true, "tx": true}` | `handle_stop` | Stop receiver and/or cancel TX queue. |
 | POST | `/quit` | — | `handle_quit` | Request graceful shutdown. |
 
-### 10.1 Request/response details
+## 11.1. Request/response details
 
 `POST /transmit`:
 
@@ -1016,7 +1093,7 @@ TLS. It is intended for local/lab use.
 - Reads `audiomodem.log`.
 - Returns `{"status":"ok","logs":[lines]}` or an error.
 
-### 10.2 Endpoint drift from the old notes
+## 11.2. Endpoint drift from the old notes
 
 The previous version of this document listed `/config`, `/preset`, `/carrier`,
 and `/cancel`. Those routes **do not exist** in the current `http_server.py`.
@@ -1025,13 +1102,13 @@ wired to FastAPI. Use `/configuration`, `/setup`, and `/stop` instead.
 
 ---
 
-## 11. CLI (`src/ui/cli.py`)
+# 12. CLI (`src/ui/cli.py`)
 
 The CLI is not a separate binary; it starts only from `start_audiomodem(...,
 cli=True)` (i.e. `python main.py --cli`). It talks to the HTTP server through
 `requests`, not directly to the controller.
 
-### 11.1 Command reference
+## 12.1. Command reference
 
 | Command | Description |
 | :--- | :--- |
@@ -1058,7 +1135,7 @@ cli=True)` (i.e. `python main.py --cli`). It talks to the HTTP server through
 - Ports: `audio_port`, `fft_port`, `fft_size`, `raw_packets_port`,
   `messages_port`, `config_port`, `peak_detector_system_port`.
 
-### 11.2 Message polling
+## 12.2. Message polling
 
 `ModemState.start_message_polling()` starts a daemon thread that calls
 `GET /messages` every second and prints each returned message:
@@ -1072,22 +1149,22 @@ time will split messages between consumers.
 
 ---
 
-## 12. ZeroMQ message schemas
+# 13. ZeroMQ message schemas
 
-### 12.1 Audio (5555)
+## 13.1. Audio (5555)
 
 - Publisher: `AudioInterface` (bind).
 - Subscribers: demodulator worker processes (connect).
 - Payload: raw `float32` audio samples, one channel, no metadata.
 
-### 12.2 FFT (5556)
+## 13.2. FFT (5556)
 
 - Publisher: `AudioInterface` (bind).
 - Subscribers: peak detector (connect), HTTP `/fft` (connect).
 - Payload: `float32[4096]` magnitude spectrum, shifted so positive half starts at
   index 2048.
 
-### 12.3 Raw packets (5557)
+## 13.3. Raw packets (5557)
 
 - Subscribers: `PacketDecoder` (bind).
 - Publishers: each `Demodulator` (connect).
@@ -1095,7 +1172,7 @@ time will split messages between consumers.
 - Metadata keys: `demodulator_id` (ISO timestamp string), `carrier_freq`
   (double).
 
-### 12.4 Messages (5558)
+## 13.4. Messages (5558)
 
 - Publisher: `PacketDecoder` (bind).
 - Subscriber: controller message listener (connect).
@@ -1120,7 +1197,7 @@ System message examples:
 {"type":"system","status":"error","error":"Reed-Solomon error ...","carrier_freq":2500.0}
 ```
 
-### 12.5 Config (5559)
+## 13.5. Config (5559)
 
 - Publisher: controller (bind `tcp://*:5559`).
 - Subscriber: peak detector.
@@ -1139,7 +1216,7 @@ System message examples:
 (`enable_smoothing`, `enable_noise_floor`, `persistence_hits`, `min_prominence`,
 `recalibrate_noise_floor`) are also forwarded if present.
 
-### 12.6 Peak detector system status (5560)
+## 13.6. Peak detector system status (5560)
 
 - Publisher: peak detector (bind).
 - No in-repo consumer currently.
@@ -1151,9 +1228,9 @@ System message examples:
 
 ---
 
-## 13. End-to-end walkthrough
+# 14. End-to-end walkthrough
 
-### 13.1 Sending `"hello"`
+## 14.1. Sending `"hello"`
 
 1. CLI `send hello` → `POST /transmit`.
 2. `handle_transmit` clears the cancel event and queues
@@ -1175,7 +1252,7 @@ System message examples:
     10 s of silence.
 11. The WAV file or speaker carries the signal.
 
-### 13.2 Receiving it
+## 14.2. Receiving it
 
 1. `AudioInterface` publishes audio on 5555 and FFT magnitude on 5556.
 2. The peak detector averages FFT frames and sees the 2500 Hz beeper. Persistence
@@ -1197,7 +1274,7 @@ System message examples:
 8. The controller receives it, stores it in `_received_messages`.
 9. The CLI’s poll thread fetches it via `GET /messages` and prints it.
 
-### 13.3 When the signal disappears
+## 14.3. When the signal disappears
 
 Each worker compares detected peaks to its tuned frequency. If no peak is within
 `baudrate / 2` for 50 FFT frames (~4.3 s), `stop_tuning()` is called and the
@@ -1207,11 +1284,11 @@ transmission can cause the worker to tune out.
 
 ---
 
-## 14. Sharp edges, bugs, and important limitations
+# 15. Sharp edges, bugs, and important limitations
 
 These are behaviors of the current code, not suggestions.
 
-### 14.1 Known functional limitations
+## 15.1. Known functional limitations
 
 - **Only 200 baud works reliably.** `TODO.md` documents failures at 100, 400,
   and 500 baud, and success at 200 and 220. The GMSK clock loop has
@@ -1228,7 +1305,7 @@ These are behaviors of the current code, not suggestions.
 - **No file writing on RX.** Files/bytes are delivered base64 in the message
   dict; the app does not reconstruct them to disk.
 
-### 14.2 Bugs / dead code
+## 15.2. Bugs / dead code
 
 - `src/tx/packetizer.py` `Path` overload references undefined `filepath`. Sending
   a file path will raise `NameError`.
@@ -1256,7 +1333,7 @@ These are behaviors of the current code, not suggestions.
   they import `DEFAULT_DQPSK_CONST`, which no longer exists in
   `src/misc/config.py`).
 
-### 14.3 Race/ordering issues to be aware of
+## 15.3. Race/ordering issues to be aware of
 
 - ZMQ PUB/SUB has a “slow joiner” problem. The first config broadcast or FFT
   frame can be lost immediately after sockets connect.
@@ -1270,7 +1347,7 @@ These are behaviors of the current code, not suggestions.
 - The message listener and CLI polling both assume a single consumer of
   `/messages`.
 
-### 14.4 Old notes vs current reality
+## 15.4. Old notes vs current reality
 
 | Old note / doc claim | Current code |
 | :--- | :--- |
@@ -1285,12 +1362,12 @@ These are behaviors of the current code, not suggestions.
 
 ---
 
-## 15. `research/` and `grc_files/`
+# 16. `research/` and `grc_files/`
 
 These directories are development history, not runtime dependencies. They are
 useful for understanding how the design evolved.
 
-### 15.1 `research/`
+## 16.1. `research/`
 
 | File | Purpose |
 | :--- | :--- |
@@ -1312,7 +1389,7 @@ useful for understanding how the design evolved.
 | `*.wav` | Captured test signals at various stages. |
 | `conjecture.txt` | A French text about the Poincaré conjecture, used as a large file payload in experiments (unrelated to the modem). |
 
-### 15.2 `grc_files/`
+## 16.2. `grc_files/`
 
 GNU Radio Companion `.grc` files and their generated Python counterparts:
 
@@ -1333,7 +1410,7 @@ GNU Radio Companion `.grc` files and their generated Python counterparts:
 They document the experiments that led to the current flowgraphs (BPSK/DQPSK →
 GFSK/GMSK, correlation/timing tests, etc.). They are not wired into `main.py`.
 
-### 15.3 Utility scripts at the repository root
+## 16.3. Utility scripts at the repository root
 
 - `profile_memory.py` / `view_profile.py` / `profiling`: profiling artifacts and
   helpers.
@@ -1341,7 +1418,7 @@ GFSK/GMSK, correlation/timing tests, etc.). They are not wired into `main.py`.
 
 ---
 
-## 16. Glossary
+# 17. Glossary
 
 | Term | Meaning |
 | :--- | :--- |
@@ -1359,7 +1436,7 @@ GFSK/GMSK, correlation/timing tests, etc.). They are not wired into `main.py`.
 
 ---
 
-## 17. Where to change things
+# 18. Where to change things
 
 - **Add an HTTP route**: add a FastAPI function in `src/audioModem/http_server.py`
   and a `handle_*` method in `ModemController`.
@@ -1383,9 +1460,9 @@ GFSK/GMSK, correlation/timing tests, etc.). They are not wired into `main.py`.
 
 ---
 
-## 18. Original quick-reference (corrected)
+# 19. Original quick-reference (corrected)
 
-### Packet configuration
+## 19.1. Packet configuration
 
 | Setting | Value | Unit |
 | :--- | :---: | :---: |
@@ -1397,7 +1474,7 @@ GFSK/GMSK, correlation/timing tests, etc.). They are not wired into `main.py`.
 | postamble packets | 1 | packet |
 | physical frame (with GNU Radio header) | 56 | byte |
 
-### Signal configuration
+## 19.2. Signal configuration
 
 | Setting | Value | Unit |
 | :--- | :---: | :---: |
@@ -1410,7 +1487,7 @@ GFSK/GMSK, correlation/timing tests, etc.). They are not wired into `main.py`.
 | FFT size | 4096 | bins |
 | FFT resolution | 11.71875 | Hz/bin |
 
-### Single packet on the wire
+## 19.3. Single packet on the wire
 
 ```text
 GNU Radio header (8 bytes)
