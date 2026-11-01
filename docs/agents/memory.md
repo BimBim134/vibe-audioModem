@@ -18,11 +18,10 @@ One-way broadcast for radio amateurs (no ACK/ARQ). Robustness over speed (KPI = 
 - 2026-10-31: independent architecture review written (`docs/architect_opinion.md`); roadmap in `TODO.md` (Phase 0 P0 bugs + tests + packaging spike first).
 - Target topology: one DSP process, in-process queues, optional FastAPI adapter; protocol v2 adds CRC-32, msg_id, fragment index/total, interleaver, optional repetition; keep RS + convolutional code until characterised.
 - Do NOT: fix a channel plan, drop the known preamble, trade decode probability for airtime, raise baud rate just because it can be fixed.
-- 2026-11-01: engineering skills configured — GitHub Issues via `gh` (repo `BimBim134/vibe-audioModem`), default triage labels, single-context domain docs (`GLOSSARY.md` + `docs/adr/` at root, not created yet). See `AGENTS.md` and `docs/agents/*.md`.
+- 2026-11-01: engineering skills configured — GitHub Issues via `gh` (repo `BimBim134/vibe-audioModem`), default triage labels, single-context domain docs (`GLOSSARY.md` + `docs/adr/` at root); triage labels created on GitHub, `gh` upgraded to 2.103.3 via the official apt source. See `AGENTS.md` and `docs/agents/*.md`.
 
 ## Open items
 
-- `gh` CLI on the owner's machine is too old for `gh label`; triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) are not created on GitHub yet.
 - Le grilling de la refonte est terminé (2026-11-01) ; prochaine étape : étape 0 de `TODO.md`, après `/to-spec` et `/to-tickets` si on veut des tickets GitHub.
 - Not yet done: tests, README, LICENSE, pyproject/lockfile, cleanup of tracked binaries.
 
