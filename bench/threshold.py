@@ -10,6 +10,7 @@ import numpy as np
 
 from bench.channel import REFERENCE_BANDWIDTH_HZ, ChannelConfig, apply_channel
 from bench.report import write_report
+from bench.scenarios import SCENARIOS
 from vibemodem.core.modem import Modem
 
 REQUIRED_SUCCESS_RATE = 0.95
@@ -174,6 +175,7 @@ def _result(
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "modem": args.modem,
+        "scenario": args.scenario,
         "code": _describe_code(modem),
         "preset": args.preset,
         "seed": args.seed,
@@ -196,6 +198,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--modem", required=True, help="package.module:ClassName of the candidate")
     parser.add_argument("--preset", default="standard")
+    parser.add_argument(
+        "--scenario", default="white", choices=sorted(SCENARIOS),
+        help="; ".join(f"{name}: {SCENARIOS[name].description}" for name in sorted(SCENARIOS)),
+    )  # fmt: skip
     parser.add_argument("--snr-from", type=float, default=-20.0, help="lowest SNR tested, in dB")
     parser.add_argument("--snr-to", type=float, default=0.0, help="highest SNR tested, in dB")
     parser.add_argument("--snr-step", type=float, default=1.0, help="step between tested SNRs, dB")
@@ -215,7 +221,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--html", type=Path, help="also write a human-readable HTML report")
     args = parser.parse_args(argv)
 
-    channel = ChannelConfig()
+    channel = SCENARIOS[args.scenario].config
     try:
         modem = load_modem(args.modem)
         points = measure_curve(

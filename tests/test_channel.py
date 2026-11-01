@@ -176,3 +176,52 @@ def test_noise_follows_the_given_signal_power_when_the_audio_is_padded_with_sile
     # At 0 dB in 2,500 Hz the noise power is the signal power times (fs/2) / 2,500.
     expected_std = np.sqrt(np.mean(burst**2) * (FS / 2) / 2500)
     assert np.std(noisy[: 10 * FS]) == pytest.approx(expected_std, rel=0.02)
+
+
+def expected_noise_std(signal, snr_db):
+    """Standard deviation of white noise at an SNR in 2,500 Hz, from the textbook scaling."""
+    return float(np.sqrt(np.mean(signal**2) / 10 ** (snr_db / 10) * (FS / 2) / 2500))
+
+
+def test_impulses_can_be_sized_against_the_noise_of_the_recording():
+    audio = tone(1000, seconds=20)
+    quiet = apply_channel(audio, ChannelConfig(snr_db=-5), seed=3)
+    spiky = apply_channel(
+        audio,
+        ChannelConfig(snr_db=-5, impulse_rate_hz=5, impulse_over_noise_db=10),
+        seed=3,
+    )
+    bursts = (spiky - quiet)[
+        spiky != quiet
+    ]  # the noise streams are the same, so only bursts remain
+    assert bursts.size > 0
+    assert np.std(bursts) == pytest.approx(expected_noise_std(audio, -5) * 10 ** (10 / 20), rel=0.1)
+
+
+def test_clipping_can_be_set_against_the_level_of_the_received_audio():
+    # In heavy noise the received audio is nearly Gaussian, so clipping at 2 standard deviations
+    # flattens the share of samples beyond them: 4.55% for a normal distribution.
+    audio = tone(1000, seconds=20)
+    unclipped = apply_channel(audio, ChannelConfig(snr_db=-15), seed=4)
+    clipped = apply_channel(audio, ChannelConfig(snr_db=-15, clip_rms_multiple=2.0), seed=4)
+    limit = np.max(np.abs(clipped))
+    assert limit == pytest.approx(2.0 * np.std(unclipped), rel=0.01)
+    assert np.mean(np.abs(clipped) >= limit - 1e-9) == pytest.approx(0.0455, abs=0.004)
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"snr_db": 0, "clip_rms_multiple": 0},
+        {"snr_db": 0, "clip_rms_multiple": 2.0, "clip_level": 0.5},  # two ways to say one thing
+    ],
+)
+def test_clipping_has_one_definition_and_sensible_values(bad):
+    with pytest.raises(ValueError):
+        ChannelConfig(**bad)
+
+
+def test_bursts_sized_against_the_noise_cannot_be_applied_without_a_noise():
+    config = ChannelConfig(impulse_rate_hz=5, impulse_over_noise_db=10)  # fine to describe
+    with pytest.raises(ValueError, match="snr_db"):
+        apply_channel(tone(1000), config, seed=1)

@@ -142,3 +142,38 @@ def test_the_result_file_records_the_code_of_a_modem_that_has_one(tmp_path):
 def test_the_result_file_has_no_code_for_a_modem_without_one(tmp_path):
     result = json.loads(run(tmp_path, "tests.fake_modems:PerfectModem").read_text())
     assert result["code"] is None
+
+
+def test_a_named_scenario_sets_the_channel_and_is_recorded(tmp_path):
+    out = tmp_path / "ssb.json"
+    main(
+        [
+            "--modem", "tests.fake_modems:PerfectModem", *QUICK, "--out", str(out),
+            "--scenario", "hf-fading",
+        ]
+    )  # fmt: skip
+    result = json.loads(out.read_text())
+    assert result["scenario"] == "hf-fading"
+    assert result["channel"]["band_filter"] is True
+    assert result["channel"]["fading_doppler_hz"] == 1.0
+
+
+def test_without_a_scenario_the_channel_is_white_noise(tmp_path):
+    result = json.loads(run(tmp_path, "tests.fake_modems:PerfectModem").read_text())
+    assert result["scenario"] == "white"
+    assert result["channel"]["band_filter"] is False
+
+
+def test_an_unknown_scenario_is_refused(tmp_path, capsys):
+    with pytest.raises(SystemExit) as stop:
+        main(
+            [
+                "--modem",
+                "bench.toy:ToyModem",
+                "--scenario",
+                "nope",
+                "--out",
+                str(tmp_path / "x.json"),
+            ]
+        )
+    assert stop.value.code == 2

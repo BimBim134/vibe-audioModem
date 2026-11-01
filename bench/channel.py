@@ -31,6 +31,11 @@ class ChannelConfig:
     impulse_amplitude: float = 1.0  # standard deviation inside a burst, in sample units
     band_filter: bool = False  # keep only the 300-2,700 Hz SSB audio passband
     clip_level: float | None = None  # hard clipping of the receiver's audio input
+    # Sized against what the receiver hears, as an automatic gain control would set them, so
+    # they mean the same at every SNR of a sweep (an absolute level would not):
+    impulse_over_noise_db: float | None = None  # bursts this far above the noise (beats the
+    # absolute impulse_amplitude when set); needs snr_db
+    clip_rms_multiple: float | None = None  # clip at this many times the received audio's RMS
 
     def __post_init__(self) -> None:
         problems = []
@@ -40,6 +45,11 @@ class ChannelConfig:
             problems.append("sample_rate must be positive")
         if self.clip_level is not None and self.clip_level <= 0:
             problems.append("clip_level must be positive")
+        if self.clip_rms_multiple is not None:
+            if self.clip_rms_multiple <= 0:
+                problems.append("clip_rms_multiple must be positive")
+            if self.clip_level is not None:
+                problems.append("give clip_level or clip_rms_multiple, not both")
         if self.impulse_rate_hz < 0:
             problems.append("impulse_rate_hz must not be negative")
         if self.impulse_duration_s <= 0:
@@ -60,14 +70,16 @@ def _rng(seed: int, stream: int) -> np.random.Generator:
 
 def _add_noise(
     samples: np.ndarray, config: ChannelConfig, seed: int, signal_power: float | None
-) -> np.ndarray:
+) -> tuple[np.ndarray, float]:
+    """The samples with white noise added, and the standard deviation of that noise."""
     if signal_power is None:
         signal_power = np.mean(samples**2)
     noise_power_in_reference = signal_power / 10 ** (config.snr_db / 10)
     # White noise spreads its power evenly over 0..fs/2.
     total_noise_power = noise_power_in_reference * (config.sample_rate / 2) / REFERENCE_BANDWIDTH_HZ
-    noise = _rng(seed, NOISE_STREAM).normal(0.0, np.sqrt(total_noise_power), samples.shape)
-    return samples + noise
+    noise_std = float(np.sqrt(total_noise_power))
+    noise = _rng(seed, NOISE_STREAM).normal(0.0, noise_std, samples.shape)
+    return samples + noise, noise_std
 
 
 def _fade(samples: np.ndarray, config: ChannelConfig, seed: int) -> np.ndarray:
@@ -102,14 +114,19 @@ def _shift_frequency(samples: np.ndarray, config: ChannelConfig) -> np.ndarray:
     return np.real(analytic * np.exp(2j * np.pi * config.freq_offset_hz * t))
 
 
-def _add_impulses(samples: np.ndarray, config: ChannelConfig, seed: int) -> np.ndarray:
+def _add_impulses(
+    samples: np.ndarray, config: ChannelConfig, seed: int, noise_std: float | None
+) -> np.ndarray:
     rng = _rng(seed, IMPULSE_STREAM)
     seconds = samples.size / config.sample_rate
     burst_length = max(1, round(config.impulse_duration_s * config.sample_rate))
+    amplitude = config.impulse_amplitude
+    if config.impulse_over_noise_db is not None:
+        amplitude = noise_std * 10 ** (config.impulse_over_noise_db / 20)
     out = samples.copy()
     for start in rng.integers(0, samples.size, rng.poisson(config.impulse_rate_hz * seconds)):
         stop = min(start + burst_length, samples.size)
-        out[start:stop] += rng.normal(0.0, config.impulse_amplitude, stop - start)
+        out[start:stop] += rng.normal(0.0, amplitude, stop - start)
     return out
 
 
@@ -139,14 +156,20 @@ def apply_channel(
         out = _fade(out, config, seed)
     if config.freq_offset_hz:
         out = _shift_frequency(out, config)
+    noise_std = None
     if config.snr_db is not None:
-        out = _add_noise(out, config, seed, signal_power)
+        out, noise_std = _add_noise(out, config, seed, signal_power)
     if config.impulse_rate_hz:
-        out = _add_impulses(out, config, seed)
+        if config.impulse_over_noise_db is not None and noise_std is None:
+            raise ValueError("impulse_over_noise_db needs snr_db: the noise sizes the bursts")
+        out = _add_impulses(out, config, seed, noise_std)
     if config.band_filter:
         out = _band_filter(out, config)
     if config.clip_level is not None:
         out = np.clip(out, -config.clip_level, config.clip_level)
+    elif config.clip_rms_multiple is not None:
+        limit = config.clip_rms_multiple * float(np.sqrt(np.mean(out**2)))
+        out = np.clip(out, -limit, limit)
     if config.clock_drift_ppm:
         out = _drift_clock(out, config)
     return out

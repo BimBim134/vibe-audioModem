@@ -181,11 +181,19 @@ _COMPARED = [
 ]
 
 
+def _comparable(key: str, value):
+    """A setting's value as compared between results: unset settings count as absent, so a
+    result written before a setting existed compares equal to a newer one that leaves it unset."""
+    if key == "channel":
+        value = {name: setting for name, setting in value.items() if setting is not None}
+    return json.dumps(value, sort_keys=True)
+
+
 def _not_comparable(results: list[dict]) -> str:
     differing = [
         label
         for key, label in _COMPARED
-        if len({json.dumps(r.get(key), sort_keys=True) for r in results}) > 1
+        if len({_comparable(key, r.get(key)) for r in results}) > 1
     ]
     if len(results) < 2 or not differing:
         return ""

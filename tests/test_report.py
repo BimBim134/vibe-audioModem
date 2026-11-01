@@ -96,3 +96,18 @@ def test_results_measured_on_different_terms_are_flagged_as_not_comparable():
 def test_the_report_says_when_and_from_which_commit_it_was_made():
     html = render_report([result()], generated="2026-11-01 17:00, commit abc1234")
     assert "2026-11-01 17:00, commit abc1234" in html
+
+
+def test_results_that_differ_only_by_settings_one_of_them_does_not_know_are_comparable():
+    older = result()
+    newer = result(modem="other:Modem")
+    newer["channel"] = {**older["channel"], "clip_rms_multiple": None}  # a newer setting, unused
+    assert "not directly comparable" not in render_report([older, newer])
+
+
+def test_results_measured_on_different_scenarios_are_flagged():
+    other = result(modem="x:Y")
+    other["scenario"] = "hf-fading"
+    other["channel"] = {**other["channel"], "fading_doppler_hz": 1.0}
+    html = render_report([result(), other])
+    assert "not directly comparable" in html and "channel" in html
