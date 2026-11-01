@@ -52,3 +52,7 @@ python main.py                # headless, HTTP on :8000
 - Known broken: `Path` TX overload (`filepath` undefined), unrouted `handle_set_preset/set_carrier_freq/cancel_queue`.
 - Repo hygiene: WAV/PNG/profiling binaries are tracked despite `.gitignore`; no README/LICENSE/pyproject.
 - Many feature branches (`dev`, `GFSK-migration`, `PSK-cleaning`, `frame-sync-improv`, …). Current working branch: `AI_deep_refactoing`; main branch: `main`.
+
+## Rewrite in progress
+
+The code above is the legacy prototype, to be tagged `legacy-v0` and replaced by `src/vibemodem/` (see `TODO.md`, `docs/adr/`, `GLOSSARY.md`). The map above describes the legacy code.
