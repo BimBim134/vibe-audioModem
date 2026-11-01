@@ -22,14 +22,31 @@ uv run ruff format --check .
 uv run pytest
 ```
 
+## Measure a modem
+
+The bench sends random Messages through the channel simulator at a range of SNRs and reports the **Success threshold**: the lowest SNR (in a 2,500 Hz noise bandwidth) at which at least 95% of Messages arrive correctly. A candidate is a class with `modulate` and `demodulate` methods (see `src/vibemodem/core/modem.py`); name it as `package.module:ClassName`.
+
+```bash
+uv run python -m bench.threshold --modem bench.toy:ToyModem --snr-from -14 --snr-to -4 --trials 300 --seed 1 --out result.json
+```
+
+It prints the curve and the threshold and writes everything to `result.json`. The same seed gives the same file (it holds no date or commit on purpose).
+
+How to read the result:
+
+- A trial counts as received only if the candidate returns exactly the Message that was sent. A wrong Message handed over, even next to the right one, makes the trial fail and is counted in `false_receptions`.
+- The threshold is the lowest tested SNR that reaches 95% *and* is not followed by a higher tested SNR that falls short. Its resolution is the `--snr-step` (1 dB by default).
+- Near 95% the measured rate is only known to about 1/sqrt(trials), roughly 2% with 100 trials. Use more trials (300 or more) and a finer step around the threshold before comparing two candidates.
+- The toy modem (`bench.toy:ToyModem`, coherent BPSK) validates the bench: its measured success rate must follow the textbook formula within 0.05 (see `tests/test_threshold.py`).
+
 ## Layout
 
 | Path | Role |
 | :-- | :-- |
-| `src/vibemodem/core/` | DSP core: Messages to audio samples and back. No devices, files or network. |
+| `src/vibemodem/core/` | DSP core: Messages to audio samples and back, and the `Modem` interface candidates implement. No devices, files or network. |
 | `src/vibemodem/io/` | Audio layer: sound cards and WAV files. No DSP. |
 | `src/vibemodem/app/` | Local application: loopback web server and interface. |
-| `bench/` | Measurement bench: channel simulator and Success threshold tools. |
+| `bench/` | Measurement bench: channel simulator, Success threshold command, and a toy modem that validates the bench. |
 | `packaging/` | PyInstaller build and smoke test for the Windows and macOS artifacts. |
 | `tests/` | Automated tests. |
 | `docs/adr/` | Architecture decision records. |

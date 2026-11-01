@@ -35,3 +35,11 @@ _Avoid_: mode, setting
 **Success threshold**:
 The lowest signal-to-noise ratio, measured in a 2,500 Hz reference noise bandwidth, at which at least 95% of test Messages are received correctly. The project's measure of how close to the noise floor a PHY profile works.
 _Avoid_: sensitivity, range, SNR limit
+
+**Reception**:
+One Message found in the audio by a receiver, together with how well it was received (estimated SNR, frequency offset, synchronisation score).
+_Avoid_: decode result, packet
+
+**Candidate**:
+A modem design under evaluation on the bench, scored by its Success threshold.
+_Avoid_: model, algorithm
