@@ -2,7 +2,7 @@
 
 Issue #3. Question: can a non-developer run a Python + NumPy/SciPy + audio + local web server application on Windows and macOS without a terminal?
 
-**Verdict so far: yes, with PyInstaller.** CI builds a Windows and a macOS artifact and smoke-tests each. One acceptance criterion still needs a human on a clean machine (recording 5 seconds from a real microphone, below).
+**Verdict: yes, with PyInstaller.** CI builds a Windows and a macOS artifact and smoke-tests each. The owner ran the Windows build on a clean Windows machine on 2026-11-01 and reported that everything worked (page, microphone recording, quit). The macOS build has been smoke-tested by CI only; it has not been run by hand on a Mac.
 
 ## What was built
 
@@ -21,10 +21,11 @@ The smoke test starts the packaged executable (no console), then checks that:
 
 Sizes of the uploaded archives: about 58 MB (Windows) and 35 MB (macOS). An unpacked Linux build measured locally is 169 MB.
 
-## Not verified yet (needs a human)
+## Not verified yet
 
-- **Recording 5 seconds from a real microphone** in the packaged app, on a clean machine (no Python, no developer tools installed).
-- That the browser opens by itself on double-click.
+Recording from a real microphone was confirmed on a clean Windows machine. Still open:
+
+- **macOS:** recording 5 seconds from a real microphone in the packaged app, on a clean Mac.
 - On macOS, that the microphone permission prompt appears and works.
 - Behaviour on Intel Macs: the macOS runner is Apple Silicon (arm64), so the artifact is arm64 only. An Intel build would need another runner.
 
