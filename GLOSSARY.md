@@ -47,3 +47,11 @@ _Avoid_: model, algorithm
 **Preamble**:
 The known sequence of symbols at the start of a Transmission, which the receiver searches for at every start time and audio frequency to find a Signal.
 _Avoid_: sync word, beeper, header
+
+**Code**:
+The error-correcting code of a PHY profile: it adds redundancy to a Frame so that a receiver can repair bits the noise damaged.
+_Avoid_: FEC, ECC
+
+**Soft value**:
+What a demodulator says about one coded bit: positive for "probably 0", negative for "probably 1", larger when it is surer. A Code decodes from soft values rather than from bits already decided.
+_Avoid_: LLR, probability

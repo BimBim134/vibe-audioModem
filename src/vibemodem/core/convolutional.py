@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from vibemodem.core.code import as_bits, as_vector
+
 CONSTRAINT_LENGTH = 7
 POLYNOMIALS = (0o171, 0o133)  # the classic pair, also used by CCSDS and many radio links
 TAIL_BITS = CONSTRAINT_LENGTH - 1  # zeros that bring the encoder back to state 0
@@ -68,3 +70,17 @@ def decode(soft: np.ndarray) -> np.ndarray:
         bits[step] = state & 1
         state = _PREVIOUS[state, choices[step, state]]
     return bits[: steps - TAIL_BITS]
+
+
+class ConvolutionalCode:
+    """The code above as a `Code`, for a Frame of `info_bits` bits."""
+
+    def __init__(self, info_bits: int):
+        self.info_bits = info_bits
+        self.coded_bits = 2 * (info_bits + TAIL_BITS)
+
+    def encode(self, bits: np.ndarray) -> np.ndarray:
+        return encode(as_bits(bits, self.info_bits))
+
+    def decode(self, soft: np.ndarray) -> np.ndarray:
+        return decode(as_vector(soft, self.coded_bits, "soft values"))

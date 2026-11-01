@@ -1,0 +1,18 @@
+{
+  "modem": "vibemodem.core.baseline:BaselineModem",
+  "preset": "standard",
+  "machine": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "cpu_count": 12,
+    "numpy": "2.5.4"
+  },
+  "recording_seconds": 24.6,
+  "receive_seconds": 0.13836667600116925,
+  "real_time_factor": 177.78847270850187,
+  "repeats": 7,
+  "code_decode_seconds": {
+    "clean": 0.002168851000533323,
+    "failing": 0.0013629614986712113
+  }
+}
