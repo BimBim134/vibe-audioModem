@@ -55,6 +55,6 @@ One-way broadcast for radio amateurs (no ACK/ARQ). Robustness over speed (KPI = 
 - ADR : `docs/adr/0001` (rewrite from scratch, legacy taggé), `0002` (cœur NumPy sans GNU Radio).
 - Pile : Python 3.12, NumPy/SciPy, `sounddevice`, FastAPI/Uvicorn (127.0.0.1), pytest + ruff, `pyproject.toml` + lockfile. UI web = une page HTML + JS simple, canvas pour spectre/cascade, sans npm.
 - Plateformes : Windows d'abord (test via GitHub Actions), puis macOS/Linux. Dev sous Linux.
-- Licence : GPL-3.0 par défaut, à confirmer avant d'importer du code tiers. Nouveau paquet : `src/vibemodem/` (`core/` sans E/S, `io/`, `app/`) + `bench/` pour le banc de mesure.
+- Licence : **GPL-3.0-only, confirmée par le propriétaire (2026-11-01).** Nouveau paquet : `src/vibemodem/` (`core/` sans E/S, `io/`, `app/`) + `bench/` pour le banc de mesure.
 - Roadmap : `TODO.md` réécrit (9 étapes 0–8 avec critères de fin). `TODO.md` = haut niveau ; le détail = tickets GitHub via `/to-spec` puis `/to-tickets`.
 - Matériel de test réel : deux ordinateurs + câble audio ; ensuite haut-parleur/micro ; ensuite deux radios + cartes son. Le récepteur garde l'audio brut et des indicateurs de performance à chaque réception pour rejouer et affiner au banc.

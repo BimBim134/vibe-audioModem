@@ -34,4 +34,4 @@ uv run pytest
 
 ## License
 
-GPL-3.0 by default. See [`LICENSE`](LICENSE). The choice is to be confirmed by the project owner before any third-party code is imported.
+GPL-3.0 (`GPL-3.0-only`), confirmed by the project owner. See [`LICENSE`](LICENSE).
