@@ -48,6 +48,8 @@ uv run python -m bench.report toy.json other.json --out compare.html
 
 The report is a single offline HTML file (no script, no link), so it can be opened anywhere and kept as a CI artifact. It flags results measured on different terms (message length, channel, Preset) as not directly comparable.
 
+Two companion commands: `python -m bench.speed --modem pkg.mod:Class` times how fast a candidate receives against real time, and `python -m bench.code_curves --code pkg.mod:Class` measures how often an error-correcting code alone loses a frame on white noise. Past results are kept in [`docs/measurements/`](docs/measurements/README.md).
+
 How to read the result:
 
 - A trial counts as received only if the candidate returns exactly the Message that was sent. A wrong Message handed over, even next to the right one, makes the trial fail and is counted in `false_receptions`.

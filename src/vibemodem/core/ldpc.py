@@ -13,6 +13,7 @@ Decoding passes opinions back and forth between bits and rules until every rule 
 """
 
 import functools
+import hashlib
 
 import numpy as np
 
@@ -20,11 +21,12 @@ from vibemodem.core.code import as_bits, as_vector
 
 DEFAULT_INFO_BITS = 200
 DEFAULT_CODED_BITS = 400
-# Rules each information bit belongs to, and the min-sum normalisation, were chosen by
-# simulating 200 information bits at rate 1/2 on white noise (1,000 frames per point): at 2 dB of
-# Eb/N0, 6.9% of frames were lost against 18.5% for the convolutional code of the baseline;
-# degree 3 lost 12.3% and degree 5 5.7% but did worse at 1.5 dB, normalisations of 0.7 and 1.0
-# were worse than 0.8.
+# Rules each information bit belongs to, and the min-sum normalisation below, were chosen by
+# simulating 200 information bits at rate 1/2 on white noise. At 2 dB of Eb/N0 this code loses
+# about 7% of frames against about 16% for the convolutional code of the baseline (reproduce
+# with `python -m bench.code_curves`, see docs/measurements/README.md). Degrees 3 and 5 and
+# normalisations 0.7, 0.9 and 1.0 were tried in exploratory runs that were not kept; they did
+# worse in the low range that matters here.
 DEFAULT_INFO_DEGREE = 4
 DEFAULT_MAX_ITERATIONS = 50
 DEFAULT_NORMALISATION = 0.8  # min-sum overstates the opinions; this brings them back down
@@ -91,6 +93,7 @@ class LdpcCode:
             raise ValueError("max_iterations must be at least 1")
         self.info_bits = info_bits
         self.coded_bits = coded_bits
+        self._info_degree = info_degree
         self._normalisation = normalisation
         self._max_iterations = max_iterations
         self.rules = _rules(info_bits, coded_bits, info_degree)
@@ -113,6 +116,18 @@ class LdpcCode:
         self._info_links = [
             np.array([bit for bit in rule if bit < info_bits], dtype=int) for rule in self.rules
         ]
+
+    @property
+    def parameters(self) -> dict:
+        """What a result file records so the code that was measured can be told apart."""
+        return {
+            "kind": "ldpc",
+            "rule_count": len(self.rules),
+            "info_degree": self._info_degree,
+            "rules_digest": hashlib.sha256(repr(self.rules).encode()).hexdigest()[:16],
+            "normalisation": self._normalisation,
+            "max_iterations": self._max_iterations,
+        }
 
     def encode(self, bits: np.ndarray) -> np.ndarray:
         bits = as_bits(bits, self.info_bits)

@@ -1,6 +1,17 @@
 {
   "schema_version": 1,
   "modem": "vibemodem.core.baseline:BaselineModem",
+  "code": {
+    "info_bits": 200,
+    "coded_bits": 412,
+    "kind": "convolutional",
+    "constraint_length": 7,
+    "polynomials_octal": [
+      "171",
+      "133"
+    ],
+    "tail_bits": 6
+  },
   "preset": "standard",
   "seed": 1,
   "trials": 300,

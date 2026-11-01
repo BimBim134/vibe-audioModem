@@ -64,3 +64,17 @@ class ToneModem(RecordingModem):
         self.messages.append(message)
         self.sent = message
         return 0.5 * np.sin(2 * np.pi * 1000 * np.arange(48_000) / 48_000)
+
+
+class UncodedBits:
+    """A 'code' that adds nothing: coded bits are the information bits, decided by their sign."""
+
+    def __init__(self, info_bits=1):
+        self.info_bits = self.coded_bits = info_bits
+        self.parameters = {"kind": "uncoded"}
+
+    def encode(self, bits):
+        return np.asarray(bits, dtype=np.uint8)
+
+    def decode(self, soft):
+        return (np.asarray(soft) < 0).astype(np.uint8)

@@ -79,6 +79,16 @@ class ConvolutionalCode:
         self.info_bits = info_bits
         self.coded_bits = 2 * (info_bits + TAIL_BITS)
 
+    @property
+    def parameters(self) -> dict:
+        """What a result file records so the code that was measured can be told apart."""
+        return {
+            "kind": "convolutional",
+            "constraint_length": CONSTRAINT_LENGTH,
+            "polynomials_octal": [f"{polynomial:o}" for polynomial in POLYNOMIALS],
+            "tail_bits": TAIL_BITS,
+        }
+
     def encode(self, bits: np.ndarray) -> np.ndarray:
         return encode(as_bits(bits, self.info_bits))
 

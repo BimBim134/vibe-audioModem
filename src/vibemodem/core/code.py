@@ -15,6 +15,7 @@ class Code(Protocol):
 
     info_bits: int
     coded_bits: int
+    parameters: dict  # plain data describing the code, kept in result files
 
     def encode(self, bits: np.ndarray) -> np.ndarray:
         """The `coded_bits` coded bits (0 or 1) for `info_bits` information bits."""

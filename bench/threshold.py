@@ -156,8 +156,16 @@ def _print_report(points: list[CurvePoint], threshold: float | None) -> None:
         print(f"Success threshold: {threshold:g} dB")
 
 
+def _describe_code(modem: Modem) -> dict | None:
+    code = getattr(modem, "code", None)
+    if code is None:
+        return None
+    return {"info_bits": code.info_bits, "coded_bits": code.coded_bits, **code.parameters}
+
+
 def _result(
     args: argparse.Namespace,
+    modem: Modem,
     channel: ChannelConfig,
     points: list[CurvePoint],
     threshold: float | None,
@@ -166,6 +174,7 @@ def _result(
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "modem": args.modem,
+        "code": _describe_code(modem),
         "preset": args.preset,
         "seed": args.seed,
         "trials": args.trials,
@@ -227,7 +236,7 @@ def main(argv: list[str] | None = None) -> None:
     threshold = success_threshold(points)
     _print_report(points, threshold)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    result = _result(args, channel, points, threshold)
+    result = _result(args, modem, channel, points, threshold)
     args.out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     if args.html:
         write_report([result], args.html)

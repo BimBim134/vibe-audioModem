@@ -1,16 +1,20 @@
 """The contract every error-correcting code honours, checked on each code we have."""
 
+import json
+
 import numpy as np
 import pytest
 
 from vibemodem.core.convolutional import ConvolutionalCode
 from vibemodem.core.ldpc import LdpcCode
+from vibemodem.core.turbo import TurboCode
 
 INFO_BITS = 200
 
 CODES = [
     pytest.param(ConvolutionalCode(INFO_BITS), id="convolutional"),
     pytest.param(LdpcCode(), id="ldpc"),
+    pytest.param(TurboCode(INFO_BITS), id="turbo"),
 ]
 
 
@@ -90,3 +94,23 @@ def test_bits_and_soft_values_must_be_flat_lists_of_real_numbers(code):
 def test_bits_other_than_0_and_1_are_refused(code):
     with pytest.raises(ValueError, match="0 or 1"):
         code.encode(np.full(INFO_BITS, 2))
+
+
+@pytest.mark.parametrize("code", CODES)
+def test_a_code_describes_itself_in_plain_data_for_the_result_files(code):
+    description = json.loads(json.dumps(code.parameters))  # must survive a trip through JSON
+    assert description["kind"] in {"convolutional", "ldpc", "turbo"}
+
+
+@pytest.mark.parametrize(
+    "tuned, default",
+    [
+        (LdpcCode(max_iterations=10), LdpcCode()),
+        (LdpcCode(normalisation=0.7), LdpcCode()),
+        (TurboCode(INFO_BITS, iterations=4), TurboCode(INFO_BITS)),
+        (TurboCode(INFO_BITS, scaling=0.5), TurboCode(INFO_BITS)),
+        (TurboCode(INFO_BITS, interleaver=range(INFO_BITS)), TurboCode(INFO_BITS)),
+    ],
+)
+def test_a_retuned_code_does_not_describe_itself_as_the_default_one(tuned, default):
+    assert tuned.parameters != default.parameters

@@ -1,4 +1,4 @@
-"""The 8-FSK modems (baseline, LDPC): sync by correlation, CRC-32, nothing wrong delivered."""
+"""The 8-FSK modems (baseline, LDPC, turbo): sync, CRC-32, nothing wrong delivered."""
 
 import numpy as np
 import pytest
@@ -7,11 +7,12 @@ from bench.channel import REFERENCE_BANDWIDTH_HZ, ChannelConfig, apply_channel
 from vibemodem.core import baseline, mfsk
 from vibemodem.core.baseline import MESSAGE_CAPACITY, BaselineModem
 from vibemodem.core.ldpc_modem import LdpcModem
+from vibemodem.core.turbo_modem import TurboModem
 
 FS = 48_000
 
 
-@pytest.fixture(params=[BaselineModem, LdpcModem], ids=["baseline", "ldpc"])
+@pytest.fixture(params=[BaselineModem, LdpcModem, TurboModem], ids=["baseline", "ldpc", "turbo"])
 def modem_class(request):
     return request.param
 

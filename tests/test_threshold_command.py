@@ -124,3 +124,21 @@ def test_a_recording_that_cannot_exist_is_rejected(tmp_path, bad, capsys):
         main(["--modem", "bench.toy:ToyModem", *bad, "--out", str(out)])
     assert stop.value.code == 2
     assert not out.exists()
+
+
+def test_the_result_file_records_the_code_of_a_modem_that_has_one(tmp_path):
+    out = tmp_path / "coded.json"
+    main(
+        [
+            "--modem", "vibemodem.core.ldpc_modem:LdpcModem", "--snr-from", "-5", "--snr-to", "-5",
+            "--trials", "1", "--out", str(out),
+        ]
+    )  # fmt: skip
+    code = json.loads(out.read_text())["code"]
+    assert (code["kind"], code["info_bits"], code["coded_bits"]) == ("ldpc", 200, 400)
+    assert code["max_iterations"] == 50
+
+
+def test_the_result_file_has_no_code_for_a_modem_without_one(tmp_path):
+    result = json.loads(run(tmp_path, "tests.fake_modems:PerfectModem").read_text())
+    assert result["code"] is None
