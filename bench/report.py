@@ -174,6 +174,8 @@ _COMPARED = [
     ("preset", "Preset"),
     ("message_bytes", "message length"),
     ("channel", "channel impairments"),
+    ("max_lead_in_s", "hidden start"),
+    ("freq_offset_range_hz", "frequency shift"),
     ("required_success_rate", "required success rate"),
     ("reference_bandwidth_hz", "reference bandwidth"),
 ]
@@ -183,7 +185,7 @@ def _not_comparable(results: list[dict]) -> str:
     differing = [
         label
         for key, label in _COMPARED
-        if len({json.dumps(r[key], sort_keys=True) for r in results}) > 1
+        if len({json.dumps(r.get(key), sort_keys=True) for r in results}) > 1
     ]
     if len(results) < 2 or not differing:
         return ""

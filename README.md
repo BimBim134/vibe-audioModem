@@ -30,6 +30,14 @@ The bench sends random Messages through the channel simulator at a range of SNRs
 uv run python -m bench.threshold --modem bench.toy:ToyModem --snr-from -14 --snr-to -4 --trials 300 --seed 1 --out result.json
 ```
 
+A real candidate does not know when or where its Signal is. Hide it at a random moment and audio frequency with:
+
+```bash
+uv run python -m bench.threshold --modem vibemodem.core.baseline:BaselineModem --snr-from -18 --snr-to -12 --snr-step 0.5 \
+    --trials 300 --message-bytes 12 --max-lead-in-s 10 --tail-s 1 --freq-offset-from -1100 --freq-offset-to 1100 \
+    --out baseline.json --html baseline.html
+```
+
 It prints the curve and the threshold and writes everything to `result.json`. The same seed gives the same file (it holds no date or commit on purpose).
 
 Add `--html report.html` to also write a human-readable report (success-rate curve with 95% confidence bars, counts, threshold). To compare several candidates on one chart, ranked by threshold:

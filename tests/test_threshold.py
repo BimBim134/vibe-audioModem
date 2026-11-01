@@ -6,7 +6,14 @@ from scipy.special import erfc
 
 from bench.threshold import CurvePoint, measure_curve, success_threshold
 from bench.toy import BIT_RATE, ToyModem
-from tests.fake_modems import DeafModem, NoisyModem, PerfectModem, RecordingModem, WrongModem
+from tests.fake_modems import (
+    DeafModem,
+    NoisyModem,
+    PerfectModem,
+    RecordingModem,
+    ToneModem,
+    WrongModem,
+)
 
 
 def curve(*points):
@@ -136,3 +143,47 @@ def test_the_toy_modem_follows_the_textbook_curve_on_white_noise(snr_db):
     (point,) = run_toy(seed=11, snr_db_values=[snr_db], trials=1500)
     expected = theoretical_success_rate(snr_db, message_bytes=2)
     assert point.success_rate == pytest.approx(expected, abs=THEORY_TOLERANCE)
+
+
+def hear(modem_class, **overrides):
+    modem = modem_class()
+    arguments = (
+        dict(preset="standard", snr_db_values=[60.0], trials=6, seed=2, message_bytes=2) | overrides
+    )
+    measure_curve(modem, **arguments)
+    return modem.heard
+
+
+def first_loud_sample(audio):
+    return int(np.argmax(np.abs(audio) > 0.25))
+
+
+def test_each_trial_hides_the_transmission_at_a_random_moment_in_a_longer_recording():
+    heard = hear(RecordingModem, max_lead_in_s=2.0, tail_s=1.0)
+    assert {len(audio) for audio in heard} == {480 + 3 * 48_000}  # same length every time
+    starts = [first_loud_sample(audio) for audio in heard]
+    assert all(0 <= start <= 2 * 48_000 for start in starts)
+    assert len(set(starts)) > 1
+    again = [first_loud_sample(a) for a in hear(RecordingModem, max_lead_in_s=2.0, tail_s=1.0)]
+    assert again == starts  # the seed fixes the moments too
+
+
+def test_noise_is_set_against_the_transmission_not_against_the_silence_around_it():
+    # 480 samples of 0.5 is 0.25 W; at 0 dB in 2,500 Hz the noise std is sqrt(0.25 * 9.6).
+    (audio, *_) = hear(RecordingModem, snr_db_values=[0.0], max_lead_in_s=5.0, tail_s=0.0)
+    assert np.std(audio[: 4 * 48_000]) == pytest.approx(np.sqrt(0.25 * 9.6), rel=0.05)
+
+
+def test_each_trial_shifts_the_whole_signal_by_a_random_frequency_in_the_range():
+    heard = hear(ToneModem, freq_offset_range_hz=(100.0, 200.0))
+    peaks = []
+    for audio in heard:
+        spectrum = np.abs(np.fft.rfft(audio))
+        peaks.append(np.argmax(spectrum) * 48_000 / audio.size)
+    assert all(1100 <= peak <= 1200 for peak in peaks)
+    assert len({round(peak) for peak in peaks}) > 1
+
+
+def test_without_padding_or_offset_the_audio_is_what_the_modem_produced():
+    heard = hear(RecordingModem)
+    assert {len(audio) for audio in heard} == {480}

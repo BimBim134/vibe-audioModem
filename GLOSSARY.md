@@ -43,3 +43,7 @@ _Avoid_: decode result, packet
 **Candidate**:
 A modem design under evaluation on the bench, scored by its Success threshold.
 _Avoid_: model, algorithm
+
+**Preamble**:
+The known sequence of symbols at the start of a Transmission, which the receiver searches for at every start time and audio frequency to find a Signal.
+_Avoid_: sync word, beeper, header

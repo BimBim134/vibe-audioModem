@@ -58,8 +58,11 @@ def _rng(seed: int, stream: int) -> np.random.Generator:
     return np.random.default_rng(np.random.SeedSequence(seed, spawn_key=(stream,)))
 
 
-def _add_noise(samples: np.ndarray, config: ChannelConfig, seed: int) -> np.ndarray:
-    signal_power = np.mean(samples**2)
+def _add_noise(
+    samples: np.ndarray, config: ChannelConfig, seed: int, signal_power: float | None
+) -> np.ndarray:
+    if signal_power is None:
+        signal_power = np.mean(samples**2)
     noise_power_in_reference = signal_power / 10 ** (config.snr_db / 10)
     # White noise spreads its power evenly over 0..fs/2.
     total_noise_power = noise_power_in_reference * (config.sample_rate / 2) / REFERENCE_BANDWIDTH_HZ
@@ -117,8 +120,18 @@ def _band_filter(samples: np.ndarray, config: ChannelConfig) -> np.ndarray:
     return signal.sosfiltfilt(sos, samples)  # zero phase: adds no delay
 
 
-def apply_channel(samples: np.ndarray, config: ChannelConfig, seed: int) -> np.ndarray:
-    """Pass audio through the channel, in the order a real signal meets each stage."""
+def apply_channel(
+    samples: np.ndarray,
+    config: ChannelConfig,
+    seed: int,
+    signal_power: float | None = None,
+) -> np.ndarray:
+    """Pass audio through the channel, in the order a real signal meets each stage.
+
+    The SNR is set against `signal_power`, by default the mean power of `samples`. Give the power
+    of the Transmission itself when `samples` also holds silence around it, otherwise the
+    silence would lower the reference and the noise.
+    """
     out = np.array(samples, dtype=float)
     if out.ndim != 1:
         raise ValueError("samples must be a single channel (1-D array)")
@@ -127,7 +140,7 @@ def apply_channel(samples: np.ndarray, config: ChannelConfig, seed: int) -> np.n
     if config.freq_offset_hz:
         out = _shift_frequency(out, config)
     if config.snr_db is not None:
-        out = _add_noise(out, config, seed)
+        out = _add_noise(out, config, seed, signal_power)
     if config.impulse_rate_hz:
         out = _add_impulses(out, config, seed)
     if config.band_filter:

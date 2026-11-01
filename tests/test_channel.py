@@ -165,3 +165,14 @@ def test_band_filter_edges_sit_about_6_db_down(freq_hz):
 def test_audio_that_is_not_a_single_channel_is_rejected():
     with pytest.raises(ValueError):
         apply_channel(np.zeros((2, 100)), ChannelConfig(), seed=1)
+
+
+def test_noise_follows_the_given_signal_power_when_the_audio_is_padded_with_silence():
+    burst = tone(1000, seconds=2.0, amplitude=0.5)
+    padded = np.concatenate([np.zeros(10 * FS), burst, np.zeros(10 * FS)])
+    noisy = apply_channel(
+        padded, ChannelConfig(snr_db=0), seed=5, signal_power=float(np.mean(burst**2))
+    )
+    # At 0 dB in 2,500 Hz the noise power is the signal power times (fs/2) / 2,500.
+    expected_std = np.sqrt(np.mean(burst**2) * (FS / 2) / 2500)
+    assert np.std(noisy[: 10 * FS]) == pytest.approx(expected_std, rel=0.02)

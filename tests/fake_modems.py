@@ -55,3 +55,12 @@ class RecordingModem(PerfectModem):
 class NeedsArguments:
     def __init__(self, required):
         self.required = required
+
+
+class ToneModem(RecordingModem):
+    """Sends one second of a 1,000 Hz tone, so the bench's frequency shift can be measured."""
+
+    def modulate(self, message, preset):
+        self.messages.append(message)
+        self.sent = message
+        return 0.5 * np.sin(2 * np.pi * 1000 * np.arange(48_000) / 48_000)

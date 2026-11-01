@@ -9,6 +9,10 @@ Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabu
 | Path | What is there |
 | :-- | :-- |
 | `src/vibemodem/core/modem.py` | The candidate interface: `Modem` protocol (`modulate(message, preset)`, `demodulate(samples)`) and `Reception` (message plus optional metrics). The rest of the core is empty so far. Imports nothing from `io`, `app`, `bench`, the network or audio libraries; enforced by a test. |
+| `src/vibemodem/core/baseline.py` | `BaselineModem`, the reference candidate: 8-FSK in about 100 Hz, one fixed Frame per Transmission (up to 20 bytes), soft-decision convolutional code, CRC-32, preamble search. Preset `standard` only. |
+| `src/vibemodem/core/mfsk.py` | 8 tones 12.5 Hz apart, 80 ms symbols, continuous phase; `synthesize`, `tone_energies`, and the search for the preamble over every start time and audio frequency (`find_signals`, then `refine`). |
+| `src/vibemodem/core/convolutional.py` | Rate-1/2, constraint length 7 code and its soft-decision Viterbi decoder. |
+| `src/vibemodem/core/frame.py` | The fixed-size Frame: length byte, padded Message, CRC-32, whitened; `encode_frame` / `decode_frame` (None when the checksum fails). |
 | `src/vibemodem/io/recorder.py` | Spike-grade audio input: list devices, record N seconds. Reports a missing audio library separately from a missing device. |
 | `src/vibemodem/app/hello.py` | Packaging-spike app: loopback web page (record 5 s, DSP self-test, quit), `create_app` with injected recorder for tests. `python -m vibemodem.app` runs it. |
 | `bench/channel.py` | Channel simulator: `apply_channel(samples, ChannelConfig, seed)`; fading, frequency offset, white noise at an SNR in 2,500 Hz, impulses, 300–2,700 Hz filter, clipping, clock drift. All off by default, each with its own seeded stream. |
@@ -16,7 +20,7 @@ Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabu
 | `bench/threshold.py` | `measure_curve`, `success_threshold` (lowest SNR reaching 95%, with every higher tested SNR also passing) and the command `python -m bench.threshold --modem pkg.mod:Class --out file.json`. |
 | `bench/report.py` | Self-contained HTML report (inline SVG chart, Wilson 95% intervals, ranking, not-comparable notice) from result JSON files: `render_report`, and the command `python -m bench.report a.json b.json --out r.html`; also reached through `--html` on the threshold command. |
 | `packaging/` | `vibemodem.spec` (PyInstaller, windowed), `entry.py`, `smoke_test.py` (run against the built executable in CI). |
-| `tests/` | `test_layers.py` (layers importable, core stays pure), `test_channel.py`, `test_hello_app.py`, `test_toy_modem.py`, `test_threshold.py` (threshold logic, toy modem vs theory), `test_threshold_command.py`, `test_report.py`, `test_report_command.py`; `fake_modems.py` holds stand-in candidates. |
+| `tests/` | `test_layers.py` (layers importable, core stays pure), `test_channel.py`, `test_hello_app.py`, `test_toy_modem.py`, `test_threshold.py` (threshold logic, toy modem vs theory), `test_threshold_command.py`, `test_report.py`, `test_report_command.py`, `test_baseline_modem.py` (round trip, unknown start and frequency, never-delivered cases); `fake_modems.py` holds stand-in candidates. |
 | `.github/workflows/` | `ci.yml` (ruff + pytest on Linux/Windows/macOS), `package.yml` (build, smoke-test and upload Windows/macOS artifacts). |
 | `docs/` | `adr/` (decisions), `packaging/` (spike findings, manual check procedure), `legacy/` (prototype docs), `references/` (papers), `agents/` (this folder). |
 

@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.baseline:BaselineModem",
+  "preset": "standard",
+  "seed": 1,
+  "trials": 300,
+  "message_bytes": 12,
+  "max_lead_in_s": 10.0,
+  "tail_s": 1.0,
+  "freq_offset_range_hz": [
+    -1100.0,
+    1100.0
+  ],
+  "reference_bandwidth_hz": 2500,
+  "required_success_rate": 0.95,
+  "channel": {
+    "sample_rate": 48000,
+    "fading_doppler_hz": null,
+    "clock_drift_ppm": 0.0,
+    "freq_offset_hz": 0.0,
+    "impulse_rate_hz": 0.0,
+    "impulse_duration_s": 0.001,
+    "impulse_amplitude": 1.0,
+    "band_filter": false,
+    "clip_level": null
+  },
+  "curve": [
+    {
+      "snr_db": -18.0,
+      "trials": 300,
+      "successes": 0,
+      "false_receptions": 0,
+      "success_rate": 0.0
+    },
+    {
+      "snr_db": -17.5,
+      "trials": 300,
+      "successes": 7,
+      "false_receptions": 0,
+      "success_rate": 0.023333333333333334
+    },
+    {
+      "snr_db": -17.0,
+      "trials": 300,
+      "successes": 44,
+      "false_receptions": 0,
+      "success_rate": 0.14666666666666667
+    },
+    {
+      "snr_db": -16.5,
+      "trials": 300,
+      "successes": 108,
+      "false_receptions": 0,
+      "success_rate": 0.36
+    },
+    {
+      "snr_db": -16.0,
+      "trials": 300,
+      "successes": 178,
+      "false_receptions": 0,
+      "success_rate": 0.5933333333333334
+    },
+    {
+      "snr_db": -15.5,
+      "trials": 300,
+      "successes": 255,
+      "false_receptions": 0,
+      "success_rate": 0.85
+    },
+    {
+      "snr_db": -15.0,
+      "trials": 300,
+      "successes": 286,
+      "false_receptions": 0,
+      "success_rate": 0.9533333333333334
+    },
+    {
+      "snr_db": -14.5,
+      "trials": 300,
+      "successes": 297,
+      "false_receptions": 0,
+      "success_rate": 0.99
+    },
+    {
+      "snr_db": -14.0,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -13.5,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -13.0,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -12.5,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -12.0,
+      "trials": 300,
+      "successes": 300,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    }
+  ],
+  "threshold_db": -15.0
+}

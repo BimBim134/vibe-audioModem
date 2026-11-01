@@ -93,3 +93,34 @@ def test_arguments_that_cannot_make_a_measurement_are_rejected(tmp_path, bad, ca
     assert stop.value.code == 2
     assert not out.exists()
     assert capsys.readouterr().err
+
+
+def test_the_result_file_records_where_and_when_the_transmission_was_hidden(tmp_path):
+    out = tmp_path / "hidden.json"
+    main(
+        [
+            "--modem", "tests.fake_modems:PerfectModem", *QUICK, "--out", str(out),
+            "--max-lead-in-s", "4", "--tail-s", "1", "--freq-offset-from", "-300",
+            "--freq-offset-to", "500",
+        ]
+    )  # fmt: skip
+    result = json.loads(out.read_text())
+    assert result["max_lead_in_s"] == 4
+    assert result["tail_s"] == 1
+    assert result["freq_offset_range_hz"] == [-300, 500]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        ["--max-lead-in-s", "-1"],
+        ["--tail-s", "-1"],
+        ["--freq-offset-from", "5", "--freq-offset-to", "1"],
+    ],
+)
+def test_a_recording_that_cannot_exist_is_rejected(tmp_path, bad, capsys):
+    out = tmp_path / "x.json"
+    with pytest.raises(SystemExit) as stop:
+        main(["--modem", "bench.toy:ToyModem", *bad, "--out", str(out)])
+    assert stop.value.code == 2
+    assert not out.exists()

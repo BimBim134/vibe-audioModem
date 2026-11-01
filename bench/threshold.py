@@ -63,6 +63,9 @@ def measure_curve(
     seed: int,
     message_bytes: int,
     channel: ChannelConfig | None = None,
+    max_lead_in_s: float = 0.0,
+    tail_s: float = 0.0,
+    freq_offset_range_hz: tuple[float, float] = (0.0, 0.0),
 ) -> list[CurvePoint]:
     """Send random Messages through the channel at each SNR and count the correct receptions.
 
@@ -71,27 +74,45 @@ def measure_curve(
     Message is counted as a false reception. Every trial draws its Message and its channel
     noise from the seed, so a run is reproducible. The channel impairments other than white
     noise default to none.
+
+    A real receiver does not know when a Transmission starts or where it sits in the audio band.
+    With `max_lead_in_s` and `tail_s` each Transmission is hidden at a random moment in a
+    recording of constant length (silence before and after, filled with the channel's noise), and
+    `freq_offset_range_hz` shifts it by a random number of Hz. The SNR stays that of the
+    Transmission itself, not of the whole recording.
     """
     if trials < 1:
         raise ValueError("trials must be at least 1")
     if message_bytes < 1:
         raise ValueError("message_bytes must be at least 1")
+    if max_lead_in_s < 0 or tail_s < 0:
+        raise ValueError("max_lead_in_s and tail_s must not be negative")
+    if freq_offset_range_hz[0] > freq_offset_range_hz[1]:
+        raise ValueError("freq_offset_range_hz must be (low, high) with low <= high")
     channel = channel or ChannelConfig()
     points = []
     for index, snr_db in enumerate(snr_db_values):
         successes = false_receptions = 0
         for trial in range(trials):
             sequence = np.random.SeedSequence(seed, spawn_key=(index, trial))
-            message = (
-                np.random.default_rng(sequence)
-                .integers(0, 256, message_bytes, dtype=np.uint8)
-                .tobytes()
-            )
-            samples = modem.modulate(message, preset)
+            rng = np.random.default_rng(sequence)
+            message = rng.integers(0, 256, message_bytes, dtype=np.uint8).tobytes()
+            lead = rng.uniform(0.0, max_lead_in_s)
+            offset = rng.uniform(*freq_offset_range_hz)
+
+            transmission = modem.modulate(message, preset)
+            rate = channel.sample_rate
+            before = round(lead * rate)
+            after = round((max_lead_in_s + tail_s) * rate) - before
+            recording = np.concatenate([np.zeros(before), transmission, np.zeros(after)])
+            trial_channel = replace(channel, snr_db=snr_db)
+            if freq_offset_range_hz != (0.0, 0.0):
+                trial_channel = replace(trial_channel, freq_offset_hz=offset)
             noisy = apply_channel(
-                samples,
-                replace(channel, snr_db=snr_db),
+                recording,
+                trial_channel,
                 seed=int(sequence.generate_state(1)[0]),
+                signal_power=float(np.mean(np.square(transmission))),
             )
             received = [r.message for r in modem.demodulate(noisy)]
             successes += received == [message]
@@ -149,6 +170,9 @@ def _result(
         "seed": args.seed,
         "trials": args.trials,
         "message_bytes": args.message_bytes,
+        "max_lead_in_s": args.max_lead_in_s,
+        "tail_s": args.tail_s,
+        "freq_offset_range_hz": [args.freq_offset_from, args.freq_offset_to],
         "reference_bandwidth_hz": REFERENCE_BANDWIDTH_HZ,
         "required_success_rate": REQUIRED_SUCCESS_RATE,
         "channel": {k: v for k, v in asdict(channel).items() if k != "snr_db"},
@@ -169,6 +193,15 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--trials", type=int, default=100, help="Messages sent at each SNR")
     parser.add_argument("--message-bytes", type=int, default=2, help="length of each Message")
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument(
+        "--max-lead-in-s",
+        type=float,
+        default=0.0,
+        help="hide the signal up to this many seconds in",
+    )
+    parser.add_argument("--tail-s", type=float, default=0.0, help="silence kept after the signal")
+    parser.add_argument("--freq-offset-from", type=float, default=0.0, help="lowest shift, in Hz")
+    parser.add_argument("--freq-offset-to", type=float, default=0.0, help="highest shift, in Hz")
     parser.add_argument("--out", required=True, type=Path, help="JSON file to write")
     parser.add_argument("--html", type=Path, help="also write a human-readable HTML report")
     args = parser.parse_args(argv)
@@ -184,6 +217,9 @@ def main(argv: list[str] | None = None) -> None:
             seed=args.seed,
             message_bytes=args.message_bytes,
             channel=channel,
+            max_lead_in_s=args.max_lead_in_s,
+            tail_s=args.tail_s,
+            freq_offset_range_hz=(args.freq_offset_from, args.freq_offset_to),
         )
     except ValueError as error:
         parser.error(str(error))
