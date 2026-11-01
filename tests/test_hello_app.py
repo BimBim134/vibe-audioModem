@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from vibemodem.app.hello import create_app
-from vibemodem.io.recorder import NoInputDeviceError
+from vibemodem.io.recorder import AudioLibraryUnavailableError, NoInputDeviceError
 
 
 def make_client(record=None, devices=None, quits=None):
@@ -39,11 +39,25 @@ def test_devices_are_listed():
     assert [d["name"] for d in devices] == ["Fake microphone"]
 
 
+def test_devices_report_that_the_audio_library_works():
+    assert make_client().get("/api/devices").json()["audio_library"] == "ok"
+
+
+def test_devices_report_when_the_audio_library_itself_is_missing():
+    def missing():
+        raise AudioLibraryUnavailableError("PortAudio not found")
+
+    body = make_client(devices=missing).get("/api/devices").json()
+    assert body["devices"] == []
+    assert body["audio_library"].startswith("unavailable")
+
+
 def test_devices_list_is_empty_when_no_audio_is_available():
     def broken():
         raise NoInputDeviceError("no portaudio")
 
-    assert make_client(devices=broken).get("/api/devices").json() == {"devices": []}
+    body = make_client(devices=broken).get("/api/devices").json()
+    assert body == {"devices": [], "audio_library": "ok"}
 
 
 def test_record_reports_length_and_level_of_the_captured_audio():

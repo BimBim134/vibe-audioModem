@@ -1,6 +1,6 @@
 """Start a packaged build, check it serves its page and runs DSP, then stop it.
 
-Usage: python packaging/smoke_test.py <path-to-packaged-executable>
+Usage: python packaging/smoke_test.py <path-to-packaged-executable> [--require-audio-library]
 
 It cannot check recording from a real microphone: CI machines have no audio input.
 That part is verified by hand on a clean machine (see docs/packaging-spike.md).
@@ -36,7 +36,7 @@ def wait_until_up(process, timeout=90):
     raise SystemExit("packaged app did not start in time")
 
 
-def main(executable):
+def main(executable, require_audio_library):
     process = subprocess.Popen([executable, "--no-browser", "--port", str(PORT)])
     try:
         wait_until_up(process)
@@ -44,7 +44,9 @@ def main(executable):
         assert status == 200 and "Record 5 seconds" in page, "page not served"
         detected = json.loads(get("/api/selftest")[1])["detected_hz"]
         assert abs(detected - 1000) <= 1, f"DSP self-test failed: {detected}"
-        json.loads(get("/api/devices")[1])  # must be valid JSON, empty list on CI
+        audio = json.loads(get("/api/devices")[1])["audio_library"]
+        # CI has no microphone, but the bundled audio library must still load.
+        assert audio == "ok" or not require_audio_library, f"audio library: {audio}"
         get("/api/quit", method="POST")
         process.wait(timeout=20)
     finally:
@@ -54,4 +56,5 @@ def main(executable):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    # On Linux the audio library comes from the system, so only Windows/macOS builds require it.
+    main(sys.argv[1], require_audio_library="--require-audio-library" in sys.argv)

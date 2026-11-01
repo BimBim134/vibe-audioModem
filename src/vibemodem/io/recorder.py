@@ -11,11 +11,15 @@ class NoInputDeviceError(RuntimeError):
     """Raised when no audio input device can be used."""
 
 
+class AudioLibraryUnavailableError(NoInputDeviceError):
+    """Raised when the audio library (PortAudio) itself cannot be loaded."""
+
+
 def _sounddevice():
     try:
         import sounddevice
     except OSError as exc:  # the PortAudio library is missing
-        raise NoInputDeviceError(f"audio library unavailable: {exc}") from exc
+        raise AudioLibraryUnavailableError(str(exc)) from exc
     return sounddevice
 
 

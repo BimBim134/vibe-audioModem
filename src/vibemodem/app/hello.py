@@ -20,7 +20,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from vibemodem.io.recorder import NoInputDeviceError, list_input_devices, record
+from vibemodem.io.recorder import (
+    AudioLibraryUnavailableError,
+    NoInputDeviceError,
+    list_input_devices,
+    record,
+)
 
 SELFTEST_TONE_HZ = 1000
 SELFTEST_SAMPLE_RATE = 48_000
@@ -114,9 +119,11 @@ def create_app(
     @app.get("/api/devices")
     def devices() -> dict:
         try:
-            return {"devices": list_devices()}
+            return {"devices": list_devices(), "audio_library": "ok"}
+        except AudioLibraryUnavailableError as exc:
+            return {"devices": [], "audio_library": f"unavailable: {exc}"}
         except NoInputDeviceError:
-            return {"devices": []}
+            return {"devices": [], "audio_library": "ok"}
 
     @app.post("/api/record")
     def record_audio(request: RecordRequest) -> dict:

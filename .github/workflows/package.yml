@@ -35,7 +35,7 @@ jobs:
       - name: Build
         run: uv run pyinstaller packaging/vibemodem.spec --noconfirm
       - name: Smoke test the packaged build
-        run: uv run python packaging/smoke_test.py ${{ matrix.executable }}
+        run: uv run python packaging/smoke_test.py ${{ matrix.executable }} --require-audio-library
       - name: Zip (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
