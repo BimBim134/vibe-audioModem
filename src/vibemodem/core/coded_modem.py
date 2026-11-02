@@ -1,0 +1,116 @@
+"""What every modem built on a Code shares: the Frame, the order the bits are sent in, and
+the loop that turns a recording into Messages.
+
+A modem that differs from another only by its waveform or by its code comes from here, so a
+difference in their Success threshold is the waveform's or the code's. A subclass says how to
+build the audio of a stream of bits, how to find Signals in a recording and how to read the soft
+values of a Signal's bits.
+"""
+
+import math
+
+import numpy as np
+
+from vibemodem.core import frame
+from vibemodem.core.code import Code
+from vibemodem.core.modem import Reception
+
+PRESET = "standard"
+SAMPLE_RATE = 48_000
+NOISE_BANDWIDTH_HZ = 2500  # the reference bandwidth in which SNRs are quoted
+# The search keeps a few arrays of (windows x frequencies) numbers; this bounds their size.
+MAX_RECORDING_SECONDS = 600
+MAX_REPETITIONS = 8
+_GOLDEN_RATIO_FRACTION = (math.sqrt(5) - 1) / 2
+
+
+def _send_order(count: int, copy: int, interleave: bool) -> np.ndarray:
+    """For each position of one copy of the coded bits as sent, which coded bit goes there.
+
+    Without interleaving, the order of the code. With it, position j carries bit
+    (j * stride) mod count, the stride being a share of `count` close to a golden-ratio multiple
+    (so that bits sent next to each other are far apart in the code word, and any run of
+    positions is spread evenly over it), and a different stride for each copy.
+    """
+    if not interleave:
+        return np.arange(count)
+    stride = max(1, round(count * ((copy + 1) * _GOLDEN_RATIO_FRACTION % 1)))
+    while math.gcd(stride, count) != 1:
+        stride += 1
+    return (np.arange(count) * stride) % count
+
+
+class CodedModem:
+    """Sends one Message per Transmission; receives every Message found in a recording.
+
+    Receptions of the same Message (a repeated Transmission) are merged into one.
+    """
+
+    def __init__(self, code: Code, *, interleave: bool = False, repetitions: int = 1):
+        if code.info_bits != frame.FRAME_BITS:
+            raise ValueError(f"the code must take a Frame of {frame.FRAME_BITS} bits")
+        if not isinstance(repetitions, int) or not 1 <= repetitions <= MAX_REPETITIONS:
+            raise ValueError(f"repetitions must be a whole number from 1 to {MAX_REPETITIONS}")
+        if not isinstance(interleave, bool):
+            raise ValueError("interleave must be true or false")
+        self.code = code
+        self._interleave = interleave
+        self._repetitions = repetitions
+        self._sent_bits = repetitions * code.coded_bits
+        self._orders = [
+            _send_order(code.coded_bits, copy, interleave) for copy in range(repetitions)
+        ]
+
+    def _sent_stream(self, message: bytes) -> np.ndarray:
+        """The bits of a Transmission after its preamble: the coded Frame, once per copy."""
+        coded = self.code.encode(frame.encode_frame(message))
+        return np.concatenate([coded[order] for order in self._orders])
+
+    def _combine(self, soft_sent: np.ndarray) -> np.ndarray:
+        """The soft value of each coded bit: its copies, put back in place, added up."""
+        coded = self.code.coded_bits
+        combined = np.zeros(coded)
+        for copy, order in enumerate(self._orders):
+            combined[order] += soft_sent[copy * coded : (copy + 1) * coded]
+        return combined
+
+    def _message(self, soft_sent: np.ndarray) -> bytes | None:
+        """The Message the soft values of the sent bits carry, or None if the CRC refuses it."""
+        decoded = self.code.decode(self._combine(soft_sent[: self._sent_bits]))
+        return None if decoded is None else frame.decode_frame(decoded)
+
+    def _audio(self, message: bytes) -> np.ndarray:
+        raise NotImplementedError
+
+    def _find(self, samples: np.ndarray) -> list:
+        """Places where a Signal may be, best first, pinned down as finely as the search can."""
+        raise NotImplementedError
+
+    def _decode(self, samples: np.ndarray, signal) -> Reception | None:
+        raise NotImplementedError
+
+    def modulate(self, message: bytes, preset: str) -> np.ndarray:
+        if preset != PRESET:
+            raise ValueError(f"unknown Preset {preset!r}: this modem only has {PRESET!r}")
+        return self._audio(message)
+
+    def demodulate(self, samples: np.ndarray) -> list[Reception]:
+        samples = np.asarray(samples, dtype=float)
+        if samples.ndim != 1:
+            raise ValueError("audio must be one channel (a 1-D array of samples)")
+        if samples.size > MAX_RECORDING_SECONDS * SAMPLE_RATE:
+            raise ValueError(
+                f"recording too long: at most {MAX_RECORDING_SECONDS} s can be searched at once"
+            )
+        if not np.isfinite(samples).all():
+            raise ValueError("audio samples must be finite numbers")
+
+        received: dict[bytes, Reception] = {}
+        for signal in self._find(samples):
+            reception = self._decode(samples, signal)
+            if reception and (
+                reception.message not in received
+                or reception.sync_score > received[reception.message].sync_score
+            ):
+                received[reception.message] = reception
+        return sorted(received.values(), key=lambda r: -r.sync_score)

@@ -5,12 +5,8 @@
 """
 
 from vibemodem.core import frame
-from vibemodem.core.coded_mfsk import (
-    MAX_RECORDING_SECONDS,
-    NOISE_BANDWIDTH_HZ,
-    SAMPLE_RATE,
-    CodedMfskModem,
-)
+from vibemodem.core.coded_mfsk import CodedMfskModem
+from vibemodem.core.coded_modem import MAX_RECORDING_SECONDS, NOISE_BANDWIDTH_HZ, SAMPLE_RATE
 from vibemodem.core.convolutional import ConvolutionalCode
 from vibemodem.core.frame import MESSAGE_CAPACITY
 

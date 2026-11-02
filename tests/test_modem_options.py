@@ -6,7 +6,7 @@ import pytest
 from bench.channel import ChannelConfig, apply_channel
 from vibemodem.core import mfsk
 from vibemodem.core.baseline import BaselineModem
-from vibemodem.core.coded_mfsk import MAX_REPETITIONS, _send_order
+from vibemodem.core.coded_modem import MAX_REPETITIONS, _send_order
 from vibemodem.core.turbo_modem import TurboModem
 
 FS = mfsk.SAMPLE_RATE

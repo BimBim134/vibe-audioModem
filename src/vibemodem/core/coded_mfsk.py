@@ -14,40 +14,16 @@ import math
 
 import numpy as np
 
-from vibemodem.core import frame, mfsk
+from vibemodem.core import mfsk
 from vibemodem.core.code import Code
+from vibemodem.core.coded_modem import NOISE_BANDWIDTH_HZ, CodedModem
 from vibemodem.core.modem import Reception
 
-PRESET = "standard"
 SAMPLE_RATE = mfsk.SAMPLE_RATE
-NOISE_BANDWIDTH_HZ = 2500  # the reference bandwidth in which SNRs are quoted
-# The search keeps a few arrays of (windows x frequencies) numbers; this bounds their size.
-MAX_RECORDING_SECONDS = 600
-MAX_REPETITIONS = 8
-_GOLDEN_RATIO_FRACTION = (math.sqrt(5) - 1) / 2
 
 
-def _send_order(count: int, copy: int, interleave: bool) -> np.ndarray:
-    """For each position of one copy of the coded bits as sent, which coded bit goes there.
-
-    Without interleaving, the order of the code. With it, position j carries bit
-    (j * stride) mod count, the stride being a share of `count` close to a golden-ratio multiple
-    (so that bits sent next to each other are far apart in the code word, and any run of
-    positions is spread evenly over it), and a different stride for each copy.
-    """
-    if not interleave:
-        return np.arange(count)
-    stride = max(1, round(count * ((copy + 1) * _GOLDEN_RATIO_FRACTION % 1)))
-    while math.gcd(stride, count) != 1:
-        stride += 1
-    return (np.arange(count) * stride) % count
-
-
-class CodedMfskModem:
-    """Sends one Message per Transmission; receives every Message found in a recording.
-
-    Receptions of the same Message (a repeated Transmission) are merged into one.
-    """
+class CodedMfskModem(CodedModem):
+    """The modem that sends its coded bits as M-FSK symbols."""
 
     def __init__(
         self,
@@ -58,21 +34,9 @@ class CodedMfskModem:
         interleave: bool = False,
         repetitions: int = 1,
     ):
-        if code.info_bits != frame.FRAME_BITS:
-            raise ValueError(f"the code must take a Frame of {frame.FRAME_BITS} bits")
-        if not isinstance(repetitions, int) or not 1 <= repetitions <= MAX_REPETITIONS:
-            raise ValueError(f"repetitions must be a whole number from 1 to {MAX_REPETITIONS}")
-        if not isinstance(interleave, bool):
-            raise ValueError("interleave must be true or false")
-        self.code = code
+        super().__init__(code, interleave=interleave, repetitions=repetitions)
         self.waveform = mfsk.Waveform(tones=tones, symbol_seconds=symbol_ms / 1000)
-        self._interleave = interleave
-        self._repetitions = repetitions
-        self._sent_bits = repetitions * code.coded_bits
         self._data_symbols = math.ceil(self._sent_bits / self.waveform.bits_per_symbol)
-        self._orders = [
-            _send_order(code.coded_bits, copy, interleave) for copy in range(repetitions)
-        ]
         # How the energy ratio at a tone becomes an SNR: the noise of the reference bandwidth
         # over one symbol.
         self._energy_ratio_per_snr = self.waveform.symbol_seconds * NOISE_BANDWIDTH_HZ
@@ -98,47 +62,21 @@ class CodedMfskModem:
         return soft.reshape(-1)
 
     def _data_tones(self, message: bytes) -> np.ndarray:
-        coded = self.code.encode(frame.encode_frame(message))
-        sent = np.concatenate([coded[order] for order in self._orders])
+        sent = self._sent_stream(message)
         bits_per_symbol = self.waveform.bits_per_symbol
         padding = np.zeros(self._data_symbols * bits_per_symbol - sent.size, dtype=np.uint8)
         symbols = np.concatenate([sent, padding]).reshape(self._data_symbols, -1)
         return symbols @ self.waveform.bit_weights
 
-    def _combine(self, soft_sent: np.ndarray) -> np.ndarray:
-        """The soft value of each coded bit: its copies, put back in place, added up."""
-        coded = self.code.coded_bits
-        combined = np.zeros(coded)
-        for copy, order in enumerate(self._orders):
-            combined[order] += soft_sent[copy * coded : (copy + 1) * coded]
-        return combined
-
-    def modulate(self, message: bytes, preset: str) -> np.ndarray:
-        if preset != PRESET:
-            raise ValueError(f"unknown Preset {preset!r}: this modem only has {PRESET!r}")
+    def _audio(self, message: bytes) -> np.ndarray:
         tones = np.concatenate([self.waveform.preamble_tones, self._data_tones(message)])
         return self.waveform.synthesize(tones)
 
-    def demodulate(self, samples: np.ndarray) -> list[Reception]:
-        samples = np.asarray(samples, dtype=float)
-        if samples.ndim != 1:
-            raise ValueError("audio must be one channel (a 1-D array of samples)")
-        if samples.size > MAX_RECORDING_SECONDS * SAMPLE_RATE:
-            raise ValueError(
-                f"recording too long: at most {MAX_RECORDING_SECONDS} s can be searched at once"
-            )
-        if not np.isfinite(samples).all():
-            raise ValueError("audio samples must be finite numbers")
-
-        received: dict[bytes, Reception] = {}
-        for candidate in self.waveform.find_signals(samples):
-            reception = self._decode(samples, self.waveform.refine(samples, candidate))
-            if reception and (
-                reception.message not in received
-                or reception.sync_score > received[reception.message].sync_score
-            ):
-                received[reception.message] = reception
-        return sorted(received.values(), key=lambda r: -r.sync_score)
+    def _find(self, samples: np.ndarray) -> list[mfsk.Candidate]:
+        return [
+            self.waveform.refine(samples, candidate)
+            for candidate in self.waveform.find_signals(samples)
+        ]
 
     def _decode(self, samples: np.ndarray, signal: mfsk.Candidate) -> Reception | None:
         waveform = self.waveform
@@ -156,8 +94,7 @@ class CodedMfskModem:
         noise_energy = np.quantile(energy, quiet_median) / np.log(2)
         relative = energy / max(noise_energy, mfsk.NOISE_FLOOR_RATIO * energy.max() + 1e-300)
 
-        decoded = self.code.decode(self._combine(self._soft_bits(relative)[: self._sent_bits]))
-        message = None if decoded is None else frame.decode_frame(decoded)
+        message = self._message(self._soft_bits(relative))
         if message is None:
             return None
 
