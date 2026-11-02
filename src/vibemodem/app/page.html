@@ -184,23 +184,20 @@
       <option value="fast">Fast</option>
     </select>
   </label>
+  <label class="field"><span>Repetitions</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
   <label class="field"><span>Input</span><select id="input_device"><option value="">default</option></select></label>
   <label class="field"><span>Output</span><select id="output_device"><option value="">default</option></select></label>
   <p id="settings-note" aria-live="polite"></p>
   <div class="actions"><button id="apply" class="primary">Apply</button></div>
-  <
+  <br>
 
-  <h2>Sending</h2>
-  <label class="field"><span>Copies</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
-  <p>Each Message is sent this many times over.</p>
-
-  <h3>Stored receptions</h3>
+  <h2>Stored receptions</h2>
+  <p>For debug purpose only, each message reception can be stored with 3 s around each Signal. The oldest are deleted first when the limit is reached.</p>
   <label class="field"><input id="keep" type="checkbox"> Keep the audio and the figures of what is received</label>
   <label class="field"><span>Up to</span><input id="limit" class="wide" type="number" min="10" max="100000" step="10"> MB</label>
   <p id="usage" aria-live="polite"></p>
-  <p>This is the sound your input hears while it receives, with 3 s around each Signal: with a microphone or a radio it can hold voices of other people. It stays on this computer, in the folder shown above, and the oldest are deleted first when the limit is reached. To replay them: <code>python -m bench.replay FOLDER</code>.</p>
   <div class="actions"><button id="clear">Delete all stored receptions</button></div>
-
+  <br>
   <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
 </dialog>
 
