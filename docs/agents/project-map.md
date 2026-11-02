@@ -15,6 +15,8 @@ Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabu
 | `src/vibemodem/core/turbo_modem.py` | `TurboModem`: the same modem with the turbo code (same airtime as the baseline). |
 | `src/vibemodem/core/long_convolutional.py` | `LongConvolutionalCode`: the WSPR code (constraint length 32, rate 1/2, 31 tail bits, 462 coded bits) decoded by the Fano sequential algorithm in pure Python (threshold step 3, soft values scaled to a mean size of 2.5, 1,000 steps per bit then it gives up and returns None). A test pins the code's digest and checks the encoder against the polynomials. |
 | `src/vibemodem/core/long_convolutional_modem.py` | `LongConvolutionalModem`: the same modem with that code (a Transmission 9% longer than the others). |
+| `src/vibemodem/core/coded_modem.py` | `CodedModem`: what coded modems share (Frame, send order with interleaver and repetition, the reception loop). |
+| `src/vibemodem/core/gfsk.py`, `coded_gfsk.py`, `gfsk_modem.py` | GFSK `Waveform(baud, h, bt)` with a non-coherent receiver, `CodedGfskModem(code)` and `GfskModem` (turbo). |
 | `src/vibemodem/core/coded_mfsk.py` | `CodedMfskModem(code)`: the 8-FSK modem for any `Code`. |
 | `src/vibemodem/core/ldpc_modem.py` | `LdpcModem`: the same modem with the LDPC code. |
 | `src/vibemodem/core/baseline.py` | `BaselineModem`: the reference candidate, `CodedMfskModem` with the convolutional code (one fixed Frame per Transmission, up to 20 bytes, CRC-32, preamble search). Preset `standard` only. |

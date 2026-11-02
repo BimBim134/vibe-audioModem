@@ -191,3 +191,43 @@ Measured on the named channels only (no white-noise run), at 8 tones and 80 ms. 
 - The interleaver gains about 1 dB on the steep part (72% against 33.5% at -14 dB) and does nothing for the plateau (94-95% before and after).
 - Repetition x2 lowers the 80% level by 4 dB, but it sends twice as long: at equal energy it is a draw, and the plateau drops to 91-93% because a longer Transmission gives a deep fade more chances to hide the Preamble.
 - The plateau is therefore the Preamble being missed, as suspected. The wider answer found here is not a longer Preamble but longer symbols (previous section). A doubled Preamble is left as an option, not needed for v1.
+
+## GFSK candidate against M-FSK (ticket #12)
+
+`GfskModem` (`vibemodem.core.gfsk_modem:GfskModem`) is binary GFSK with the turbo code and the same Frame, preamble length (2.56 s), interleaver and repetition as the M-FSK modem. Settings: `baud`, `h` (modulation index, 0.5 is GMSK), `bt` (Gaussian filter bandwidth-time product, `null` = no filter). The receiver is written for this project and is not coherent: per bit it measures the energy at two frequencies and passes their difference to the Code as a soft value. Because a bit-long window cannot tell two tones closer than the baud rate apart, the measuring points are at least baud/2 either side of the carrier, which for `h` below 1 is farther out than the tones themselves.
+
+Sweep on white noise (turbo, 100 trials, step 1 dB, seed 1, same procedure as the M-FSK sweep): `python -m bench.sweep --modem vibemodem.core.gfsk_modem:GfskModem --grid baud=25,50,100 --grid h=0.5,1.0 --grid bt=0.3,0.5,null --snr-from -20 --snr-to -6 --snr-step 1 --trials 100 --jobs 6 --out docs/measurements/sweep/gfsk-white-turbo.json`. Thresholds in dB; "energy" is the 95% threshold plus 10 log10(Transmission length).
+
+| Baud | h | bt | Bandwidth | Transmission | 95% | 90% | Energy at 95% |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| 25 | 1 | none | 45 Hz | 19 s | -15 | -15 | -2.2 |
+| 25 | 1 | 0.5 | 40 Hz | 19 s | -14 | -15 | -1.2 |
+| 25 | 1 | 0.3 | 37 Hz | 19 s | -13 | -13 | -0.2 |
+| 25 | 0.5 | none | 32 Hz | 19 s | -12 | -12 | +0.8 |
+| 25 | 0.5 | 0.5 | 29 Hz | 19 s | -10 | -11 | +2.8 |
+| 25 | 0.5 | 0.3 | 26 Hz | 19 s | -9 | -9 | +3.8 |
+| 50 | 1 | none | 81 Hz | 10.8 s | -12 | -12 | -1.7 |
+| 50 | 1 | 0.5 | 67 Hz | 10.8 s | -11 | -12 | -0.7 |
+| 50 | 0.5 (GMSK) | 0.5 | 59 Hz | 10.8 s | -8 | -8 | +2.3 |
+| 100 | 1 | none | 136 Hz | 6.7 s | -9 | -9 | -0.8 |
+| 100 | 0.5 | none | 127 Hz | 6.7 s | -6 | -6 | +2.2 |
+| 100 | 0.5 | 0.5 | 117 Hz | 6.7 s | not reached | not reached | |
+
+(All 18 are in `docs/measurements/sweep/gfsk-white-turbo.json`.)
+
+On hf-fading (100 trials, step 2 dB, `docs/measurements/sweep/gfsk-hf-fading-turbo.json`):
+
+| Baud | bt | 95% | 90% | 80% |
+| :-- | :-- | :-- | :-- | :-- |
+| 25 | none | not reached (92-97%) | -10 | -12 |
+| 25 | 0.5 | not reached | -10 | -10 |
+| 50 | none | -6 | -8 | -8 |
+| 50 | 0.5 | -6 | -8 | -8 |
+
+What it shows:
+
+- **GFSK is behind M-FSK at the same band and energy.** The best GFSK point (25 Bd, h = 1, no filter: 45 Hz, -15 dB, 19 s, energy -2.2 dB) is about 2.5 dB worse in energy than 8-FSK (-4.7 dB), and 4 dB short of the 8-tone 160 ms point (64 Hz, -19 dB, 27 s). That is the textbook cost of choosing between two frequencies per bit without following the phase, instead of one of eight.
+- **GMSK (h = 0.5) is the weakest setting here**: 3 to 4 dB behind h = 1 at the same baud rate and filter. A non-coherent receiver cannot use the narrower tone spacing; a coherent one (Viterbi over the phase trellis) could, but it is more fragile under fading and was left out. This is the receiver's limit, not necessarily the modulation's.
+- **The Gaussian filter trades about 1 dB of threshold per step (none, 0.5, 0.3) for 10 to 15% of bandwidth**, and costs nothing visible under fading.
+- **Under fading** the fastest setting does best at 95% (50 Bd reaches -6 dB, against -4 dB for the default M-FSK) because its Transmission is short, but the M-FSK 8-tone points with symbols of 160 ms or more reach -14 dB and above 95% at high SNR; slow GFSK stays on the 92-97% plateau.
+- Same caveats as for the M-FSK sweep (100 trials per point, band from 3 Messages, long Transmissions fill the recording and degrade the noise estimate).
