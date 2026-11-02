@@ -119,7 +119,10 @@ class CodedMfskModem(CodedModem):
             return None
 
         sent = self._data_tones(message)
-        ratio = max(relative[np.arange(self._data_symbols), sent].mean() - 1.0, 1e-6)
+        # The SNR is read against the noise as measured, not against the floor that keeps the
+        # soft values sane: that floor (a thousandth of the loudest tone) would cap it near 7 dB.
+        sent_energy = energy[np.arange(self._data_symbols), sent].mean()
+        ratio = max(sent_energy / max(noise_energy, 1e-12 * energy.max() + 1e-300) - 1.0, 1e-6)
         return Reception(
             message=message,
             snr_db=float(10 * np.log10(ratio / self._energy_ratio_per_snr)),

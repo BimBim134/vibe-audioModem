@@ -23,7 +23,8 @@
   #spectrum { height: 6rem; }
   #axis { position: relative; height: 1.4rem; font-size: 0.75rem; }
   #axis span { position: absolute; transform: translateX(-50%); }
-  #legend { font-size: 0.75rem; opacity: 0.7; }
+  #legend, #legend2 { font-size: 0.75rem; opacity: 0.7; }
+  [title] { text-decoration: underline dotted; cursor: help; }
   h3 { font-size: 1rem; margin: 0.8rem 0 0.2rem; }
   #estimate.refused, #estimate .problem { color: #b00020; }
 </style>
@@ -70,6 +71,7 @@
     <div id="legend">Levels from -100 dB (dark) to -20 dB (white), fixed. Blue band: where the next Message would be sent.</div>
   </div>
   <ul id="received"></ul>
+  <p id="legend2">Each Message: the frequency of its lowest tone, <b>SNR</b> (signal-to-noise ratio, estimated in 2,500 Hz) and <b>sync</b> (how strongly its start matched: 7 is the limit of detection, about 20 at the weakest Signal that can be read, hundreds when strong). Messages appear up to 10 s after their end.</p>
   <h3>Detected, not decoded</h3>
   <ul id="undecoded"><li>None.</li></ul>
 </fieldset>
@@ -177,12 +179,21 @@ function deviceValue(id) {
   return value === "" ? null : Number(value);
 }
 
-function quality(item) {
-  const parts = [];
-  if (item.frequency_hz !== null) parts.push(Math.round(item.frequency_hz) + " Hz (" + (item.offset_hz >= 0 ? "+" : "") + Math.round(item.offset_hz) + ")");
-  if (item.snr_db !== null) parts.push("SNR " + Math.round(item.snr_db) + " dB");
-  if (item.sync_score !== null) parts.push("sync " + Math.round(item.sync_score));
-  return parts.join(", ");
+function qualityLine(item) {  // how a Message was received: each figure says what it is when pointed at
+  const line = document.createElement("div");
+  line.className = "part";
+  const figures = [
+    [item.frequency_hz, (v) => Math.round(v) + " Hz", "Frequency of the lowest tone of the Signal."],
+    [item.snr_db, (v) => "SNR " + Math.round(v) + " dB", "Signal-to-noise ratio, estimated in a 2,500 Hz bandwidth (the one of the Success threshold). The mean of the Fragments."],
+    [item.sync_score, (v) => "sync " + Math.round(v), "How strongly the start of the Signal matched what was expected, in standard deviations above the noise: 7 is the limit of detection, about 20 for the weakest Signal that can be read, hundreds for a strong one. The lowest of the Fragments."],
+  ];
+  figures.filter(([value]) => value !== null).forEach(([value, show, help], index) => {
+    if (index) line.append(" · ");
+    const span = document.createElement("span");
+    span.textContent = show(value); span.title = help;
+    line.append(span);
+  });
+  return line;
 }
 function showReceived(items) {
   const list = $("received");
@@ -203,9 +214,7 @@ function showReceived(items) {
         li.appendChild(piece);
       }
     }
-    const detail = document.createElement("div");
-    detail.className = "part"; detail.textContent = quality(item);
-    li.appendChild(detail);
+    li.appendChild(qualityLine(item));
     list.appendChild(li);
   }
 }

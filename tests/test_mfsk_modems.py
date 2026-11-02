@@ -154,3 +154,17 @@ def test_the_noise_bandwidth_is_the_one_the_bench_uses():
 
 def test_the_tables_every_modem_shares_cannot_be_modified():
     assert not mfsk.STANDARD.preamble_tones.flags.writeable
+
+
+@pytest.mark.parametrize("true_db", [-12, -4, 5, 15, 30])
+def test_the_estimated_snr_follows_the_true_one_from_weak_to_very_strong(true_db):
+    modem = TurboModem()
+    sound = modem.modulate(b"calibration", "standard")
+    heard = apply_channel(
+        np.concatenate([np.zeros(FS), sound, np.zeros(FS)]),
+        ChannelConfig(snr_db=float(true_db)),
+        seed=4,
+        signal_power=float(np.mean(sound**2)),
+    )
+    (reception,) = modem.demodulate(heard)
+    assert reception.snr_db == pytest.approx(true_db, abs=1.0)  # it once stopped at about 7 dB
