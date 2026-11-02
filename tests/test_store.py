@@ -1,6 +1,7 @@
 """The reception store: audio and indicators on disk, bounded, deleted on request."""
 
 import json
+import sys
 
 import numpy as np
 import pytest
@@ -157,7 +158,21 @@ def test_a_write_that_fails_leaves_nothing_behind(store, monkeypatch):
     assert [p.name for p in store.directory.iterdir()] == []
 
 
-def test_names_that_are_not_ours_and_links_are_never_counted_read_or_deleted(store, tmp_path):
+def test_names_that_are_not_ours_are_never_counted_read_or_deleted(store):
+    store.save(sound(0.1), indicators())
+    foreign = [
+        store.directory / "notes.wav",
+        store.directory / "20260101-000000-000-0000.wav.bak",
+        store.directory / "20260101-000000-000.wav",
+    ]
+    for path in foreign:
+        path.write_bytes(b"x" * 500)
+    assert store.usage()[0] == 1 and store.clear() == 1
+    assert all(path.exists() for path in foreign)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="names and links of POSIX file systems")
+def test_a_name_with_a_newline_and_a_link_are_never_counted_read_or_deleted(store, tmp_path):
     store.save(sound(0.1), indicators())
     odd = store.directory / "20260101-000000-000-0000.wav\n"
     odd.write_bytes(b"x" * 500)
