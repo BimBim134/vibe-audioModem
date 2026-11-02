@@ -103,3 +103,36 @@ def test_a_waveform_the_modem_cannot_use_is_refused_before_any_work_is_done(
         main(["--modem", "vibemodem.core.baseline:BaselineModem", *bad, "--out", str(out)])
     assert stop.value.code == 2 and not out.exists()
     assert word in capsys.readouterr().err
+
+
+def test_any_setting_can_be_swept_with_a_grid(tmp_path):
+    out = tmp_path / "grid.json"
+    main(
+        [
+            "--modem", MODEM, "--grid", "tones=2,4", "--grid", "symbol_ms=40",
+            "--snr-from", "-10", "--snr-to", "-6", "--snr-step", "2",
+            "--trials", "3", "--out", str(out),
+        ]
+    )  # fmt: skip
+    configurations = json.loads(out.read_text())["configurations"]
+    assert [(c["tones"], c["symbol_ms"]) for c in configurations] == [(2, 40), (4, 40)]
+
+
+def test_a_grid_prints_its_own_columns(tmp_path, capsys):
+    main(
+        [
+            "--modem", MODEM, "--grid", "interleave=false,true",
+            "--snr-from", "-10", "--snr-to", "-10", "--trials", "2",
+            "--out", str(tmp_path / "g.json"),
+        ]
+    )  # fmt: skip
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].split()[0] == "interleave"
+    assert [line.split()[0] for line in lines[1:]] == ["False", "True"]
+
+
+@pytest.mark.parametrize("bad", ["tones", "=2", "tones=", "tones=oops"])
+def test_a_grid_that_is_not_a_name_and_values_is_rejected(tmp_path, bad, capsys):
+    with pytest.raises(SystemExit) as stop:
+        main([*QUICK, "--grid", bad, "--out", str(tmp_path / "x.json")])
+    assert stop.value.code == 2 and capsys.readouterr().err

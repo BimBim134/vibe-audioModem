@@ -1,4 +1,4 @@
-"""Sweep the number of tones and the symbol duration of an M-FSK modem.
+"""Sweep the settings of a modem: tones and symbol duration of M-FSK, or any grid you give.
 
 For each combination, the occupied bandwidth, the duration of a Transmission and the SNRs at
 which 95%, 90% and 80% of the test Messages are received. A fixed seed gives the same file.
@@ -79,14 +79,29 @@ def _numbers(text: str, kind: type) -> list:
         ) from error
 
 
-def _print_table(configurations: list[dict]) -> None:
-    columns = ["tones", "symbol_ms", "bandwidth_hz", "transmission_s", "95%", "90%", "80%"]
+def _grid_axis(text: str) -> tuple[str, list]:
+    """ "name=v1,v2,..." with JSON values: the settings one axis of the sweep takes."""
+    name, equals, values = text.partition("=")
+    try:
+        parsed = json.loads(f"[{values}]")
+    except json.JSONDecodeError:
+        parsed = None
+    if not equals or not name or not parsed:
+        raise ValueError(f"expected name=value,value,... with JSON values, got {text!r}")
+    return name, parsed
+
+
+def _shown(value) -> str:
+    return "none" if value is None else f"{value:g}" if isinstance(value, float) else str(value)
+
+
+def _print_table(configurations: list[dict], axes: list[str]) -> None:
+    columns = [*axes, "bandwidth_hz", "transmission_s", "95%", "90%", "80%"]
     print(" ".join(f"{name:>12}" for name in columns))
     for configuration in configurations:
         thresholds = [configuration["thresholds_db"][str(level)] for level in LEVELS]
         cells = [
-            f"{configuration['tones']}",
-            f"{configuration['symbol_ms']:g}",
+            *(_shown(configuration[name]) for name in axes),
             f"{configuration['bandwidth_hz']:.1f}",
             f"{configuration['transmission_seconds']:.1f}",
             *("-" if t is None else f"{t:g}" for t in thresholds),
@@ -103,6 +118,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--symbol-ms", default="40,80,160,320", help="symbol durations in ms, comma-separated"
     )
+    parser.add_argument(
+        "--grid", action="append", default=[], metavar="NAME=V1,V2,...",
+        help="a setting to sweep, with JSON values, e.g. --grid h=0.5,1 --grid bt=0.3,null "
+        "(repeatable; replaces --tones and --symbol-ms)",
+    )  # fmt: skip
     parser.add_argument(
         "--set", action="append", default=[], metavar="NAME=VALUE",
         help="a setting given to every configuration, e.g. --set interleave=true (repeatable)",
@@ -124,7 +144,13 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     try:
-        tones, symbol_ms = _numbers(args.tones, int), _numbers(args.symbol_ms, float)
+        if args.grid:
+            axes = dict(_grid_axis(text) for text in args.grid)
+        else:
+            axes = {
+                "tones": _numbers(args.tones, int),
+                "symbol_ms": _numbers(args.symbol_ms, float),
+            }
         fixed = parse_settings(args.set)
         if args.jobs < 1 or args.trials < 1 or args.message_bytes < 1 or not args.drop_db > 0:
             raise ValueError("need --jobs >= 1, --trials >= 1, --message-bytes >= 1, --drop-db > 0")
@@ -132,7 +158,7 @@ def main(argv: list[str] | None = None) -> None:
         jobs = [
             Job(
                 modem=args.modem,
-                options={**fixed, "tones": count, "symbol_ms": duration},
+                options={**fixed, **dict(zip(axes, values, strict=True))},
                 scenario=args.scenario,
                 snr_db_values=grid,
                 trials=args.trials,
@@ -143,7 +169,7 @@ def main(argv: list[str] | None = None) -> None:
                 freq_offset_range_hz=(args.freq_offset_from, args.freq_offset_to),
                 drop_db=args.drop_db,
             )
-            for count, duration in product(tones, symbol_ms)
+            for values in product(*axes.values())
         ]
         for job in jobs:
             load_modem(job.modem, job.options)  # refuse a bad configuration before any work
@@ -156,7 +182,7 @@ def main(argv: list[str] | None = None) -> None:
     except (ValueError, argparse.ArgumentTypeError) as error:
         parser.error(str(error))
 
-    _print_table(configurations)
+    _print_table(configurations, list(axes))
     result = {
         "schema_version": RESULT_SCHEMA_VERSION,
         "modem": args.modem,
