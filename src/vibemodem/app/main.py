@@ -6,11 +6,13 @@ import socket
 import sys
 import threading
 import webbrowser
+from pathlib import Path
 
 import uvicorn
 
 from vibemodem.app.api import create_app
-from vibemodem.app.service import ModemService
+from vibemodem.app.service import DEFAULT_LIMIT_MB, MEGABYTE, ModemService
+from vibemodem.app.store import ReceptionStore, default_directory
 from vibemodem.io.audio import SoundCard
 
 
@@ -51,11 +53,18 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Vibe AudioModem")
     parser.add_argument("--port", type=int, default=0, help="loopback port (default: a free one)")
     parser.add_argument("--no-browser", action="store_true", help="do not open the browser")
+    parser.add_argument(
+        "--receptions-dir",
+        type=Path,
+        default=default_directory(),
+        help="where receptions are kept when the page asks for it (default: %(default)s)",
+    )
     args = parser.parse_args(argv)
 
     _ensure_std_streams()
     port = args.port or free_port()
-    server = make_server(ModemService(SoundCard()), port)
+    store = ReceptionStore(args.receptions_dir, DEFAULT_LIMIT_MB * MEGABYTE)
+    server = make_server(ModemService(SoundCard(), store=store), port)
     if not args.no_browser:
         url = f"http://127.0.0.1:{port}/"
         threading.Thread(target=_open_browser_when_ready, args=(server, url), daemon=True).start()

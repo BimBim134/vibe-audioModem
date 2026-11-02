@@ -12,12 +12,13 @@ import threading
 import time
 from collections import OrderedDict, deque
 from collections.abc import Callable
-from dataclasses import dataclass
 
 import numpy as np
 
-from vibemodem.app.heard import Heard, Quality, SpectrumRows, Undecoded, summarize
-from vibemodem.core import mfsk, presets
+from vibemodem.app.heard import Heard, Quality, SpectrumRows, Tolerance, Undecoded, alike, summarize
+from vibemodem.app.keeper import Keeper
+from vibemodem.app.store import ReceptionStore
+from vibemodem.core import mfsk
 from vibemodem.core.coded_modem import SAMPLE_RATE
 from vibemodem.core.message import Fragment, Reassembler
 from vibemodem.core.spectrum import spectrum_row
@@ -34,26 +35,6 @@ READ_MEMORY = 256  # Frames read, remembered to tell that a lost Signal was not
 STOP_SECONDS = 120.0  # to decode what was heard last, up to 150 s of sound, on a slow computer
 
 
-@dataclass(frozen=True)
-class Tolerance:
-    """How alike two sightings of one Signal are, in two passes of the window."""
-
-    seconds: float  # two symbols
-    hertz: float  # a tone spacing
-    frame_seconds: float
-    preamble_samples: int
-
-    @classmethod
-    def of(cls, preset: str, frame_samples: int) -> "Tolerance":
-        symbol_ms = presets.profile(preset).symbol_ms
-        return cls(
-            seconds=2 * symbol_ms / 1000,
-            hertz=1000 / symbol_ms,
-            frame_seconds=frame_samples / SAMPLE_RATE,
-            preamble_samples=round(mfsk.PREAMBLE_SYMBOLS * symbol_ms / 1000 * SAMPLE_RATE),
-        )
-
-
 def _text(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
@@ -67,8 +48,10 @@ class Receiver:
         window_seconds: float = WINDOW_SECONDS,
         decode_every_seconds: float = DECODE_EVERY_SECONDS,
         max_received: int = MAX_RECEIVED,
+        store: ReceptionStore | None = None,
     ):
         self._audio = audio
+        self._keeper = Keeper(store)
         self._make_modem = make_modem
         self._window_samples = round(window_seconds * SAMPLE_RATE)
         self._decode_every = round(decode_every_seconds * SAMPLE_RATE)
@@ -101,6 +84,18 @@ class Receiver:
         with self._lock:
             return len(self._whole), len(self._reassembler.pending())
 
+    @property
+    def store(self) -> ReceptionStore | None:
+        return self._keeper.store
+
+    @property
+    def keeping(self) -> bool:
+        return self._keeper.enabled
+
+    def set_keeping(self, keeping: bool) -> None:
+        """Keep, or stop keeping, the audio and the indicators of what is read or lost."""
+        self._keeper.set_enabled(keeping)
+
     def _fail(self, message: str) -> None:
         with self._lock:
             self.last_error = message
@@ -120,6 +115,7 @@ class Receiver:
                 capacity=int(2 * WINDOW_SECONDS / BLOCK_SECONDS),
             )
             self.last_error = None
+            self._keeper.start()
             self._rows.clear()  # a new waterfall: the page starts from the next row
             self._thread = threading.Thread(
                 target=self._listen,
@@ -163,8 +159,8 @@ class Receiver:
                 if since_decode >= self._decode_every:
                     self._decode(window, modem, tolerance, started, heard - held)
                     since_decode = 0
-            if started is not None:
-                self._decode(window, modem, tolerance, started, heard - held)  # the last of it
+            if started is not None:  # the last of it: nothing more will come to complete a margin
+                self._decode(window, modem, tolerance, started, heard - held, final=True)
         except Exception as error:  # whatever happens, the stream is closed below
             self._fail(f"listening stopped: {error}")
         finally:
@@ -180,12 +176,15 @@ class Receiver:
             self._rows.append(row)
             self._row_count += 1
 
-    def _decode(self, window, modem, tolerance: Tolerance, started: float, window_start: int):
+    def _decode(
+        self, window, modem, tolerance: Tolerance, started: float, window_start: int, final=False
+    ):
         """Decode the window; `window_start` is where it starts in everything heard (samples)."""
         if not window:
             return
+        samples = np.concatenate(list(window)).astype(np.float64)
         try:
-            report = modem.demodulate_report(np.concatenate(list(window)).astype(np.float64))
+            report = modem.demodulate_report(samples)
         except Exception as error:  # a bad stretch of audio must not end the listening
             self._fail(f"decoding failed: {error}")
             return
@@ -208,6 +207,21 @@ class Receiver:
             if window_start > 0 and lost.start_sample < tolerance.preamble_samples:
                 continue
             self._note_lost(when(lost.start_sample), lost.frequency_hz, lost.sync_score, tolerance)
+        if self._keeper.enabled:
+            try:
+                listed = lambda at, hz: self._is_listed(at, hz, tolerance)  # noqa: E731
+                problems = self._keeper.keep(samples, modem, report, tolerance, when, listed, final)
+            except Exception as error:  # whatever happens, the listening goes on
+                problems = [f"a reception could not be kept: {error}"]
+            if problems:
+                self._fail(problems[0])
+
+    def _is_listed(self, at: float, hz: float, tolerance: Tolerance) -> bool:
+        """Whether a lost Signal is one the operator is told about (not a side peak, not read)."""
+        with self._lock:
+            return any(
+                alike(at, hz, u.heard_at, u.frequency_hz, tolerance) for u in self._undecoded
+            )
 
     def _take(self, fragment: Fragment, reception, at: float, tolerance: Tolerance) -> None:
         key = (fragment.msg_id, fragment.total)

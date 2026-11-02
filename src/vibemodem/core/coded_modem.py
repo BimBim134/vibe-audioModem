@@ -100,6 +100,11 @@ class CodedModem:
         """How long a Frame lasts, Preamble included."""
         raise NotImplementedError
 
+    def search_step_samples(self) -> int:
+        """The search looks for a Signal at start times that are multiples of this, from the
+        start of the audio: a piece cut on such a multiple is searched on the same grid."""
+        raise NotImplementedError
+
     def _same_signal_samples(self) -> int:
         """Two Signals closer than this are one: the preamble match has side peaks."""
         raise NotImplementedError

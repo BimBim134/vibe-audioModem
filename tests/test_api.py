@@ -378,3 +378,67 @@ def test_the_spectrum_is_served_from_the_row_asked_for(made):
 @pytest.mark.parametrize("since", ["-1", "abc"])
 def test_a_spectrum_request_with_a_bad_row_number_is_rejected(client, since):
     assert client.get("/api/spectrum", params={"since": since}).status_code == 422
+
+
+def test_the_storage_is_off_by_default_and_can_be_switched_and_bounded(tmp_path):
+    from vibemodem.app.store import ReceptionStore
+
+    store = ReceptionStore(tmp_path / "kept", max_bytes=200_000_000)
+    service = ModemService(FakeAudio(devices=DEVICES), store=store)
+    client = TestClient(create_app(service), base_url="http://127.0.0.1")
+    try:
+        body = client.get("/api/storage").json()
+        assert body["available"] and body["keep"] is False and body["limit_mb"] == 200.0
+        changed = client.post("/api/storage", json={"keep": True, "limit_mb": 50}).json()
+        assert changed["keep"] is True and changed["limit_mb"] == 50.0
+    finally:
+        service.close()
+
+
+@pytest.mark.parametrize(
+    "bad", [{"limit_mb": 1}, {"limit_mb": "big"}, {"keep": 3}, {"path": "/etc"}]
+)
+def test_a_storage_request_that_makes_no_sense_is_rejected_and_nothing_changes(tmp_path, bad):
+    from vibemodem.app.store import ReceptionStore
+
+    store = ReceptionStore(tmp_path / "kept", max_bytes=200_000_000)
+    service = ModemService(FakeAudio(devices=DEVICES), store=store)
+    client = TestClient(create_app(service), base_url="http://127.0.0.1")
+    try:
+        assert client.post("/api/storage", json={"keep": True, **bad}).status_code == 422
+        assert client.get("/api/storage").json()["keep"] is False
+    finally:
+        service.close()
+
+
+def test_the_place_where_receptions_are_kept_cannot_be_chosen_from_the_page(tmp_path):
+    from vibemodem.app.store import ReceptionStore
+
+    store = ReceptionStore(tmp_path / "kept", max_bytes=200_000_000)
+    service = ModemService(FakeAudio(devices=DEVICES), store=store)
+    client = TestClient(create_app(service), base_url="http://127.0.0.1")
+    try:
+        response = client.post("/api/storage", json={"directory": "/tmp/elsewhere"})
+        assert response.status_code == 422
+    finally:
+        service.close()
+
+
+def test_the_receptions_kept_are_deleted_on_request(tmp_path):
+    import numpy as np
+
+    from vibemodem.app.store import ReceptionStore
+
+    store = ReceptionStore(tmp_path / "kept", max_bytes=200_000_000)
+    store.save(np.zeros(4800), {"decoded": False})
+    service = ModemService(FakeAudio(devices=DEVICES), store=store)
+    client = TestClient(create_app(service), base_url="http://127.0.0.1")
+    try:
+        assert client.post("/api/storage/clear").json() == {"deleted": 1}
+        assert client.get("/api/storage").json()["count"] == 0
+    finally:
+        service.close()
+
+
+def test_without_a_store_the_storage_is_reported_unavailable(client):
+    assert client.get("/api/storage").json() == {"available": False, "keep": False}

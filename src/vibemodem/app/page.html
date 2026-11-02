@@ -23,6 +23,7 @@
   #spectrum { height: 6rem; }
   #axis { position: relative; height: 1.4rem; font-size: 0.75rem; }
   #axis span { position: absolute; transform: translateX(-50%); }
+  .note { font-size: 0.75rem; opacity: 0.7; }
   #legend, #legend2 { font-size: 0.75rem; opacity: 0.7; }
   [title] { text-decoration: underline dotted; cursor: help; }
   h3 { font-size: 1rem; margin: 0.8rem 0 0.2rem; }
@@ -74,6 +75,15 @@
   <p id="legend2">Each Message: the frequency of its lowest tone and its <b>SNR</b> (signal-to-noise ratio, estimated in 2,500 Hz). Messages appear up to 10 s after their end.</p>
   <h3>Detected, not decoded</h3>
   <ul id="undecoded"><li>None.</li></ul>
+</fieldset>
+
+<fieldset id="storage">
+  <legend>Stored receptions</legend>
+  <label><input id="keep" type="checkbox"> Keep the audio and the indicators of what is received</label>
+  <label>Up to <input id="limit" type="number" min="10" max="100000" step="10" style="width:6rem"> MB</label>
+  <button id="clear">Delete all stored receptions</button>
+  <p id="usage" aria-live="polite"></p>
+  <p class="note">This is the sound your input hears while it receives, with 3 s around each Signal: with a microphone or a radio it can hold voices of other people. It stays on this computer, in the folder shown above, and the oldest are deleted first when the limit is reached. To replay them: <code>python -m bench.replay FOLDER</code>.</p>
 </fieldset>
 
 <p><button id="quit">Quit</button></p>
@@ -313,6 +323,24 @@ async function refreshSpectrum() {
   } catch (error) { /* the next refresh will say if the application does not answer */ }
 }
 
+async function refreshStorage() {
+  try {
+    const info = await call("/api/storage");
+    for (const id of ["keep", "limit", "clear"]) $(id).disabled = !info.available;
+    if (!info.available) { say("usage", "Receptions cannot be kept: there is nowhere to keep them."); return; }
+    if (document.activeElement !== $("limit")) $("limit").value = Math.round(info.limit_mb);
+    $("keep").checked = info.keep;
+    say("usage", info.count + " kept, " + info.used_mb.toFixed(1) + " MB of " + Math.round(info.limit_mb) + " MB, in " + info.directory);
+  } catch (error) { /* refresh will say if the application does not answer */ }
+}
+$("keep").onchange = () => act(call("/api/storage", "POST", { keep: $("keep").checked }), refreshStorage);
+$("limit").onchange = () => act(call("/api/storage", "POST", { limit_mb: Number($("limit").value) }), refreshStorage);
+$("clear").onclick = () => {
+  if (confirm("Delete every stored reception?")) {
+    act(call("/api/storage/clear", "POST"), (done) => { say("info", done.deleted + " deleted."); refreshStorage(); });
+  }
+};
+
 async function refresh() {
   try {
     state = await call("/api/status");
@@ -335,6 +363,7 @@ async function refresh() {
     $("send").disabled = state.sending || !estimate.fits || Boolean(estimate.frequency_problem);
     $("cancel").disabled = !state.sending;
     if (state.last_error) say("error", state.last_error);
+    refreshStorage();
     const heard = await call("/api/received");
     showReceived(heard.received);
     showUndecoded(heard.undecoded);

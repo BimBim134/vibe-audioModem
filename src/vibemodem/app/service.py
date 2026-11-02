@@ -16,6 +16,7 @@ import numpy as np
 from vibemodem.app import receiver as receiver_module
 from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
 from vibemodem.app.receiver import Receiver
+from vibemodem.app.store import ReceptionStore
 from vibemodem.core import mfsk, presets
 from vibemodem.core.coded_modem import SAMPLE_RATE
 from vibemodem.core.message import Fragment, fragment_count, random_message_id
@@ -28,6 +29,9 @@ from vibemodem.core.transmission import (
 from vibemodem.core.turbo_modem import TurboModem
 from vibemodem.io.audio import Audio, AudioError, DeviceInfo, find_device
 
+MEGABYTE = 1_000_000
+MIN_LIMIT_MB, MAX_LIMIT_MB = 10, 100_000
+DEFAULT_LIMIT_MB = 200
 MAX_SENDING_MODEMS = 8  # one per Preset and frequency recently sent at
 JOIN_SECONDS = 10.0  # for the thread that plays a Transmission, once it has been told to stop
 
@@ -83,6 +87,7 @@ class ModemService:
         window_seconds: float = receiver_module.WINDOW_SECONDS,
         decode_every_seconds: float = receiver_module.DECODE_EVERY_SECONDS,
         max_received: int = receiver_module.MAX_RECEIVED,
+        store: ReceptionStore | None = None,
     ):
         self._audio = audio
         self._make_modem = make_modem
@@ -92,6 +97,7 @@ class ModemService:
             window_seconds=window_seconds,
             decode_every_seconds=decode_every_seconds,
             max_received=max_received,
+            store=store,
         )
         self._lock = threading.RLock()
         self._settings = Settings()
@@ -303,6 +309,56 @@ class ModemService:
             self._audio.stop()
             thread.join(timeout=0.05)
         return True
+
+    # Receptions kept -----------------------------------------------------------------------
+
+    def storage(self) -> dict:
+        """Whether receptions are kept, the bound, and what is kept now."""
+        store = self._receiver.store
+        if store is None:
+            return {"available": False, "keep": False}
+        count, used = store.usage()
+        return {
+            "available": True,
+            "keep": self._receiver.keeping,
+            "limit_mb": store.max_bytes / MEGABYTE,
+            "count": count,
+            "used_mb": used / MEGABYTE,
+            "directory": str(store.directory),
+        }
+
+    def set_storage(self, keep: bool | None = None, limit_mb: int | None = None) -> dict:
+        """Keep receptions or not, and the bound, together or not at all."""
+        with self._lock:
+            return self._set_storage(keep, limit_mb)
+
+    def _set_storage(self, keep: bool | None, limit_mb: int | None) -> dict:
+        store = self._receiver.store
+        problems = []
+        if store is None:
+            problems.append("receptions cannot be kept: there is nowhere to keep them")
+        if keep is not None and not isinstance(keep, bool):
+            problems.append("keep must be true or false")
+        if limit_mb is not None and (
+            isinstance(limit_mb, bool)
+            or not isinstance(limit_mb, int)
+            or not MIN_LIMIT_MB <= limit_mb <= MAX_LIMIT_MB
+        ):
+            problems.append(
+                f"the bound is a whole number of MB from {MIN_LIMIT_MB} to {MAX_LIMIT_MB}"
+            )
+        if problems:
+            raise SettingsError("; ".join(problems))
+        if limit_mb is not None:
+            store.set_max_bytes(limit_mb * MEGABYTE)
+        if keep is not None:
+            self._receiver.set_keeping(keep)
+        return self.storage()
+
+    def clear_receptions(self) -> int:
+        """Delete every reception that was kept; returns how many."""
+        store = self._receiver.store
+        return 0 if store is None else store.clear()
 
     # Listening ------------------------------------------------------------------------------
 

@@ -31,6 +31,12 @@ class SendRequest(EstimateRequest):
     """What it takes to send is what it takes to estimate."""
 
 
+class StorageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    keep: bool | None = None
+    limit_mb: int | None = None
+
+
 class SettingsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     preset: str | None = None
@@ -122,6 +128,18 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     @app.post("/api/estimate")
     def estimate(request: EstimateRequest) -> dict:
         return asdict(service.estimate(request.text, request.copies, request.frequency_hz))
+
+    @app.get("/api/storage")
+    def get_storage() -> dict:
+        return service.storage()
+
+    @app.post("/api/storage")
+    def set_storage(request: StorageRequest) -> dict:
+        return service.set_storage(request.keep, request.limit_mb)
+
+    @app.post("/api/storage/clear")
+    def clear_storage() -> dict:
+        return {"deleted": service.clear_receptions()}
 
     @app.post("/api/cancel")
     def cancel() -> dict:

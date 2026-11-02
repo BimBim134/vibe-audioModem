@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from vibemodem.core import mfsk, presets
+from vibemodem.core.coded_modem import SAMPLE_RATE
 from vibemodem.core.mfsk import FIRST_TONE_HZ
 from vibemodem.core.modem import Reception
 
@@ -76,3 +78,28 @@ class SpectrumRows:
     first: int
     next: int  # the number to ask for to get only newer rows
     rows: list[list[int]]  # dB, rounded, one cell per bin
+
+
+@dataclass(frozen=True)
+class Tolerance:
+    """How alike two sightings of one Signal are, in two passes of the window."""
+
+    seconds: float  # two symbols
+    hertz: float  # a tone spacing
+    frame_seconds: float
+    preamble_samples: int
+
+    @classmethod
+    def of(cls, preset: str, frame_samples: int) -> "Tolerance":
+        symbol_ms = presets.profile(preset).symbol_ms
+        return cls(
+            seconds=2 * symbol_ms / 1000,
+            hertz=1000 / symbol_ms,
+            frame_seconds=frame_samples / SAMPLE_RATE,
+            preamble_samples=round(mfsk.PREAMBLE_SYMBOLS * symbol_ms / 1000 * SAMPLE_RATE),
+        )
+
+
+def alike(at: float, hz: float, other_at: float, other_hz: float, tolerance: Tolerance) -> bool:
+    """Whether two sightings, in two passes, are of one Signal."""
+    return abs(at - other_at) <= tolerance.seconds and abs(hz - other_hz) <= tolerance.hertz

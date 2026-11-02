@@ -786,3 +786,101 @@ def test_the_time_of_a_message_heard_is_the_time_of_its_sound(pair):
     listener.stop_listening()
     (heard,) = listener.received()
     assert before - 1 <= heard.heard_at <= before + 10  # the sound began as the listening did
+
+
+# Receptions kept --------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def kept_pair(services, tmp_path):
+    from vibemodem.app.store import ReceptionStore
+
+    sender_audio, listener_audio = FakeAudio(), FakeAudio()
+    sender_audio.connect_to(listener_audio)
+    store = ReceptionStore(tmp_path / "kept", max_bytes=100_000_000)
+    sender = services(sender_audio)
+    listener = services(listener_audio, store=store)
+    sender.apply_settings(preset="fast")
+    listener.apply_settings(preset="fast")
+    return sender, listener, store
+
+
+def test_storage_is_off_until_it_is_asked_for_and_says_where_and_how_much(kept_pair):
+    _, listener, store = kept_pair
+    assert listener.storage() == {
+        "available": True,
+        "keep": False,
+        "limit_mb": 100.0,
+        "count": 0,
+        "used_mb": 0.0,
+        "directory": str(store.directory),
+    }
+
+
+def test_nothing_is_kept_when_it_is_off_and_something_is_when_it_is_on(kept_pair):
+    sender, listener, store = kept_pair
+    listener.start_listening()
+    send_and_wait(sender, "not kept")
+    listener.stop_listening()
+    assert store.usage()[0] == 0
+    assert listener.set_storage(keep=True)["keep"] is True
+    listener.start_listening()
+    send_and_wait(sender, "kept")
+    listener.stop_listening()
+    assert listener.storage()["count"] == 1 and listener.storage()["used_mb"] > 0.1
+    ((_, saved),) = store.receptions()
+    assert saved["decoded"] and saved["preset"] == "fast"
+
+
+def test_the_bound_is_changed_and_the_oldest_go_first(kept_pair):
+    sender, listener, store = kept_pair
+    listener.set_storage(keep=True)
+    listener.start_listening()
+    for number in range(3):
+        send_and_wait(sender, f"message {number}")
+    listener.stop_listening()
+    assert listener.storage()["count"] == 3
+    listener.set_storage(limit_mb=10)  # 10 MB hold 3 receptions of 1.3 MB: nothing goes yet
+    assert listener.storage()["limit_mb"] == 10.0
+    store.set_max_bytes(1_700_000)
+    assert listener.storage()["count"] == 1
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [{"limit_mb": 5}, {"limit_mb": 10**6}, {"limit_mb": 1.5}, {"limit_mb": True}, {"keep": "yes"}],
+)
+def test_a_bound_or_a_flag_that_makes_no_sense_is_refused_and_nothing_changes(kept_pair, bad):
+    _, listener, _ = kept_pair
+    before = listener.storage()
+    with pytest.raises(SettingsError):
+        listener.set_storage(**{"keep": True, **bad})
+    assert listener.storage() == before  # not even the valid half was applied
+
+
+def test_without_a_place_to_keep_them_asking_to_keep_is_refused(services):
+    service = services()
+    assert service.storage() == {"available": False, "keep": False}
+    with pytest.raises(SettingsError, match="nowhere"):
+        service.set_storage(keep=True)
+    assert service.clear_receptions() == 0
+
+
+def test_the_receptions_kept_can_be_deleted_all_at_once(kept_pair):
+    sender, listener, _ = kept_pair
+    listener.set_storage(keep=True)
+    listener.start_listening()
+    send_and_wait(sender, "to delete")
+    listener.stop_listening()
+    assert listener.clear_receptions() == 1 and listener.storage()["count"] == 0
+
+
+def test_keeping_can_be_switched_while_listening(kept_pair):
+    sender, listener, store = kept_pair
+    listener.start_listening()
+    listener.set_storage(
+        keep=True
+    )  # not refused: unlike the preset, it does not change the decoder
+    send_and_wait(sender, "kept")
+    listener.stop_listening()
+    assert store.usage()[0] == 1

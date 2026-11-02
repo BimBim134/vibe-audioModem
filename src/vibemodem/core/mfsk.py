@@ -132,6 +132,12 @@ class Waveform:
     def _hop(self) -> int:
         return self.samples_per_symbol // _HOPS_PER_SYMBOL
 
+    @property
+    def search_step_samples(self) -> int:
+        """The step of the search for a Signal in time: the search looks at the start times of
+        a recording that are multiples of it."""
+        return self._hop
+
     @cached_property
     def _fft_size(self) -> int:
         return 2 * self.samples_per_symbol

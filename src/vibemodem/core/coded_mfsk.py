@@ -95,6 +95,9 @@ class CodedMfskModem(CodedModem):
     def frame_samples(self) -> int:
         return (mfsk.PREAMBLE_SYMBOLS + self._data_symbols) * self.waveform.samples_per_symbol
 
+    def search_step_samples(self) -> int:
+        return self.waveform.search_step_samples
+
     def _same_signal_samples(self) -> int:
         return self.waveform.samples_per_symbol  # a symbol: the refined start is much finer
 

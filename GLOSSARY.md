@@ -36,6 +36,10 @@ _Avoid_: partial message, truncated message
 The lowest audio frequency a Transmission is sent at. The operator chooses it for each Message: it says where in the audio band the Signal is.
 _Avoid_: carrier, first tone, centre frequency
 
+**Kept reception**:
+The sound of one Frame, with 3 seconds around it, and the figures of how it was received (frequency, SNR, synchronisation score, Message identifier, read or lost), saved on the computer when the operator asks for it, so that it can be played again through the decoder.
+_Avoid_: recording, log, capture
+
 **Undecoded Signal**:
 A Signal the receiver found whole in the audio, by its Preamble, whose Frame could not be read (the checksum or the code refused it). It is reported to the operator with its frequency and how sure the detection was, so that a Transmission heard but lost is not mistaken for silence.
 _Avoid_: failed packet, error frame
