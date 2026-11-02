@@ -86,6 +86,7 @@ class Tolerance:
 
     seconds: float  # two symbols
     hertz: float  # a tone spacing
+    width_hz: float  # of the whole Signal: the side peaks of a Preamble are shifted by tones
     frame_seconds: float
     preamble_samples: int
 
@@ -95,6 +96,7 @@ class Tolerance:
         return cls(
             seconds=2 * symbol_ms / 1000,
             hertz=1000 / symbol_ms,
+            width_hz=presets.profile(preset).tones * 1000 / symbol_ms,
             frame_seconds=frame_samples / SAMPLE_RATE,
             preamble_samples=round(mfsk.PREAMBLE_SYMBOLS * symbol_ms / 1000 * SAMPLE_RATE),
         )

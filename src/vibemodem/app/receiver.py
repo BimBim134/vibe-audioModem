@@ -24,8 +24,12 @@ from vibemodem.core.message import Fragment, Reassembler
 from vibemodem.core.spectrum import spectrum_row
 from vibemodem.io.audio import Audio, InputBlocks
 
-WINDOW_SECONDS = 150.0  # more than two of the longest Frames, so every Frame is whole at a decode
-DECODE_EVERY_SECONDS = 10.0
+# What a pass decodes is the last Frame's length of sound and a little more: a Frame that has just
+# ended is whole in it, with sound around it to measure the noise, and what was decoded in an
+# earlier pass is not decoded again from the start of a long window.
+SLICE_EXTRA_SECONDS = 10.0
+DECODE_EVERY_SECONDS = 2.0
+QUEUE_SECONDS = 300.0  # of sound that may wait for the decoder before the oldest is dropped
 BLOCK_SECONDS = 0.5
 MAX_RECEIVED = 100
 MAX_UNDECODED = 20
@@ -45,7 +49,7 @@ class Receiver:
         audio: Audio,
         make_modem: Callable,
         *,
-        window_seconds: float = WINDOW_SECONDS,
+        window_seconds: float | None = None,
         decode_every_seconds: float = DECODE_EVERY_SECONDS,
         max_received: int = MAX_RECEIVED,
         store: ReceptionStore | None = None,
@@ -53,7 +57,8 @@ class Receiver:
         self._audio = audio
         self._keeper = Keeper(store)
         self._make_modem = make_modem
-        self._window_samples = round(window_seconds * SAMPLE_RATE)
+        self._window_seconds = window_seconds  # None: what one Frame needs, see `_listen`
+        self._decode_every_seconds = decode_every_seconds
         self._decode_every = round(decode_every_seconds * SAMPLE_RATE)
         self._lock = threading.RLock()
         self._blocks: InputBlocks | None = None
@@ -112,7 +117,7 @@ class Receiver:
             self._blocks = self._audio.listen(
                 device=device,
                 block_seconds=BLOCK_SECONDS,
-                capacity=int(2 * WINDOW_SECONDS / BLOCK_SECONDS),
+                capacity=int(QUEUE_SECONDS / BLOCK_SECONDS),
             )
             self.last_error = None
             self._keeper.start()
@@ -144,6 +149,12 @@ class Receiver:
     def _listen(self, blocks: InputBlocks, modem, tolerance: Tolerance) -> None:
         window: deque[np.ndarray] = deque()
         held = since_decode = heard = 0  # samples: in the window, since the last decode, in all
+        extra = round((SLICE_EXTRA_SECONDS + self._decode_every_seconds) * SAMPLE_RATE)
+        kept = (  # the sound kept: a Frame, the time between two passes and some sound around
+            round(self._window_seconds * SAMPLE_RATE)
+            if self._window_seconds
+            else modem.frame_samples() + extra
+        )
         started = None
         try:
             for block in blocks:
@@ -154,7 +165,7 @@ class Receiver:
                 held += block.size
                 heard += block.size
                 since_decode += block.size
-                while held - window[0].size >= self._window_samples:
+                while held - window[0].size >= kept:
                     held -= window.popleft().size
                 if since_decode >= self._decode_every:
                     self._decode(window, modem, tolerance, started, heard - held)
@@ -276,7 +287,9 @@ class Receiver:
     def _note_lost(self, at: float, hz: float, score: float, tolerance: Tolerance) -> None:
         with self._lock:
             apart = tolerance.frame_seconds - tolerance.seconds / 2  # inside a Frame that was read
-            if any(abs(at - t) < apart and abs(hz - f) <= tolerance.hertz for t, f in self._read):
+            if any(
+                abs(at - t) < apart and abs(hz - f) <= tolerance.width_hz for t, f in self._read
+            ):
                 return  # the side peak of a Preamble that was read, or a Frame read in a pass
             for known in self._undecoded:
                 if abs(known.heard_at - at) <= tolerance.seconds and (

@@ -2,11 +2,11 @@
 
 The v1 modulation is non-coherent 8-FSK (tones 1 / symbol duration apart, continuous phase) for all three Presets. The turbo code (ADR 0003) protects one 412-bit Frame, and its coded bits are interleaved over the whole Transmission. The Presets differ only by the symbol duration:
 
-| Preset | Symbol | Band at -20 dB | Transmission | Success threshold, white noise | Success threshold, hf-fading |
-| :-- | :-- | :-- | :-- | :-- | :-- |
-| max-range | 320 ms | 29 Hz | 54 s | -22 dB | -16 dB |
-| **standard** (default) | 80 ms | 107 Hz | 13.6 s | -16 dB | -8 dB |
-| fast | 40 ms | 212 Hz | 6.8 s | -13 dB | 90% at 0 dB, 95% not reached |
+| Preset                 | Symbol | Band at -20 dB | Transmission | Success threshold, white noise | Success threshold, hf-fading |
+| :--------------------- | :----- | :------------- | :----------- | :----------------------------- | :--------------------------- |
+| max-range              | 320 ms | 29 Hz          | 54 s         | -22 dB                         | -16 dB                       |
+| **standard** (default) | 80 ms  | 107 Hz         | 13.6 s       | -16 dB                         | -8 dB                        |
+| fast                   | 40 ms  | 212 Hz         | 6.8 s        | -13 dB                         | 90% at 0 dB, 95% not reached |
 
 Thresholds are the lowest SNR in 2,500 Hz at which 95% of 100 Messages are received, same procedure as the M-FSK sweep (`docs/measurements/README.md`, "The three Presets"), on white noise and on the hf-fading channel only (not the ssb or dirty ones). No wrong Message was accepted in any trial.
 

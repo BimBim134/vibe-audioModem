@@ -50,6 +50,10 @@
   }
   input[type="checkbox"] { accent-color: rgb(var(--accent)); width: 1rem; height: 1rem; padding: 0; }
 
+  /* Never wider than this, however large the window: a page this wide reads badly */
+  :root { --page-width: 1000px; }
+  .top, main { width: min(100%, var(--page-width)); margin-inline: auto; }
+
   /* The top bar */
   .top {
     display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.1rem;
@@ -177,17 +181,17 @@
 <dialog id="settings" aria-labelledby="settings-title">
   <h2 id="settings-title">Settings</h2>
   <p id="settings-error" class="problem" role="alert"></p>
+  <p id="settings-note" aria-live="polite"></p>
   <label class="field"><span>Preset</span>
     <select id="preset">
-      <option value="max-range">Maximum range (slowest)</option>
-      <option value="standard" selected>Standard</option>
-      <option value="fast">Fast</option>
+      <option value="max-range">Slow - Maximum Range (29 Hz)</option>
+      <option value="standard" selected>Standard (107 Hz)</option>
+      <option value="fast">Fast - Good Conditions (212 Hz)</option>
     </select>
   </label>
   <label class="field"><span>Repetitions</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
   <label class="field"><span>Input</span><select id="input_device"><option value="">default</option></select></label>
   <label class="field"><span>Output</span><select id="output_device"><option value="">default</option></select></label>
-  <p id="settings-note" aria-live="polite"></p>
   <div class="actions"><button id="apply" class="primary">Apply</button></div>
   <br>
 
@@ -197,6 +201,7 @@
   <label class="field"><span>Up to</span><input id="limit" class="wide" type="number" min="10" max="100000" step="10"> MB</label>
   <p id="usage" aria-live="polite"></p>
   <div class="actions"><button id="clear">Delete all stored receptions</button></div>
+  <br>
   <br>
   <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
 </dialog>
@@ -575,7 +580,7 @@ async function refresh() {
 
 fitAll();
 (async () => { fillDevices((await call("/api/devices")).devices); lastSettings = null; refresh(); askEstimate(); grow(); })();
-setInterval(refresh, 1500);
+setInterval(refresh, 1000);
 setInterval(refreshSpectrum, 500);
 </script>
 </body>

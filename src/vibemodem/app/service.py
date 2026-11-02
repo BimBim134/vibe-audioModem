@@ -85,7 +85,7 @@ class ModemService:
         audio: Audio,
         *,
         make_modem: Callable = TurboModem,
-        window_seconds: float = receiver_module.WINDOW_SECONDS,
+        window_seconds: float | None = None,
         decode_every_seconds: float = receiver_module.DECODE_EVERY_SECONDS,
         max_received: int = receiver_module.MAX_RECEIVED,
         store: ReceptionStore | None = None,

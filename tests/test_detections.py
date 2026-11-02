@@ -93,3 +93,20 @@ def test_a_weak_match_is_not_reported_but_a_clear_one_is(modem):
         shaky._find = lambda samples, s=score: [mfsk.Candidate(1000, 1450.0, s)]
         shaky._decode = lambda samples, signal: None
         assert len(shaky.demodulate_report(quiet).undecoded) == reported
+
+
+def test_the_side_peaks_of_a_frame_that_is_not_whole_yet_are_not_lost_signals(modem):
+    # A Frame still arriving, cut by the end of what is heard, has side peaks of its Preamble a few
+    # symbols earlier, that do fit: they must not be reported as Signals that could not be read.
+    sound = np.concatenate([np.zeros(2 * FS), frame(modem), np.zeros(FS)])
+    end = 2 * FS + frame(modem).size
+    for short in range(5, 400, 23):  # the sound ends this many hundredths of a second too soon
+        report = modem.demodulate_report(sound[: end - short * FS // 100])
+        assert report.receptions == [] and report.undecoded == [], short
+
+
+def test_a_second_frame_that_follows_the_first_at_once_is_still_found_when_lost(modem):
+    first, second = frame(modem, b"one"), wreck_data(modem, frame(modem, b"two"), 0, 100)
+    report = modem.demodulate_report(np.concatenate([first, second]))
+    assert [r.message for r in report.receptions] == [b"one"]
+    assert [d.start_sample for d in report.undecoded] == [first.size]

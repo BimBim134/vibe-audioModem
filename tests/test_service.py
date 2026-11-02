@@ -14,7 +14,9 @@ from vibemodem.core.transmission import MessageTooLong
 from vibemodem.core.turbo_modem import TurboModem
 from vibemodem.io.audio import DeviceInfo, FakeAudio
 
-TOLERANCE = Tolerance(seconds=0.16, hertz=25.0, frame_seconds=6.8, preamble_samples=61_440)
+TOLERANCE = Tolerance(
+    seconds=0.16, hertz=25.0, width_hz=200.0, frame_seconds=6.8, preamble_samples=61_440
+)
 HEARD = Reception(b"", snr_db=-10.0, frequency_offset_hz=0.0, sync_score=20.0, start_sample=0)
 DEVICES = [
     DeviceInfo(0, "Radio sound card", 1, 1, 48_000.0),
@@ -885,3 +887,16 @@ def test_keeping_can_be_switched_while_listening(kept_pair):
     send_and_wait(sender, "kept")
     listener.stop_listening()
     assert store.usage()[0] == 1
+
+
+def test_a_side_peak_shifted_by_some_tones_inside_a_frame_that_was_read_is_not_a_lost_signal(
+    services,
+):
+    receiver = services()._receiver
+    reception = Reception(b"", -10.0, 0.0, 30.0, start_sample=0)  # 1450 Hz
+    receiver._take(Fragment(1, 0, 1, b"read"), reception, 100.0, TOLERANCE)
+    for shift in (-50.0, 25.0, 75.0, 175.0):  # up to the width of the Signal
+        receiver._note_lost(104.0, 1450.0 + shift, 20.0, TOLERANCE)
+    assert receiver.undecoded() == []
+    receiver._note_lost(104.0, 1450.0 + 400.0, 20.0, TOLERANCE)  # another station, farther away
+    assert len(receiver.undecoded()) == 1

@@ -136,7 +136,8 @@ class CodedModem:
 
         received: dict[bytes, Reception] = {}
         lost, read_at = [], []
-        for signal in self._find(samples):
+        signals = self._find(samples)
+        for signal in signals:
             reception = self._decode(samples, signal)
             if reception is None:
                 if self._fits(samples, signal) and signal.score >= UNDECODED_MIN_SCORE:
@@ -149,15 +150,19 @@ class CodedModem:
             ):
                 received[reception.message] = reception
         found = sorted(received.values(), key=lambda r: -r.sync_score)
-        return Report(receptions=found, undecoded=self._without_side_peaks(lost, read_at))
+        return Report(receptions=found, undecoded=self._without_side_peaks(lost, read_at, signals))
 
-    def _without_side_peaks(self, lost: list[Detection], read_at: list[int]) -> list[Detection]:
-        """The Signals lost, without the side peaks of a Preamble (inside a Frame that was read,
-        or inside a stronger Signal that was lost)."""
+    def _without_side_peaks(
+        self, lost: list[Detection], read_at: list[int], signals: list
+    ) -> list[Detection]:
+        """The Signals lost, without the side peaks of a Preamble: those inside a Frame that was
+        read, inside a stronger Signal that was lost, or inside a stronger one that does not fit
+        yet (a Frame still arriving has side peaks a few symbols earlier that do fit)."""
         apart = self.frame_samples() - self._same_signal_samples()
         kept: list[Detection] = []
         for detection in sorted(lost, key=lambda d: -d.sync_score):
-            near = [*read_at, *(k.start_sample for k in kept)]
+            stronger = [s.start_sample for s in signals if s.score > detection.sync_score]
+            near = [*read_at, *stronger, *(k.start_sample for k in kept)]
             if all(abs(detection.start_sample - other) >= apart for other in near):
                 kept.append(detection)
         return sorted(kept, key=lambda d: d.start_sample)
