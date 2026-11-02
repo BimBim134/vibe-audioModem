@@ -14,7 +14,7 @@ uv sync --locked --all-extras
 
 ## Check your work
 
-Run these from the repository root. CI runs exactly the same commands on Linux, Windows and macOS.
+Run these from the repository root. CI runs exactly the same commands on Linux and Windows for every push, and on macOS too for pull requests (macOS runners queue for long).
 
 ```bash
 uv run ruff check .

@@ -36,7 +36,7 @@ Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabu
 | `bench/report.py` | Self-contained HTML report (inline SVG chart, Wilson 95% intervals, ranking, not-comparable notice) from result JSON files: `render_report`, and the command `python -m bench.report a.json b.json --out r.html`; also reached through `--html` on the threshold command. |
 | `packaging/` | `vibemodem.spec` (PyInstaller, windowed), `entry.py`, `smoke_test.py` (run against the built executable in CI). |
 | `tests/` | `test_layers.py` (layers importable, core stays pure), `test_channel.py`, `test_hello_app.py`, `test_toy_modem.py`, `test_threshold.py` (threshold logic, toy modem vs theory), `test_threshold_command.py`, `test_report.py`, `test_report_command.py`, `test_mfsk_modems.py` (both modems: round trip, unknown start and frequency, never-delivered cases), `test_codes.py` (the contract of every Code), `test_ldpc.py`, `test_turbo.py`, `test_long_convolutional.py`, `test_speed.py`, `test_code_curves.py`; `fake_modems.py` holds stand-in candidates. |
-| `.github/workflows/` | `ci.yml` (ruff + pytest on Linux/Windows/macOS), `package.yml` (build, smoke-test and upload Windows/macOS artifacts). |
+| `.github/workflows/` | `ci.yml` (ruff + pytest on Linux/Windows for every push, plus macOS on pull requests), `package.yml` (build, smoke-test and upload Windows/macOS artifacts). |
 | `docs/` | `adr/` (decisions), `packaging/` (spike findings, manual check procedure), `legacy/` (prototype docs), `references/` (papers), `agents/` (this folder). |
 
 ## Commands
