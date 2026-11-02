@@ -499,6 +499,7 @@ def test_the_estimate_gives_the_airtime_without_playing_anything(services):
     assert estimate.airtime_seconds == pytest.approx(6 * 6.8)
     assert estimate.max_bytes == 2244 and audio.played == []
     assert estimate.frequency_range_hz == (350.0, 2475.0) and estimate.frequency_problem is None
+    assert estimate.signal_width_hz == 175.0
 
 
 def test_the_estimate_of_a_message_that_is_too_long_carries_the_refusal_of_send(services):

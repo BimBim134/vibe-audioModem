@@ -23,6 +23,7 @@
   #spectrum { height: 6rem; }
   #axis { position: relative; height: 1.4rem; font-size: 0.75rem; }
   #axis span { position: absolute; transform: translateX(-50%); }
+  #legend { font-size: 0.75rem; opacity: 0.7; }
   h3 { font-size: 1rem; margin: 0.8rem 0 0.2rem; }
   #estimate.refused, #estimate .problem { color: #b00020; }
 </style>
@@ -66,6 +67,7 @@
     <canvas id="spectrum" width="480" height="90" role="img" aria-label="Spectrum of the sound heard, 300 to 2700 Hz"></canvas>
     <canvas id="waterfall" width="480" height="120" role="img" aria-label="Waterfall: the spectrum over the last minute, newest at the top"></canvas>
     <div id="axis" aria-hidden="true"></div>
+    <div id="legend">Levels from -100 dB (dark) to -20 dB (white), fixed. Blue band: where the next Message would be sent.</div>
   </div>
   <ul id="received"></ul>
   <h3>Detected, not decoded</h3>
@@ -137,6 +139,8 @@ function askEstimate() {
     if (mine !== asked) return;  // a newer question was asked: this answer is stale
     estimate = answer;
     const [low, high] = estimate.frequency_range_hz;
+    signalWidthHz = estimate.signal_width_hz;
+    drawScope();
     $("frequency").min = low; $("frequency").max = high;
     if ($("frequency").value === "") $("frequency").placeholder = estimate.default_frequency_hz;
     say("range", "from " + low + " to " + high + " Hz");
@@ -224,18 +228,18 @@ function showUndecoded(items) {
 // The spectrum and the waterfall ----------------------------------------------------------
 const MAX_ROWS = 120, MARKER_SECONDS = 120;
 let lowHz = 300, highHz = 2700;  // the band of a row, told by the application with the rows
-let spectrumNext = 0, history = [], markers = [], quiet = -100, loud = -40;
+const FLOOR_DB = -100, CEILING_DB = -20;  // a fixed range: the same level is the same colour
+let spectrumNext = 0, history = [], markers = [], signalWidthHz = 175;
 function colour(t) {  // 0..1: black, blue, cyan, yellow, white
   t = Math.max(0, Math.min(1, t));
   const stops = [[0, 0, 0], [0, 0, 160], [0, 200, 220], [255, 230, 0], [255, 255, 255]];
   const x = t * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
   return stops[i].map((c, k) => Math.round(c + (stops[i + 1][k] - c) * f));
 }
-function setLevels() {  // quiet and loud: the 5th and 99th percentiles of what is on show
-  const all = history.flat().sort((a, b) => a - b);
-  if (!all.length) { quiet = -100; loud = -40; return; }
-  quiet = all[Math.floor(all.length * 0.05)];
-  loud = Math.max(all[Math.floor(all.length * 0.99)], quiet + 10);
+function transmitBand() {  // where the next Message would be sent: from the lowest tone up
+  const typed = $("frequency").value;
+  const start = typed === "" ? Number($("frequency").placeholder) || 1450 : Number(typed);
+  return Number.isFinite(start) ? [start, start + signalWidthHz] : null;
 }
 function drawAxis() {
   const axis = $("axis");
@@ -248,7 +252,7 @@ function drawAxis() {
   }
 }
 function drawScope() {
-  const lo = quiet, hi = loud;
+  const lo = FLOOR_DB, hi = CEILING_DB;
   const water = $("waterfall"), wctx = water.getContext("2d");
   const image = wctx.createImageData(water.width, water.height);
   history.slice().reverse().forEach((row, y) => {  // the newest at the top
@@ -270,6 +274,17 @@ function drawScope() {
     });
     cctx.stroke();
   }
+  const band = transmitBand();
+  if (band) {  // the Signal that would be sent, to choose a free place for it
+    for (const [canvas, context] of [[curve, cctx], [water, wctx]]) {
+      const x0 = (band[0] - lowHz) / (highHz - lowHz) * canvas.width;
+      const x1 = (band[1] - lowHz) / (highHz - lowHz) * canvas.width;
+      context.fillStyle = "rgba(90, 160, 255, 0.35)";
+      context.fillRect(x0, 0, Math.max(x1 - x0, 2), canvas.height);
+      context.fillStyle = "#5aa0ff";
+      context.fillRect(x0 - 1, 0, 2, canvas.height);
+    }
+  }
   for (const marker of markers) {  // where Messages were heard, or lost: on both drawings
     const x = (marker.hz - lowHz) / (highHz - lowHz);
     const colourOf = marker.lost ? "#ff5a5a" : "#5aff7a";
@@ -286,7 +301,6 @@ async function refreshSpectrum() {
     spectrumNext = data.next;
     if (!data.rows.length) return;
     history = history.concat(data.rows).slice(-MAX_ROWS);
-    setLevels();
     drawScope();
   } catch (error) { /* the next refresh will say if the application does not answer */ }
 }
@@ -296,7 +310,7 @@ async function refresh() {
     state = await call("/api/status");
     say("sending", state.sending ? "sending..." : "");
     say("listening", state.listening ? "listening" + (state.blocks_lost ? " (" + state.blocks_lost + " blocks lost)" : "") : "");
-    if (state.listening && !wasListening) { history = []; setLevels(); }  // a new waterfall
+    if (state.listening && !wasListening) history = [];  // a new waterfall
     wasListening = state.listening;
     $("listen").textContent = state.listening ? "Stop listening" : "Start listening";
     const shown = JSON.stringify(state.settings);
@@ -333,6 +347,7 @@ $("send").onclick = () => act(call("/api/send", "POST", sendBody()), (sent) => s
   sent.copies + " cop" + (sent.copies > 1 ? "ies" : "y") + ", about " +
   Math.round(sent.airtime_seconds) + " s on the air."));
 for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
+$("frequency").addEventListener("input", drawScope);  // the band moves as it is typed
 $("cancel").onclick = () => act(call("/api/cancel", "POST"), () => say("info", "Cancelled."));
 $("listen").onclick = () => act(call(state.listening ? "/api/listen/stop" : "/api/listen/start", "POST"));
 $("quit").onclick = async () => {

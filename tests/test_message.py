@@ -196,3 +196,31 @@ def test_the_messages_given_up_on_can_be_bounded_for_a_reception_that_never_ends
         received.add(Fragment(msg_id, 0, 2, b"b" * FRAGMENT_CAPACITY))
     given_up = [p for p in received.pending() if p.fragments[0].startswith(b"a")]
     assert len(given_up) == 2 and [p.msg_id for p in given_up] == [3, 4]
+
+
+def test_a_new_message_that_reuses_the_identifier_of_one_delivered_is_delivered_too():
+    received = Reassembler()
+    assert len(deliver(received, split(b"first message", msg_id=7))) == 1
+    done = deliver(received, split(b"another one!", msg_id=7))  # same identifier and size class
+    assert [d.message for d in done] == [b"another one!"]
+
+
+def test_the_copies_of_a_delivered_message_are_still_ignored_among_others_of_the_same_id():
+    received = Reassembler()
+    message = split(b"original", msg_id=7)
+    deliver(received, message)
+    deliver(received, split(b"newcomer!", msg_id=7))  # takes the identifier over
+    assert deliver(received, split(b"newcomer!", msg_id=7)) == []  # its copy, not new
+    assert [d.message for d in deliver(received, message)] == [b"original"]  # and back again
+
+
+def test_a_message_that_differs_only_in_a_later_fragment_is_known_for_another_when_that_one_shows():
+    received = Reassembler()
+    first = split(b"A" * 17 + b"first end", msg_id=3)
+    second = split(b"A" * 17 + b"other end", msg_id=3)
+    deliver(received, first)
+    assert received.add(second[0]) is None  # the same first Fragment: taken for a copy
+    assert (
+        received.add(second[1]) is None
+    )  # the last differs: a new Message, still short of its first
+    assert received.add(second[0]).message == b"A" * 17 + b"other end"  # which comes again

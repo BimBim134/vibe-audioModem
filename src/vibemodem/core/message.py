@@ -123,14 +123,16 @@ class Reassembler:
         oldest are forgotten); by default none is forgotten, which suits a reception that ends
         with `finish`. A reception that never ends should bound them."""
         self._open: OrderedDict[tuple[int, int], dict[int, bytes]] = OrderedDict()
-        self._done: OrderedDict[tuple[int, int], None] = OrderedDict()
+        self._done: OrderedDict[tuple[int, int], dict[int, bytes]] = OrderedDict()
         self._dropped: deque[Incomplete] = deque(maxlen=max_given_up)
 
     def add(self, fragment: Fragment) -> Complete | None:
         """The Message this Fragment completes, if it does and it was not delivered before."""
         key = (fragment.msg_id, fragment.total)
         if key in self._done:
-            return None
+            if self._done[key].get(fragment.index) == fragment.payload:
+                return None  # a copy of the Message that was delivered
+            del self._done[key]  # same identifier, other content: another Message
         heard = self._open.setdefault(key, {})
         self._open.move_to_end(key)  # the Message that is least recently heard goes first
         if fragment.index in heard and heard[fragment.index] != fragment.payload:
@@ -141,7 +143,7 @@ class Reassembler:
             self._bound_open()
             return None
         del self._open[key]
-        self._done[key] = None
+        self._done[key] = heard  # kept to tell a copy from another Message with this identifier
         if len(self._done) > MEMORY:
             self._done.popitem(last=False)
         message = b"".join(heard[index] for index in range(fragment.total))

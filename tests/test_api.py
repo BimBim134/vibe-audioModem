@@ -293,6 +293,7 @@ def test_the_estimate_is_returned_without_any_sound(client, audio):
     assert body["fits"] is True and body["fragments"] == 1
     assert body["airtime_seconds"] == pytest.approx(13.6)
     assert body["frequency_range_hz"] == [350.0, 2475.0] and body["default_frequency_hz"] == 1450.0
+    assert body["signal_width_hz"] == 175.0  # 8 tones 25 Hz apart
     assert audio.played == []
 
 

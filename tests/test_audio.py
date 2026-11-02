@@ -1,5 +1,7 @@
 """The audio layer: devices, playing, recording, listening, and the fake that stands in."""
 
+import time
+
 import numpy as np
 import pytest
 
@@ -92,7 +94,7 @@ def test_samples_are_played_to_the_chosen_output_as_float32_at_48_khz(card, sd):
     card.play(tone(), device="codec")
     (played,) = sd.played
     assert played["device"] == 1 and played["rate"] == FS and played["data"].dtype == np.float32
-    assert np.allclose(played["data"], tone(), atol=1e-6)
+    assert np.allclose(played["data"][: tone().size], tone(), atol=1e-6)
 
 
 @pytest.mark.parametrize("bad", [np.array([0.0, 1.5]), np.zeros((4, 2)), np.array([np.nan])])
@@ -274,9 +276,50 @@ def test_the_fake_drops_the_oldest_blocks_like_the_real_thing():
 # Stopping, and the cable between two fakes ------------------------------------------------------
 
 
-def test_the_sound_card_stops_what_it_is_playing(card, sd):
+def test_the_sound_card_plays_everything_and_lets_it_be_heard_to_the_end(card, sd):
+    card.play(tone(1.0), device="codec")
+    (stream,) = sd.output_streams
+    assert stream.stopped and stream.closed and not stream.aborted  # it ended by itself
+    assert np.allclose(stream.heard()[: tone(1.0).size], tone(1.0), atol=1e-6)
+    assert not stream.heard()[tone(1.0).size :].any()  # and then silence, nothing else
+
+
+def test_a_stop_while_the_sound_card_plays_cuts_the_sound_and_closes_the_stream(card, sd):
+    import threading
+
+    sd.seconds_per_second = 0.5  # 4 s of sound take 2 s to play
+    done = threading.Thread(target=card.play, args=(tone(4.0), "codec"))
+    done.start()
+    deadline = time.monotonic() + 5
+    while not (sd.output_streams and sd.output_streams[0].heard_pieces):
+        assert time.monotonic() < deadline, "the sound never started"
+    began = time.monotonic()
+    card.stop()  # from another thread: only a flag, for the callback to see
+    done.join(timeout=5)
+    assert not done.is_alive() and time.monotonic() - began < 1.0
+    (stream,) = sd.output_streams
+    assert stream.aborted and stream.closed
+    assert 0 < stream.heard().size < tone(4.0).size
+
+
+def test_a_stop_when_nothing_plays_does_not_cut_the_next_sound(card, sd):
     card.stop()
-    assert sd.stopped == 1
+    card.play(tone(0.5), device="codec")
+    assert np.allclose(sd.output_streams[0].heard()[: tone(0.5).size], tone(0.5), atol=1e-6)
+
+
+def test_a_sound_card_that_cannot_start_says_so_and_the_stream_is_closed(card, sd):
+    original = sd.OutputStream
+
+    def failing(**options):
+        stream = original(**options)
+        stream.fail_to_start = True
+        return stream
+
+    sd.OutputStream = failing
+    with pytest.raises(NoAudioDeviceError, match="cannot start"):
+        card.play(tone(), device="codec")
+    assert sd.output_streams[0].closed
 
 
 def test_a_stop_while_the_fake_plays_cuts_the_sound_where_it_is():

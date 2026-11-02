@@ -71,6 +71,7 @@ class Estimate:
     frequency_range_hz: tuple[float, float]
     default_frequency_hz: float
     frequency_problem: str | None
+    signal_width_hz: float  # from the lowest tone to the highest
 
 
 class ModemService:
@@ -178,6 +179,7 @@ class ModemService:
                 self._frame_samples[preset] = size
             samples = self._frame_samples[preset]
         reason = explain_refusal(length, preset, copies, samples)
+        profile = presets.profile(preset)
         fragments = fragment_count(length)
         return Estimate(
             fragments=fragments,
@@ -188,6 +190,7 @@ class ModemService:
             frequency_range_hz=presets.frequency_range_hz(preset),
             default_frequency_hz=mfsk.FIRST_TONE_HZ,
             frequency_problem=self._frequency_problem(preset, frequency_hz),
+            signal_width_hz=(profile.tones - 1) * 1000 / profile.symbol_ms,
         )
 
     def selftest(self) -> bool:

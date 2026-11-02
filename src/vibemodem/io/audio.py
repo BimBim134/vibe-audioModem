@@ -151,6 +151,9 @@ def _positive(value: float, what: str) -> None:
         raise ValueError(f"{what} lasts a positive number of seconds")
 
 
+PLAY_GRACE_SECONDS = 10.0  # more than the sound lasts, before the sound card is given up on
+
+
 def _import_sounddevice():
     import sounddevice
 
@@ -163,6 +166,8 @@ class SoundCard:
     def __init__(self, load: Callable = _import_sounddevice):
         self._load = load
         self._module = None
+        self._cut = threading.Event()
+        self._playing = False
 
     def _sd(self):
         if self._module is None:
@@ -207,14 +212,49 @@ class SoundCard:
         return number
 
     def play(self, samples: np.ndarray, device: int | str | None = None) -> None:
+        # The sound card asks for its sound through a callback, and a stop is only a flag that
+        # the callback looks at: the thread that opened the stream is the one that closes it.
+        # Calling PortAudio to stop it from another thread, while this one waited for the end,
+        # corrupted its memory and killed the application.
         data = _playable(samples)
         number = self._open_check("output", device)
         sd = self._sd()
+        finished = threading.Event()
+        position = 0
+
+        def feed(outdata, frames, _time, _status):
+            nonlocal position
+            if self._cut.is_set():
+                outdata[:] = 0
+                raise sd.CallbackAbort
+            piece = data[position : position + frames]
+            outdata[: piece.size, 0] = piece
+            outdata[piece.size :, 0] = 0
+            position += frames
+            if position >= data.size:
+                raise sd.CallbackStop  # what is queued is still heard
+
+        self._cut.clear()
+        self._playing = True
         try:
-            sd.play(data, samplerate=SAMPLE_RATE, device=number)
-            sd.wait()
+            stream = sd.OutputStream(
+                samplerate=SAMPLE_RATE,
+                channels=1,
+                dtype="float32",
+                device=number,
+                callback=feed,
+                finished_callback=finished.set,
+            )
+            try:
+                stream.start()
+                if not finished.wait(timeout=data.size / SAMPLE_RATE + PLAY_GRACE_SECONDS):
+                    raise NoAudioDeviceError("the sound card stopped taking the sound")
+            finally:
+                stream.close()
         except sd.PortAudioError as error:
             raise NoAudioDeviceError(str(error)) from error
+        finally:
+            self._playing = False
 
     def record(self, seconds: float, device: int | str | None = None) -> np.ndarray:
         _positive(seconds, "a recording")
@@ -234,7 +274,8 @@ class SoundCard:
         return np.asarray(data[:, 0], dtype=np.float32)
 
     def stop(self) -> None:
-        self._sd().stop()
+        if self._playing:
+            self._cut.set()
 
     def listen(
         self, device: int | str | None = None, block_seconds: float = 0.5, capacity: int = 64
