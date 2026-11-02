@@ -78,3 +78,34 @@ class UncodedBits:
 
     def decode(self, soft):
         return (np.asarray(soft) < 0).astype(np.uint8)
+
+
+class OptionModem(PerfectModem):
+    """A modem with settings, to check that the bench passes them on and records them."""
+
+    def __init__(self, tones=8, interleave=False):
+        self.tones = tones
+        self.interleave = interleave
+
+    @property
+    def parameters(self):
+        return {"tones": self.tones, "interleave": self.interleave}
+
+
+class ComboModem(PerfectModem):
+    """A modem whose Transmission is `tones` tones 10 Hz apart, to test sweeps of the settings."""
+
+    def __init__(self, tones=8, symbol_ms=80.0, interleave=False):
+        self.tones = tones
+        self.symbol_ms = symbol_ms
+        self.interleave = interleave
+
+    @property
+    def parameters(self):
+        return {"tones": self.tones, "symbol_ms": self.symbol_ms, "interleave": self.interleave}
+
+    def modulate(self, message, preset):
+        super().modulate(message, preset)
+        time = np.arange(2 * 48_000) / 48_000
+        tones = sum(np.sin(2 * np.pi * (1000 + 10 * tone) * time) for tone in range(self.tones))
+        return 0.1 * tones

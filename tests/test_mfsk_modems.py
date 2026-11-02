@@ -83,7 +83,7 @@ def noise(seconds, seed, level=0.3):
     return np.random.default_rng(seed).normal(0.0, level, round(seconds * FS))
 
 
-SYMBOL = mfsk.SAMPLES_PER_SYMBOL
+SYMBOL = mfsk.STANDARD.samples_per_symbol
 DATA_START = mfsk.PREAMBLE_SYMBOLS * SYMBOL
 
 
@@ -153,4 +153,4 @@ def test_the_noise_bandwidth_is_the_one_the_bench_uses():
 
 
 def test_the_tables_every_modem_shares_cannot_be_modified():
-    assert not mfsk.PREAMBLE_TONES.flags.writeable
+    assert not mfsk.STANDARD.preamble_tones.flags.writeable

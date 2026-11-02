@@ -177,3 +177,37 @@ def test_an_unknown_scenario_is_refused(tmp_path, capsys):
             ]
         )
     assert stop.value.code == 2
+
+
+def test_settings_given_on_the_command_line_reach_the_modem_and_the_result_file(tmp_path):
+    result = json.loads(
+        run(
+            tmp_path,
+            "tests.fake_modems:OptionModem",
+            "--set", "tones=4",
+            "--set", "interleave=true",
+        ).read_text()
+    )  # fmt: skip
+    assert result["modem_options"] == {"tones": 4, "interleave": True}
+    assert result["modem_parameters"] == {"tones": 4, "interleave": True}
+
+
+def test_a_run_without_settings_leaves_the_result_file_as_it_was(tmp_path):
+    result = json.loads(run(tmp_path, "tests.fake_modems:OptionModem").read_text())
+    assert "modem_options" not in result
+    assert "modem_parameters" not in result
+
+
+@pytest.mark.parametrize("setting", ["tones", "=4", "tones=four"])
+def test_a_setting_that_is_not_a_name_and_a_value_is_reported(tmp_path, setting, capsys):
+    with pytest.raises(SystemExit) as stop:
+        run(tmp_path, "tests.fake_modems:OptionModem", "--set", setting)
+    assert stop.value.code == 2
+    assert "--set" in capsys.readouterr().err or setting.split("=")[0] in capsys.readouterr().err
+
+
+def test_a_setting_the_modem_does_not_have_is_reported(tmp_path, capsys):
+    with pytest.raises(SystemExit) as stop:
+        run(tmp_path, "tests.fake_modems:OptionModem", "--set", "colour=1")
+    assert stop.value.code == 2
+    assert "colour" in capsys.readouterr().err

@@ -11,6 +11,7 @@ import numpy as np
 from bench.channel import REFERENCE_BANDWIDTH_HZ, ChannelConfig, apply_channel
 from bench.report import write_report
 from bench.scenarios import SCENARIOS
+from bench.settings import parse_settings
 from vibemodem.core.modem import Modem
 
 REQUIRED_SUCCESS_RATE = 0.95
@@ -129,13 +130,13 @@ def measure_curve(
     return points
 
 
-def load_modem(spec: str) -> Modem:
-    """Build a candidate from "package.module:ClassName" (the class takes no arguments)."""
+def load_modem(spec: str, options: dict | None = None) -> Modem:
+    """Build a candidate from "package.module:ClassName", called with the options as keywords."""
     module_name, _, attribute = spec.partition(":")
     if not module_name or not attribute:
         raise ValueError(f"expected 'package.module:ClassName', got {spec!r}")
     try:
-        return getattr(importlib.import_module(module_name), attribute)()
+        return getattr(importlib.import_module(module_name), attribute)(**(options or {}))
     except (ImportError, AttributeError, TypeError) as error:
         raise ValueError(f"cannot load modem {spec!r}: {error}") from error
 
@@ -167,14 +168,21 @@ def _describe_code(modem: Modem) -> dict | None:
 def _result(
     args: argparse.Namespace,
     modem: Modem,
+    options: dict,
     channel: ChannelConfig,
     points: list[CurvePoint],
     threshold: float | None,
 ) -> dict:
     # No date or commit here on purpose: the same run must give a byte-identical file.
+    chosen = (
+        {"modem_options": options, "modem_parameters": getattr(modem, "parameters", None)}
+        if options
+        else {}
+    )
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "modem": args.modem,
+        **chosen,
         "scenario": args.scenario,
         "code": _describe_code(modem),
         "preset": args.preset,
@@ -217,13 +225,18 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--tail-s", type=float, default=0.0, help="silence kept after the signal")
     parser.add_argument("--freq-offset-from", type=float, default=0.0, help="lowest shift, in Hz")
     parser.add_argument("--freq-offset-to", type=float, default=0.0, help="highest shift, in Hz")
+    parser.add_argument(
+        "--set", action="append", default=[], metavar="NAME=VALUE",
+        help="a setting of the modem, e.g. --set tones=4 --set interleave=true (repeatable)",
+    )  # fmt: skip
     parser.add_argument("--out", required=True, type=Path, help="JSON file to write")
     parser.add_argument("--html", type=Path, help="also write a human-readable HTML report")
     args = parser.parse_args(argv)
 
     channel = SCENARIOS[args.scenario].config
     try:
-        modem = load_modem(args.modem)
+        options = parse_settings(args.set)
+        modem = load_modem(args.modem, options)
         points = measure_curve(
             modem,
             preset=args.preset,
@@ -242,7 +255,7 @@ def main(argv: list[str] | None = None) -> None:
     threshold = success_threshold(points)
     _print_report(points, threshold)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    result = _result(args, modem, channel, points, threshold)
+    result = _result(args, modem, options, channel, points, threshold)
     args.out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     if args.html:
         write_report([result], args.html)

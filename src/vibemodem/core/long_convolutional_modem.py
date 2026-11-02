@@ -11,5 +11,5 @@ from vibemodem.core.long_convolutional import LongConvolutionalCode
 
 
 class LongConvolutionalModem(CodedMfskModem):
-    def __init__(self):
-        super().__init__(LongConvolutionalCode(info_bits=frame.FRAME_BITS))
+    def __init__(self, **options):
+        super().__init__(LongConvolutionalCode(info_bits=frame.FRAME_BITS), **options)

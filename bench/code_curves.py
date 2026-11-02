@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
+from bench.settings import parse_settings
 from vibemodem.core.code import Code
 
 
@@ -46,20 +47,6 @@ def _lost_frames(code: Code, ebn0_db: float, frames: int, seed: int) -> tuple[in
         silent += decoded is None
         lost += decoded is None or not np.array_equal(decoded, info)
     return lost, silent
-
-
-def parse_settings(assignments: list[str]) -> dict:
-    """ "name=value" pairs, each value a JSON literal (7, 0.9, "text"), as keyword arguments."""
-    settings = {}
-    for assignment in assignments:
-        name, equals, text = assignment.partition("=")
-        if not equals or not name:
-            raise ValueError(f"expected name=value, got {assignment!r}")
-        try:
-            settings[name] = json.loads(text)
-        except ValueError as error:
-            raise ValueError(f"the value of {name} is not a JSON literal: {text!r}") from error
-    return settings
 
 
 def load_code(spec: str, info_bits: int, settings: dict | None = None) -> Code:

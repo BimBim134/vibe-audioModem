@@ -10,5 +10,5 @@ from vibemodem.core.turbo import TurboCode
 
 
 class TurboModem(CodedMfskModem):
-    def __init__(self):
-        super().__init__(TurboCode(info_bits=frame.FRAME_BITS))
+    def __init__(self, **options):
+        super().__init__(TurboCode(info_bits=frame.FRAME_BITS), **options)

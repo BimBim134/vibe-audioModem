@@ -24,5 +24,5 @@ __all__ = [
 
 
 class BaselineModem(CodedMfskModem):
-    def __init__(self):
-        super().__init__(ConvolutionalCode(frame.FRAME_BITS))
+    def __init__(self, **options):
+        super().__init__(ConvolutionalCode(frame.FRAME_BITS), **options)

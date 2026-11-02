@@ -9,5 +9,7 @@ from vibemodem.core.ldpc import LdpcCode
 
 
 class LdpcModem(CodedMfskModem):
-    def __init__(self):
-        super().__init__(LdpcCode(info_bits=frame.FRAME_BITS, coded_bits=2 * frame.FRAME_BITS))
+    def __init__(self, **options):
+        super().__init__(
+            LdpcCode(info_bits=frame.FRAME_BITS, coded_bits=2 * frame.FRAME_BITS), **options
+        )
