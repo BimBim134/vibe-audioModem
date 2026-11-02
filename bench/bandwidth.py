@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("need --messages >= 1, --message-bytes >= 0 and --drop-db > 0")
     try:
         options = parse_settings(args.set)
-        modem = load_modem(args.modem, options)
+        modem = load_modem(args.modem, options, args.preset)
         (low, high), seconds = measure_band(
             modem, args.preset, args.messages, args.message_bytes, args.seed, args.drop_db
         )

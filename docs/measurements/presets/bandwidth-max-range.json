@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.turbo_modem:TurboModem",
+  "preset": "max-range",
+  "seed": 1,
+  "messages": 3,
+  "message_bytes": 12,
+  "drop_db": 20.0,
+  "low_hz": 1447.265625,
+  "high_hz": 1476.5625,
+  "bandwidth_hz": 29.296875,
+  "transmission_seconds": 54.4
+}

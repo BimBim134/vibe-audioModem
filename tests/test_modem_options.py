@@ -52,7 +52,7 @@ def test_a_repeated_message_lasts_for_all_its_copies():
 
 
 def test_interleaving_changes_the_order_of_the_symbols_not_their_number():
-    plain = BaselineModem().modulate(b"x", "standard")
+    plain = BaselineModem(interleave=False).modulate(b"x", "standard")
     spread = BaselineModem(interleave=True).modulate(b"x", "standard")
     assert plain.size == spread.size
     assert not np.allclose(plain, spread)
@@ -80,7 +80,7 @@ def test_interleaving_puts_neighbouring_bits_far_apart_and_each_copy_differently
 
 def test_a_burst_that_defeats_the_plain_code_is_survived_when_interleaved():
     # 30 symbols in a row are lost: 90 consecutive coded bits, a fifth of the code word.
-    plain, spread = BaselineModem(), BaselineModem(interleave=True)
+    plain, spread = BaselineModem(interleave=False), BaselineModem(interleave=True)
     assert plain.demodulate(record(plain, b"burst", burst=(50, 30))) == []
     received = spread.demodulate(record(spread, b"burst", burst=(50, 30)))
     assert [r.message for r in received] == [b"burst"]
@@ -97,6 +97,7 @@ def test_a_second_copy_makes_up_for_a_lost_first_one():
 def test_the_options_are_reported_for_the_result_files():
     modem = TurboModem(tones=4, symbol_ms=160, interleave=True, repetitions=2)
     assert modem.parameters == {
+        "preset": "standard",
         "tones": 4,
         "symbol_ms": 160.0,
         "interleave": True,
@@ -110,7 +111,7 @@ def test_a_number_of_repetitions_that_makes_no_sense_is_refused(repetitions):
         BaselineModem(repetitions=repetitions)
 
 
-@pytest.mark.parametrize("interleave", [1, "yes", None])
+@pytest.mark.parametrize("interleave", [1, "yes"])
 def test_interleave_must_be_true_or_false(interleave):
     with pytest.raises(ValueError, match="interleave"):
         BaselineModem(interleave=interleave)

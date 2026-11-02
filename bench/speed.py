@@ -100,7 +100,9 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     try:
-        result = measure_speed(load_modem(args.modem), preset=args.preset, repeats=args.repeats)
+        result = measure_speed(
+            load_modem(args.modem, preset=args.preset), preset=args.preset, repeats=args.repeats
+        )
     except ValueError as error:
         parser.error(str(error))
 

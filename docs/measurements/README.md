@@ -194,6 +194,8 @@ Measured on the named channels only (no white-noise run), at 8 tones and 80 ms. 
 
 ## GFSK candidate against M-FSK (ticket #12)
 
+> The GFSK code of this section was removed from the repository after ticket #13 chose M-FSK (ADR 0004). It is in git history at commit `a891dee`; the commands below need that checkout.
+
 `GfskModem` (`vibemodem.core.gfsk_modem:GfskModem`) is binary GFSK with the turbo code and the same Frame, preamble length (2.56 s), interleaver and repetition as the M-FSK modem. Settings: `baud`, `h` (modulation index, 0.5 is GMSK), `bt` (Gaussian filter bandwidth-time product, `null` = no filter). The receiver is written for this project and is not coherent: per bit it measures the energy at two frequencies and passes their difference to the Code as a soft value. Because a bit-long window cannot tell two tones closer than the baud rate apart, the measuring points are at least baud/2 either side of the carrier, which for `h` below 1 is farther out than the tones themselves.
 
 Sweep on white noise (turbo, 100 trials, step 1 dB, seed 1, same procedure as the M-FSK sweep): `python -m bench.sweep --modem vibemodem.core.gfsk_modem:GfskModem --grid baud=25,50,100 --grid h=0.5,1.0 --grid bt=0.3,0.5,null --snr-from -20 --snr-to -6 --snr-step 1 --trials 100 --jobs 6 --out docs/measurements/sweep/gfsk-white-turbo.json`. Thresholds in dB; "energy" is the 95% threshold plus 10 log10(Transmission length).
@@ -234,3 +236,20 @@ What it shows:
 - **Under fading** the fastest setting does best at 95% (50 Bd reaches -6 dB, against -4 dB for the default M-FSK) because its Transmission is short, but the M-FSK 8-tone points with symbols of 160 ms or more reach -14 dB and above 95% at high SNR; slow GFSK stays on the 92-97% plateau.
 - The bandwidth budget is the same ~100 Hz as for M-FSK: at 100 Bd every GFSK setting is over it (117 to 136 Hz) and most do not reach 95%. The soft value passed to the Code is the difference of the two energies divided by the noise energy, not a calibrated log-likelihood ratio; the turbo code does not need one.
 - Same caveats as for the M-FSK sweep (100 trials per point, band from 3 Messages, long Transmissions fill the recording and degrade the noise estimate).
+
+## The three Presets (ticket #13)
+
+Each Preset measured as a modem built for it (`--preset`), with the turbo code, interleaved coded bits, 100 trials, seed 1, Messages of 12 bytes hidden up to 10 s into the recording, frequency shift of -1100 to +1100 Hz, 1 dB steps on white noise and 2 dB steps on hf-fading. Command, for each Preset and scenario: `python -m bench.threshold --modem vibemodem.core.turbo_modem:TurboModem --preset fast --scenario white --snr-from -17 --snr-to -7 --snr-step 1 --trials 100 --message-bytes 12 --max-lead-in-s 10 --tail-s 1 --freq-offset-from -1100 --freq-offset-to 1100 --out docs/measurements/presets/white-fast.json`. The band is `python -m bench.bandwidth --preset fast --messages 3` (same 3 Messages as the sweep). Files: `docs/measurements/presets/`.
+
+| Preset | Band at -20 dB | Transmission | White 95/90/80% | Energy at 95% | hf-fading 95/90/80% |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| max-range (8 tones, 320 ms) | 29 Hz | 54.4 s | -22 / -22 / -22 | -4.6 | -16 / -16 / -18 |
+| **standard** (8 tones, 80 ms) | 107 Hz | 13.6 s | -16 / -16 / -16 | -4.7 | -8 / -12 / -12 |
+| fast (8 tones, 40 ms) | 212 Hz | 6.8 s | -13 / -13 / -13 | -4.7 | not reached / 0 / -8 |
+
+- **No Message was ever accepted wrongly**, in any of the roughly 5,900 trials.
+- **Equal energy again**: -4.6 to -4.7 dB for the three Presets on white noise. The Presets trade airtime for sensitivity, 3 dB per doubling of the symbol.
+- **Standard is 107 Hz, not 124 Hz.** The earlier figure was for the same waveform without interleaving. We do not know the cause: the band is an average of only 3 Messages and depends on their content, so read 107 Hz as the figure measured, not as a proven gain.
+- **The interleaver on hf-fading** gives about 1 to 2 dB at 90% (standard: -12 dB, against -10 to -11 without), as in the interleaver table above. The 95% level moved from -4 to -8 dB, but the standard curve is flat at 93 to 99% from -12 dB up, so that move is plateau noise, not a gain. Max-range at -16 dB equals the non-interleaved 320 ms result.
+- **Fast under hf-fading** passes 90% only at 0 dB and never reaches 95% (89 to 94% from -4 to 0 dB): 6.8 s is too short to ride out the fades.
+- The earlier sweep tables (white-turbo, hf-fading-turbo, GFSK) were measured without interleaving.

@@ -1,23 +1,25 @@
 """An M-FSK modem that works with any error-correcting code.
 
-8-FSK in about 100 Hz by default, a fixed-size Frame protected by a CRC-32 and by the code given
-at construction, decoded from soft values, and a known 32-symbol preamble that the receiver
-looks for at every start time and audio frequency. Modems that differ only by their code come
-from here, so a difference in their Success threshold is the code's.
+8-FSK of the Preset it is built for (standard by default), a fixed-size Frame protected by a
+CRC-32 and by the code given at construction, decoded from soft values, and a known 32-symbol
+preamble that the receiver looks for at every start time and audio frequency. Modems that
+differ only by their code come from here, so a difference in their Success threshold is the
+code's.
 
-The number of tones and the symbol duration can be changed, and the coded bits can be spread
-over the whole Transmission (`interleave`) and sent several times (`repetitions`); the bench
-sweeps these.
+The Preset (see `presets`) sets the tones, the symbol duration and the interleaving; any of them
+can be overridden by hand, and the coded bits can be sent several times (`repetitions`); the
+bench sweeps these.
 """
 
 import math
 
 import numpy as np
 
-from vibemodem.core import mfsk
+from vibemodem.core import mfsk, presets
 from vibemodem.core.code import Code
 from vibemodem.core.coded_modem import NOISE_BANDWIDTH_HZ, CodedModem
 from vibemodem.core.modem import Reception
+from vibemodem.core.presets import DEFAULT_PRESET
 
 SAMPLE_RATE = mfsk.SAMPLE_RATE
 
@@ -29,12 +31,17 @@ class CodedMfskModem(CodedModem):
         self,
         code: Code,
         *,
-        tones: int = 8,
-        symbol_ms: float = 80.0,
-        interleave: bool = False,
+        preset: str = DEFAULT_PRESET,
+        tones: int | None = None,
+        symbol_ms: float | None = None,
+        interleave: bool | None = None,
         repetitions: int = 1,
     ):
-        super().__init__(code, interleave=interleave, repetitions=repetitions)
+        chosen = presets.profile(preset)
+        tones = chosen.tones if tones is None else tones
+        symbol_ms = chosen.symbol_ms if symbol_ms is None else symbol_ms
+        interleave = chosen.interleave if interleave is None else interleave
+        super().__init__(code, preset=preset, interleave=interleave, repetitions=repetitions)
         self.waveform = mfsk.Waveform(tones=tones, symbol_seconds=symbol_ms / 1000)
         self._data_symbols = math.ceil(self._sent_bits / self.waveform.bits_per_symbol)
         # How the energy ratio at a tone becomes an SNR: the noise of the reference bandwidth
@@ -45,6 +52,7 @@ class CodedMfskModem(CodedModem):
     def parameters(self) -> dict:
         """What a result file records so the waveform that was measured can be told apart."""
         return {
+            "preset": self.preset,
             "tones": self.waveform.tones,
             "symbol_ms": round(self.waveform.symbol_seconds * 1000, 6),
             "interleave": self._interleave,

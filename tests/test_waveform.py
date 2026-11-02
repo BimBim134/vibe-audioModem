@@ -21,7 +21,17 @@ def digest(samples: np.ndarray) -> str:
     "modem_class, expected",
     [(BaselineModem, "d13a99a184162ecd"), (TurboModem, "d935404d6cb3dc95")],
 )
-def test_the_default_waveform_is_the_one_measured_before_it_became_adjustable(
+def test_without_interleaving_the_waveform_is_the_one_measured_before_it_became_adjustable(
+    modem_class, expected
+):
+    assert digest(modem_class(interleave=False).modulate(b"hello", "standard")) == expected
+
+
+@pytest.mark.parametrize(
+    "modem_class, expected",
+    [(BaselineModem, "1e77f2f3f28cfc36"), (TurboModem, "b34e6a8c3b30d352")],
+)
+def test_the_standard_preset_is_that_waveform_with_the_coded_bits_interleaved(
     modem_class, expected
 ):
     assert digest(modem_class().modulate(b"hello", "standard")) == expected

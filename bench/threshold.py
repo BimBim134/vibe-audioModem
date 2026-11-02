@@ -2,6 +2,7 @@
 
 import argparse
 import importlib
+import inspect
 import json
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -130,13 +131,26 @@ def measure_curve(
     return points
 
 
-def load_modem(spec: str, options: dict | None = None) -> Modem:
-    """Build a candidate from "package.module:ClassName", called with the options as keywords."""
+def _takes_preset(candidate) -> bool:
+    parameters = inspect.signature(candidate).parameters.values()
+    return any(p.name == "preset" or p.kind is p.VAR_KEYWORD for p in parameters)
+
+
+def load_modem(spec: str, options: dict | None = None, preset: str | None = None) -> Modem:
+    """Build a candidate from "package.module:ClassName", called with the options as keywords.
+
+    A candidate that takes a `preset` keyword is built for the Preset being measured, unless the
+    options already name one.
+    """
     module_name, _, attribute = spec.partition(":")
     if not module_name or not attribute:
         raise ValueError(f"expected 'package.module:ClassName', got {spec!r}")
     try:
-        return getattr(importlib.import_module(module_name), attribute)(**(options or {}))
+        candidate = getattr(importlib.import_module(module_name), attribute)
+        options = dict(options or {})
+        if preset and "preset" not in options and _takes_preset(candidate):
+            options["preset"] = preset
+        return candidate(**options)
     except (ImportError, AttributeError, TypeError) as error:
         raise ValueError(f"cannot load modem {spec!r}: {error}") from error
 
@@ -232,7 +246,7 @@ def main(argv: list[str] | None = None) -> None:
     channel = SCENARIOS[args.scenario].config
     try:
         options = parse_settings(args.set)
-        modem = load_modem(args.modem, options)
+        modem = load_modem(args.modem, options, args.preset)
         points = measure_curve(
             modem,
             preset=args.preset,

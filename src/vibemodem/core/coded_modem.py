@@ -11,11 +11,11 @@ import math
 
 import numpy as np
 
-from vibemodem.core import frame
+from vibemodem.core import frame, presets
 from vibemodem.core.code import Code
 from vibemodem.core.modem import Reception
+from vibemodem.core.presets import DEFAULT_PRESET
 
-PRESET = "standard"
 SAMPLE_RATE = 48_000
 NOISE_BANDWIDTH_HZ = 2500  # the reference bandwidth in which SNRs are quoted
 # The search keeps a few arrays of (windows x frequencies) numbers; this bounds their size.
@@ -46,7 +46,9 @@ class CodedModem:
     Receptions of the same Message (a repeated Transmission) are merged into one.
     """
 
-    def __init__(self, code: Code, *, interleave: bool = False, repetitions: int = 1):
+    def __init__(
+        self, code: Code, *, preset: str = DEFAULT_PRESET, interleave: bool, repetitions: int = 1
+    ):
         if code.info_bits != frame.FRAME_BITS:
             raise ValueError(f"the code must take a Frame of {frame.FRAME_BITS} bits")
         if not isinstance(repetitions, int) or not 1 <= repetitions <= MAX_REPETITIONS:
@@ -54,6 +56,7 @@ class CodedModem:
         if not isinstance(interleave, bool):
             raise ValueError("interleave must be true or false")
         self.code = code
+        self.preset = preset
         self._interleave = interleave
         self._repetitions = repetitions
         self._sent_bits = repetitions * code.coded_bits
@@ -90,8 +93,9 @@ class CodedModem:
         raise NotImplementedError
 
     def modulate(self, message: bytes, preset: str) -> np.ndarray:
-        if preset != PRESET:
-            raise ValueError(f"unknown Preset {preset!r}: this modem only has {PRESET!r}")
+        presets.profile(preset)  # refuses a name that is no Preset
+        if preset != self.preset:
+            raise ValueError(f"this modem is built for the Preset {self.preset!r}, not {preset!r}")
         return self._audio(message)
 
     def demodulate(self, samples: np.ndarray) -> list[Reception]:
