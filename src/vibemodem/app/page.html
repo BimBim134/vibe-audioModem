@@ -71,7 +71,7 @@
     <div id="legend">Levels from -100 dB (dark) to -20 dB (white), fixed. Blue band: where the next Message would be sent.</div>
   </div>
   <ul id="received"></ul>
-  <p id="legend2">Each Message: the frequency of its lowest tone, <b>SNR</b> (signal-to-noise ratio, estimated in 2,500 Hz) and <b>sync</b> (how strongly its start matched: 7 is the limit of detection, about 20 at the weakest Signal that can be read, hundreds when strong). Messages appear up to 10 s after their end.</p>
+  <p id="legend2">Each Message: the frequency of its lowest tone and its <b>SNR</b> (signal-to-noise ratio, estimated in 2,500 Hz). Messages appear up to 10 s after their end.</p>
   <h3>Detected, not decoded</h3>
   <ul id="undecoded"><li>None.</li></ul>
 </fieldset>
@@ -185,7 +185,6 @@ function qualityLine(item) {  // how a Message was received: each figure says wh
   const figures = [
     [item.frequency_hz, (v) => Math.round(v) + " Hz", "Frequency of the lowest tone of the Signal."],
     [item.snr_db, (v) => "SNR " + Math.round(v) + " dB", "Signal-to-noise ratio, estimated in a 2,500 Hz bandwidth (the one of the Success threshold). The mean of the Fragments."],
-    [item.sync_score, (v) => "sync " + Math.round(v), "How strongly the start of the Signal matched what was expected, in standard deviations above the noise: 7 is the limit of detection, about 20 for the weakest Signal that can be read, hundreds for a strong one. The lowest of the Fragments."],
   ];
   figures.filter(([value]) => value !== null).forEach(([value, show, help], index) => {
     if (index) line.append(" · ");
@@ -224,7 +223,7 @@ function showUndecoded(items) {
   const now = Date.now() / 1000;
   for (const item of items.slice().reverse()) {
     const li = document.createElement("li");
-    li.textContent = "Signal at " + Math.round(item.frequency_hz) + " Hz, " + duration(Math.max(0, now - item.heard_at)) + " ago, sync " + Math.round(item.sync_score);
+    li.textContent = "Signal at " + Math.round(item.frequency_hz) + " Hz, " + duration(Math.max(0, now - item.heard_at)) + " ago";
     list.appendChild(li);
   }
   if (!items.length) {
