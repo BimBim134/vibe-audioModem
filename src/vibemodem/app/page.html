@@ -96,6 +96,11 @@
   .bubble.failed { background: transparent; border: 1px solid rgb(var(--accent)); color: rgb(var(--text)); }
   .meta { display: block; margin-top: 0.15rem; font-size: 0.75rem; opacity: 0.75; white-space: normal; }
   .head { display: block; font-size: 0.78rem; opacity: 0.8; margin-bottom: 0.15rem; }
+  .bubble.coming { background: transparent; border: 1px solid rgb(var(--accent) / 0.6); border-bottom-left-radius: 4px; }
+  .dots i { display: inline-block; width: 0.32rem; height: 0.32rem; margin-left: 0.22rem; border-radius: 50%; background: rgb(var(--accent)); animation: blink 1.2s ease-in-out infinite; }
+  .dots i:nth-child(2) { animation-delay: 0.2s; }
+  .dots i:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
   .note { align-self: center; font-size: 0.78rem; color: var(--soft); border: 1px dashed var(--line); border-radius: 999px; padding: 0.15rem 0.8rem; }
 
   /* The composer */
@@ -314,6 +319,16 @@ function partialText(item) {  // what was read of a Message, the gaps shown as "
   return text + (item.missing.includes(item.total - 1) ? " …" : "");
 }
 function bubble(item) {
+  if (item.kind === "arriving") {  // the Preamble is heard: a Message is coming in at this frequency
+    const row = element("div", "row in");
+    const box = element("div", "bubble in coming", "Receiving a signal at " + hz(item.frequency_hz));
+    const dots = element("span", "dots");
+    dots.setAttribute("aria-hidden", "true");
+    dots.append(element("i"), element("i"), element("i"));
+    box.appendChild(dots);
+    row.appendChild(box);
+    return row;
+  }
   if (item.kind === "lost") return element("div", "note", "Signal detected at " + hz(item.frequency_hz) + ", not decoded · " + clock(item.at));
   const row = element("div", "row " + (item.kind === "sent" ? "out" : "in"));
   const box = element("div", "bubble");

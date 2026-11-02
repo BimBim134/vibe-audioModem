@@ -135,13 +135,14 @@ class CodedModem:
             raise ValueError("audio samples must be finite numbers")
 
         received: dict[bytes, Reception] = {}
-        lost, read_at = [], []
+        lost, read_at, arriving = [], [], []
         signals = self._find(samples)
         for signal in signals:
             reception = self._decode(samples, signal)
             if reception is None:
-                if self._fits(samples, signal) and signal.score >= UNDECODED_MIN_SCORE:
-                    lost.append(Detection(signal.start_sample, signal.first_tone_hz, signal.score))
+                if signal.score >= UNDECODED_MIN_SCORE:
+                    seen = Detection(signal.start_sample, signal.first_tone_hz, signal.score)
+                    (lost if self._fits(samples, signal) else arriving).append(seen)
                 continue
             read_at.append(signal.start_sample)
             if (
@@ -150,7 +151,14 @@ class CodedModem:
             ):
                 received[reception.message] = reception
         found = sorted(received.values(), key=lambda r: -r.sync_score)
-        return Report(receptions=found, undecoded=self._without_side_peaks(lost, read_at, signals))
+        # Lost and arriving Signals are told apart by whether their Frame is whole: their side
+        # peaks are the same whichever it is, so both are sifted together.
+        kept = self._without_side_peaks([*lost, *arriving], read_at, signals)
+        return Report(
+            receptions=found,
+            undecoded=[d for d in kept if d in lost],
+            arriving=[d for d in kept if d in arriving],
+        )
 
     def _without_side_peaks(
         self, lost: list[Detection], read_at: list[int], signals: list

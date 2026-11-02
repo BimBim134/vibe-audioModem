@@ -130,3 +130,79 @@ def test_a_frame_of_the_slowest_preset_is_found_in_a_slice_that_holds_it_whole()
         assert wait_until(lambda: [h.text for h in receiver.received()] == ["slow"], timeout=120)
     finally:
         finish()
+
+
+# A Signal still arriving ---------------------------------------------------------------------
+
+
+def test_a_signal_is_shown_as_arriving_once_its_preamble_is_heard_and_gone_when_it_is_read():
+    modem = TurboModem(preset="fast")
+    sound = modem.modulate(Fragment(1, 0, 1, b"coming").pack(), "fast")  # 6.8 s
+    receiver, feed, finish = live("fast", decode_every_seconds=2.0)
+    try:
+        feed(np.concatenate([np.zeros(3 * FS), sound[: 4 * FS]]))  # 1.28 s of Preamble, 2.7 of data
+        feed(sound[4 * FS : 6 * FS])  # more of it, in a later pass: now it is seen twice
+        assert wait_until(lambda: len(receiver.arriving()) == 1)
+        (coming,) = receiver.arriving()
+        assert abs(coming.frequency_hz - 1450.0) < 3
+        assert receiver.received() == []  # nothing to read yet
+        feed(np.concatenate([sound[6 * FS :], np.zeros(3 * FS)]))
+        assert wait_until(lambda: [h.text for h in receiver.received()] == ["coming"])
+        assert wait_until(lambda: receiver.arriving() == [])
+    finally:
+        finish()
+
+
+def test_what_looks_like_a_preamble_for_one_pass_only_is_not_shown():
+    from vibemodem.app.heard import Arriving
+    from vibemodem.core.modem import Detection, Report
+
+    receiver = Receiver(FakeAudio(), lambda preset: TurboModem(preset=preset))
+    tolerance = Tolerance(
+        seconds=0.08, hertz=25.0, width_hz=200.0, frame_seconds=6.8, preamble_samples=61_440
+    )
+
+    def pass_with(*detections, final=False):
+        report = Report([], [], arriving=list(detections))
+        receiver._note_arriving(report, tolerance, lambda start: start / FS, 0, final)
+        return receiver.arriving()
+
+    seen = Detection(96_000, 1450.0, 400.0)
+    assert pass_with(seen) == []  # once is a chance
+    assert pass_with(seen) == [Arriving(2.0, 1450.0)]  # twice at the same place is a Signal
+    assert pass_with(Detection(96_000, 1550.0, 400.0)) == []  # another place: not the same one
+    assert pass_with(Detection(96_000, 1550.0, 400.0)) == [Arriving(2.0, 1550.0)]
+    assert pass_with(Detection(96_000, 1550.0, 400.0), final=True) == []  # the listening ended
+
+
+def test_the_conversation_shows_a_signal_that_is_arriving_and_replaces_it_by_the_message():
+    from vibemodem.app.service import ModemService
+
+    modem = TurboModem(preset="fast")
+    sound = modem.modulate(Fragment(2, 0, 1, b"later").pack(), "fast")
+    service = ModemService(FakeAudio(), decode_every_seconds=2.0)
+    receiver = service._receiver
+    modem2 = TurboModem(preset="fast")
+    blocks = InputBlocks(capacity=100_000)
+    service.apply_settings(preset="fast")
+    thread = threading.Thread(
+        target=receiver._listen,
+        args=(blocks, modem2, Tolerance.of("fast", modem2.frame_samples())),
+        daemon=True,
+    )
+    thread.start()
+    try:
+        heard = np.concatenate([np.zeros(3 * FS), sound[: 6 * FS]])
+        for start in range(0, heard.size, BLOCK):
+            blocks.push(heard[start : start + BLOCK].astype(np.float32))
+        assert wait_until(lambda: [i["kind"] for i in service.conversation()] == ["arriving"])
+        (item,) = service.conversation()
+        assert abs(item["frequency_hz"] - 1450.0) < 3
+        rest = np.concatenate([sound[6 * FS :], np.zeros(3 * FS)])
+        for start in range(0, rest.size, BLOCK):
+            blocks.push(rest[start : start + BLOCK].astype(np.float32))
+        assert wait_until(lambda: [i["kind"] for i in service.conversation()] == ["received"])
+    finally:
+        blocks.close()
+        thread.join(timeout=60)
+        service.close()

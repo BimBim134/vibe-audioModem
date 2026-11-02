@@ -406,7 +406,10 @@ class ModemService:
         """What was sent and what was heard, oldest first, for the page."""
         with self._lock:
             sent = [replace(e) for e in self._sent_log]
-        return build_conversation(sent, self._receiver.received(), self._receiver.undecoded())
+        receiver = self._receiver
+        return build_conversation(
+            sent, receiver.received(), receiver.undecoded(), receiver.arriving()
+        )
 
     def received(self) -> list[Heard]:
         """The Messages heard whole, in order of arrival, then those heard in part."""

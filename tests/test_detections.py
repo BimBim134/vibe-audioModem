@@ -110,3 +110,36 @@ def test_a_second_frame_that_follows_the_first_at_once_is_still_found_when_lost(
     report = modem.demodulate_report(np.concatenate([first, second]))
     assert [r.message for r in report.receptions] == [b"one"]
     assert [d.start_sample for d in report.undecoded] == [first.size]
+
+
+# A Signal that is still arriving ------------------------------------------------------------
+
+
+def test_a_frame_whose_preamble_is_heard_is_reported_as_arriving_not_as_lost(modem):
+    sound = np.concatenate([np.zeros(2 * FS), frame(modem)])
+    preamble = mfsk.PREAMBLE_SYMBOLS * modem.waveform.samples_per_symbol
+    heard = sound[: 2 * FS + preamble + 3 * FS]  # its Preamble and 3 s of its data
+    report = modem.demodulate_report(heard)
+    assert report.receptions == [] and report.undecoded == []
+    (coming,) = report.arriving
+    assert coming.start_sample == pytest.approx(2 * FS, abs=500)
+    assert coming.frequency_hz == pytest.approx(1450.0, abs=3) and coming.sync_score > 10
+
+
+def test_a_frame_that_is_whole_is_not_arriving(modem):
+    report = modem.demodulate_report(np.concatenate([np.zeros(FS), frame(modem), np.zeros(FS)]))
+    assert len(report.receptions) == 1 and report.arriving == [] and report.undecoded == []
+
+
+def test_one_frame_arriving_is_one_signal_whatever_the_moment(modem):
+    sound = np.concatenate([np.zeros(2 * FS), frame(modem)])
+    preamble = mfsk.PREAMBLE_SYMBOLS * modem.waveform.samples_per_symbol
+    for more in range(1 * FS, frame(modem).size - 2 * FS, 7 * FS // 10):  # as the data comes in
+        report = modem.demodulate_report(sound[: 2 * FS + preamble + more])
+        assert len(report.arriving) <= 1 and report.undecoded == [], more
+
+
+def test_noise_alone_has_nothing_arriving(modem):
+    for seed in range(5):
+        noise = np.random.default_rng(seed).normal(0, 0.1, 30 * FS)
+        assert modem.demodulate_report(noise).arriving == []

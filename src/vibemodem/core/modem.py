@@ -1,6 +1,6 @@
 """The interface every modem candidate implements, so the bench can measure any of them."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import numpy as np
@@ -35,6 +35,7 @@ class Report:
 
     receptions: list[Reception]
     undecoded: list[Detection]  # found whole, but the checksum or the code refused them
+    arriving: list[Detection] = field(default_factory=list)  # found, but not heard to the end yet
 
 
 class Modem(Protocol):

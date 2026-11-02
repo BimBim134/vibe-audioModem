@@ -15,7 +15,16 @@ from collections.abc import Callable
 
 import numpy as np
 
-from vibemodem.app.heard import Heard, Quality, SpectrumRows, Tolerance, Undecoded, alike, summarize
+from vibemodem.app.heard import (
+    Arriving,
+    Heard,
+    Quality,
+    SpectrumRows,
+    Tolerance,
+    Undecoded,
+    alike,
+    summarize,
+)
 from vibemodem.app.keeper import Keeper
 from vibemodem.app.store import ReceptionStore
 from vibemodem.core import mfsk
@@ -68,6 +77,8 @@ class Receiver:
         self._whole: deque[Heard] = deque(maxlen=max_received)
         self._count = 0
         self._undecoded: deque[Undecoded] = deque(maxlen=MAX_UNDECODED)
+        self._arriving: list[Arriving] = []
+        self._arriving_before: list[tuple[float, float]] = []  # of the pass before
         self._read: deque[tuple[float, float]] = deque(maxlen=READ_MEMORY)  # (time, frequency)
         self._rows: deque[list[int]] = deque(maxlen=SPECTRUM_ROWS)
         self._row_count = 0
@@ -121,6 +132,7 @@ class Receiver:
             )
             self.last_error = None
             self._keeper.start()
+            self._arriving, self._arriving_before = [], []
             self._rows.clear()  # a new waterfall: the page starts from the next row
             self._thread = threading.Thread(
                 target=self._listen,
@@ -218,6 +230,7 @@ class Receiver:
             if window_start > 0 and lost.start_sample < tolerance.preamble_samples:
                 continue
             self._note_lost(when(lost.start_sample), lost.frequency_hz, lost.sync_score, tolerance)
+        self._note_arriving(report, tolerance, when, window_start, final)
         if self._keeper.enabled:
             try:
                 listed = lambda at, hz: self._is_listed(at, hz, tolerance)  # noqa: E731
@@ -233,6 +246,30 @@ class Receiver:
             return any(
                 alike(at, hz, u.heard_at, u.frequency_hz, tolerance) for u in self._undecoded
             )
+
+    def _note_arriving(self, report, tolerance: Tolerance, when, window_start: int, final: bool):
+        """The Signals whose Preamble is heard and whose Frame is not whole yet. A match of part of
+        a Preamble can look like one for a pass, but not at the same time and frequency in two
+        passes in a row: only those are shown. At the end of the listening none is coming."""
+        now = [
+            (when(a.start_sample), a.frequency_hz)
+            for a in report.arriving
+            if not (window_start > 0 and a.start_sample < tolerance.preamble_samples)
+        ]
+        with self._lock:
+            before = self._arriving_before
+            shown = [
+                Arriving(at, hz)
+                for at, hz in now
+                if any(alike(at, hz, t, f, tolerance) for t, f in before)
+            ]
+            self._arriving = [] if final else shown
+            self._arriving_before = [] if final else now
+
+    def arriving(self) -> list[Arriving]:
+        """The Signals being received now, whose Frame is not whole yet."""
+        with self._lock:
+            return list(self._arriving)
 
     def _take(self, fragment: Fragment, reception, at: float, tolerance: Tolerance) -> None:
         key = (fragment.msg_id, fragment.total)

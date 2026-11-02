@@ -72,6 +72,14 @@ class Undecoded:
 
 
 @dataclass(frozen=True)
+class Arriving:
+    """A Signal whose Preamble was heard and whose Frame is still coming in."""
+
+    heard_at: float
+    frequency_hz: float
+
+
+@dataclass(frozen=True)
 class SpectrumRows:
     """Rows of the spectrum of the sound heard, newest last, numbered from `first`."""
 

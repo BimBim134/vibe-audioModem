@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from vibemodem.app.heard import Heard, Undecoded
+from vibemodem.app.heard import Arriving, Heard, Undecoded
 
 
 @dataclass
@@ -58,10 +58,23 @@ def _lost(item: Undecoded) -> dict:
     }
 
 
+def _arriving(item: Arriving) -> dict:
+    return {
+        "kind": "arriving",
+        "id": f"a{round(item.frequency_hz / 25)}",  # one per place in the band, whatever the moment
+        "at": item.heard_at,
+        "frequency_hz": item.frequency_hz,
+    }
+
+
 def build_conversation(
-    sent: list[SentEntry], heard: list[Heard], lost: list[Undecoded]
+    sent: list[SentEntry],
+    heard: list[Heard],
+    lost: list[Undecoded],
+    arriving: list[Arriving] = (),
 ) -> list[dict]:
-    """Everything, oldest first. Each item has a `kind` (sent, received, incomplete or lost), an
-    `id` that stays the same while the item does, and the time `at` it began."""
+    """Everything, oldest first. Each item has a `kind` (sent, received, incomplete, lost or
+    arriving), an `id` that stays the same while the item does, and the time `at` it began."""
     items = [_sent(e) for e in sent] + [_heard(h) for h in heard] + [_lost(u) for u in lost]
+    items += [_arriving(a) for a in arriving]
     return sorted(items, key=lambda item: item["at"])
