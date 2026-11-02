@@ -22,6 +22,7 @@ from vibemodem.core.modem import Reception
 from vibemodem.core.presets import DEFAULT_PRESET
 
 SAMPLE_RATE = mfsk.SAMPLE_RATE
+MIN_SIGNALS = 3  # a recording of one Frame still looks for a few, as the search always did
 
 
 class CodedMfskModem(CodedModem):
@@ -81,10 +82,15 @@ class CodedMfskModem(CodedModem):
         return self.waveform.synthesize(tones)
 
     def _find(self, samples: np.ndarray) -> list[mfsk.Candidate]:
-        return [
-            self.waveform.refine(samples, candidate)
-            for candidate in self.waveform.find_signals(samples)
-        ]
+        # A Transmission is a Frame after another, each with its own Preamble: look for as many
+        # Signals as Frames that would fill the recording, and a couple more.
+        frame_samples = (
+            mfsk.PREAMBLE_SYMBOLS + self._data_symbols
+        ) * self.waveform.samples_per_symbol
+        found = self.waveform.find_signals(
+            samples, max_candidates=max(MIN_SIGNALS, samples.size // frame_samples + 2)
+        )
+        return [self.waveform.refine(samples, candidate) for candidate in found]
 
     def _decode(self, samples: np.ndarray, signal: mfsk.Candidate) -> Reception | None:
         waveform = self.waveform

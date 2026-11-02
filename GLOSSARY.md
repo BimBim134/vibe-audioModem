@@ -20,6 +20,18 @@ _Avoid_: packet, codeword, chunk
 The slice of a Message carried by one Frame.
 _Avoid_: chunk, piece, segment
 
+**Message identifier**:
+The byte every Fragment of a Message carries so that the receiver can tell which Message it belongs to, and that a repeated copy is the same Message.
+_Avoid_: msg id, sequence number
+
+**Copy**:
+One more sending of all the Fragments of a Message within the same Transmission, each copy starting at another Fragment.
+_Avoid_: repeat, retry, retransmission
+
+**Incomplete Message**:
+A Message of which the receiver heard only some Fragments when the reception ended. It is reported with the Fragments received and the ones missing, never delivered as a Message.
+_Avoid_: partial message, truncated message
+
 **Signal**:
 What the receiver detects at a given audio frequency and time: a Transmission as seen from the receiving side.
 _Avoid_: carrier, track, peak

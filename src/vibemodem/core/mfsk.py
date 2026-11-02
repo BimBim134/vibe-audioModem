@@ -21,10 +21,12 @@ FIRST_TONE_HZ = 1450.0  # lowest tone of a Signal sent as is; the receiver finds
 SEARCH_BAND_HZ = (300.0, 2700.0)
 PREAMBLE_SYMBOLS = 32
 
-# A receiver never sees less noise than a small fraction of its loudest signal (real audio has
-# a floor about 90 dB down), and without this a noiseless recording would make the faintest
-# spectral leakage look huge once divided by a noise level of zero.
-NOISE_FLOOR_RATIO = 1e-6
+# A receiver never sees less noise than a small fraction of its loudest signal. Without this a
+# noiseless recording would make the faintest spectral leakage look huge once divided by a
+# noise level of zero: the leakage of a signal with short symbols is only about 40 dB down, and
+# it follows the tones sent, so at 1e-6 it was found as a preamble where there was none. 1e-3 is
+# far below any noise a weak signal sits in (30 dB under the strongest tone).
+NOISE_FLOOR_RATIO = 1e-3
 
 SUPPORTED_TONES = (2, 4, 8, 16)
 # The noise level of a frequency is read from a low share of the recording's windows, below the

@@ -106,8 +106,8 @@ def test_a_transmission_cut_short_gives_nothing(modem_class):
 def test_heavily_damaged_audio_is_dropped_not_guessed(modem_class):
     modem = modem_class()
     audio = modem.modulate(b"damaged", "standard")
-    start = DATA_START + 20 * SYMBOL
-    audio[start : start + 60 * SYMBOL] = noise(60 * SYMBOL / FS, seed=3, level=1.0)
+    start = DATA_START + 10 * SYMBOL
+    audio[start : start + 110 * SYMBOL] = noise(110 * SYMBOL / FS, seed=3, level=1.0)
     assert modem.demodulate(audio) == []
 
 
