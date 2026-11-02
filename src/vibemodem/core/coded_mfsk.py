@@ -122,4 +122,5 @@ class CodedMfskModem(CodedModem):
             snr_db=float(10 * np.log10(ratio / self._energy_ratio_per_snr)),
             frequency_offset_hz=signal.first_tone_hz - mfsk.FIRST_TONE_HZ,
             sync_score=signal.score,
+            start_sample=signal.start_sample,
         )

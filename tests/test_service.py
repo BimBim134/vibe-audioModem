@@ -551,3 +551,29 @@ def test_a_refused_frequency_does_not_leave_the_service_busy(services):
         service.send("x", frequency_hz=1.0)
     assert service.status()["sending"] is False
     service.apply_settings(preset="fast")  # not stuck "busy"
+
+
+class ReverseOrder(TurboModem):
+    """Gives what it receives backwards in time, as a receiver sorting by score may do."""
+
+    def demodulate(self, samples):
+        return sorted(super().demodulate(samples), key=lambda r: -r.start_sample)
+
+
+def test_messages_heard_in_one_pass_are_listed_in_the_order_they_were_sent(services):
+    sender_audio, listener_audio = FakeAudio(), FakeAudio()
+    sender_audio.connect_to(listener_audio)
+    sender = services(sender_audio)
+    listener = services(
+        listener_audio,
+        make_modem=lambda preset: ReverseOrder(preset=preset),
+        decode_every_seconds=1000,  # one decode, when the listening stops
+        max_received=10,
+    )
+    sender.apply_settings(preset="fast")
+    listener.apply_settings(preset="fast")
+    listener.start_listening()
+    for number in range(4):
+        send_and_wait(sender, f"message {number}")
+    listener.stop_listening()
+    assert [r.text for r in listener.received()] == [f"message {n}" for n in range(4)]

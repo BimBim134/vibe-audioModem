@@ -136,3 +136,10 @@ def test_a_noiseless_frame_is_received_in_any_preset_with_or_without_silence_aro
     for silence in (np.zeros(0), np.zeros(FS // 2)):
         heard = modem.demodulate(np.concatenate([silence, audio, silence]))
         assert [r.message for r in heard] == [sent]
+
+
+def test_each_reception_says_where_its_frame_starts(modem):
+    audio = transmit(modem, message_of(40), PRESET, msg_id=3)  # 3 Frames, one after the other
+    frame = frame_samples(modem)
+    starts = sorted(r.start_sample for r in modem.demodulate(audio))
+    assert starts == [0, frame, 2 * frame]

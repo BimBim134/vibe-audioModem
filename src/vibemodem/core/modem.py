@@ -17,6 +17,7 @@ class Reception:
     snr_db: float | None = None  # estimated SNR in a 2,500 Hz reference bandwidth
     frequency_offset_hz: float | None = None
     sync_score: float | None = None
+    start_sample: int | None = None  # where the Signal starts in the audio that was given
 
 
 class Modem(Protocol):

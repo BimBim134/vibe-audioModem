@@ -30,7 +30,10 @@ DECODE_EVERY_SECONDS = 10.0
 BLOCK_SECONDS = 0.5
 MAX_RECEIVED = 100
 MAX_SENDING_MODEMS = 8  # one per Preset and frequency recently sent at
-JOIN_SECONDS = 10.0
+JOIN_SECONDS = 10.0  # for the thread that plays a Transmission, once it has been told to stop
+# For the listening thread: it decodes what was heard last, up to 150 s of sound, and a slow or busy
+# computer takes its time; a Message heard just before the stop must not be missed for want of it.
+STOP_LISTENING_SECONDS = 120.0
 
 
 class SettingsError(ValueError):
@@ -355,7 +358,7 @@ class ModemService:
             return False
         was_listening = thread.is_alive()
         blocks.close()
-        thread.join(timeout=JOIN_SECONDS)
+        thread.join(timeout=STOP_LISTENING_SECONDS)
         with self._lock:
             if not thread.is_alive() and self._listen_thread is thread:
                 self._listen_thread = None  # still alive after the wait: it stays reported
@@ -388,7 +391,8 @@ class ModemService:
         except Exception as error:  # a bad stretch of audio must not end the listening
             self._fail(f"decoding failed: {error}")
             return
-        for reception in receptions:
+        # What is heard first is delivered first: the receiver sorts by how sure it is.
+        for reception in sorted(receptions, key=lambda r: (r.start_sample is None, r.start_sample)):
             try:
                 self._take(Fragment.unpack(reception.message))
             except Exception as error:  # one bad reception must not hide the others
