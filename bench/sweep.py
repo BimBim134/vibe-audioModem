@@ -6,6 +6,7 @@ which 95%, 90% and 80% of the test Messages are received. A fixed seed gives the
 
 import argparse
 import json
+import math
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
@@ -54,12 +55,17 @@ def _measure(job: Job) -> dict:
         freq_offset_range_hz=job.freq_offset_range_hz,
     )
     (low, high), seconds = measure_band(modem, "standard", 3, job.message_bytes, 1, job.drop_db)
+    thresholds = {str(level): success_threshold(points, level) for level in LEVELS}
     return {
         **job.options,
         "modem_parameters": getattr(modem, "parameters", None),
         "bandwidth_hz": high - low,
         "transmission_seconds": seconds,
-        "thresholds_db": {str(level): success_threshold(points, level) for level in LEVELS},
+        "thresholds_db": thresholds,
+        "energy_db": {
+            level: None if snr is None else snr + 10 * math.log10(seconds)
+            for level, snr in thresholds.items()
+        },
         "curve": [{**asdict(p), "success_rate": p.success_rate} for p in points],
     }
 

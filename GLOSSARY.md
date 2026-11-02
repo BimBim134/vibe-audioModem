@@ -55,3 +55,11 @@ _Avoid_: FEC, ECC
 **Soft value**:
 What a demodulator says about one coded bit: positive for "probably 0", negative for "probably 1", larger when it is surer. A Code decodes from soft values rather than from bits already decided.
 _Avoid_: LLR, probability
+
+**Occupied bandwidth**:
+The span of audio frequencies, in Hz, that holds a modem's output down to 20 dB below its strongest part. What a Signal costs in the shared band, compared against the 100 Hz budget.
+_Avoid_: width, footprint
+
+**Interleaver**:
+The step that spreads the coded bits of a Frame over the whole Transmission, so that a fade or an impulse damages scattered bits that the Code can repair instead of a block it cannot.
+_Avoid_: scrambler, shuffle

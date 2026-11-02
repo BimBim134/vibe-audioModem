@@ -1,6 +1,7 @@
 """The sweep of M-FSK settings: Success threshold against occupied bandwidth."""
 
 import json
+import math
 
 import pytest
 
@@ -39,6 +40,9 @@ def test_each_configuration_has_its_bandwidth_airtime_curve_and_thresholds(tmp_p
     assert [p["snr_db"] for p in first["curve"]] == [-10.0, -8.0, -6.0]
     assert all(p["trials"] == 5 and p["successes"] == 5 for p in first["curve"])
     assert first["thresholds_db"] == {"0.8": -10.0, "0.9": -10.0, "0.95": -10.0}
+    # The SNR of the threshold plus the duration in dB: the energy sent, to compare waveforms
+    # whose Transmissions differ in length (2 s here).
+    assert first["energy_db"]["0.95"] == pytest.approx(-10.0 + 10 * math.log10(2.0))
 
 
 def test_the_result_records_the_measurement_that_was_run(tmp_path):

@@ -130,7 +130,64 @@ What it shows:
 
 - **Turbo is first or tied in every scenario.** On ssb it ties with the long code (about 1.5 dB over the baseline at 95%). Under fading it is about 1.5 dB ahead of LDPC and 4 to 6 dB ahead of the long code at 90%.
 - **The long code loses its edge under fading.** Its steep white-noise curve flattens: when fading drops the signal, the sequential decoder spends its budget and gives up, so it ends below LDPC.
-- **Under fading no code reliably reaches 95%.** Every curve levels off between 94% and 98% even at +SNR, far above the noise (the pilot at +12 dB lost 1 to 2% too). The failures there are not decoding errors but preambles not found after a deep fade, and nothing in the code can fix that. A time interleaver and repetition (ticket #11) are the answer, so for fading, compare codes at 80% and 90%, not at the single 95% bar. The 95% thresholds above for LDPC and turbo (-2 and -5 dB) are crossings of a plateau, not signs of a weak code.
+- **Under fading no code reliably reaches 95%.** Every curve levels off between 94% and 98% even at +SNR, far above the noise (the pilot at +12 dB lost 1 to 2% too). The failures there are not decoding errors but preambles not found after a deep fade, and nothing in the code can fix that. Ticket #11 measured an interleaver and repetition (next section): neither moves the plateau, so for fading, compare codes at 80% and 90%, not at the single 95% bar. The 95% thresholds above for LDPC and turbo (-2 and -5 dB) are crossings of a plateau, not signs of a weak code.
 - **No wrong Message in any trial** (0 false receptions over all 12 measurements).
 - Same caveats as above: the long code's transmission is 9% longer (about 0.4 dB), counts have an interval of a few percent at 200 trials, and differences under 0.5 dB are noise.
 - Reproduce one: `python -m bench.threshold --modem vibemodem.core.turbo_modem:TurboModem --scenario hf-fading --snr-from -16 --snr-to -2 --snr-step 1 --trials 200 --message-bytes 12 --seed 1 --max-lead-in-s 10 --tail-s 1 --freq-offset-from -1100 --freq-offset-to 1100 --out ...` (ssb uses `--snr-from -18 --snr-to -13`).
+
+## Occupied bandwidth, M-FSK sweep, interleaver and repetition (ticket #11)
+
+**Occupied bandwidth** is the span between the outermost audio frequencies where the averaged power spectrum of the modem's output is within 20 dB of its peak, averaged over random Messages. `python -m bench.bandwidth --modem vibemodem.core.turbo_modem:TurboModem --set tones=8 --set symbol_ms=160` measures it for any modem. The default waveform (8 tones, 80 ms) occupies about 124 Hz, a little over the 100 Hz budget.
+
+### Sweep on white noise (turbo, 100 trials, step 1 dB, seed 1)
+
+`python -m bench.sweep --modem vibemodem.core.turbo_modem:TurboModem --snr-from -26 --snr-to -8 --snr-step 1 --trials 100 --jobs 6 --out docs/measurements/sweep/white-turbo.json` (2.5 h). Thresholds in dB; "energy" is the 95% threshold plus 10 log10(airtime), the energy sent, which is what compares waveforms of different length.
+
+| Tones | Symbol | Bandwidth | Airtime | 95% | 90% | 80% | Energy at 95% |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| 2 | 80 ms | 26 Hz | 35 s | -14 | -15 | -16 | +1.5 |
+| 2 | 320 ms | 7 Hz | 142 s | -19 | -20 | -21 | +2.5 |
+| 4 | 80 ms | 55 Hz | 19 s | -17 | -17 | -17 | -4.2 |
+| 4 | 320 ms | 15 Hz | 76 s | -22 | -23 | -23 | -3.2 |
+| **8** | **80 ms (default)** | 124 Hz | 13.6 s | -16 | -16 | -16 | -4.7 |
+| 8 | 160 ms | 64 Hz | 27 s | -19 | -19 | -19 | -4.7 |
+| 8 | 320 ms | 31 Hz | 54 s | -22 | -22 | -22 | -4.6 |
+| 16 | 80 ms | 226 Hz | 10.8 s | -15 | -15 | -15 | -4.7 |
+| 16 | 160 ms | 114 Hz | 21.6 s | -18 | -18 | -18 | -4.7 |
+| 16 | 320 ms | 57 Hz | 43 s | -21 | -21 | -21 | -4.6 |
+| 16 | 40 ms | 448 Hz | 5.4 s | not reached | -8 | -12 | |
+
+(All 16 combinations are in `docs/measurements/sweep/white-turbo.json`.)
+
+- **A longer symbol lowers the threshold 3 dB per doubling, but only because the Transmission lasts longer.** For 8 and 16 tones the energy column is constant (-4.6 to -4.7 dB): at equal energy the waveforms are equivalent. The gain is real for the operator (a weaker signal is received) and costs airtime.
+- **8 tones is the best number**: 2 tones is 6 dB worse in energy, 4 tones about 0.5 to 1.5 dB worse, 16 tones ties 8 but is twice as wide at the same symbol duration.
+- **Inside 100 Hz**: 8 tones of 160 ms (64 Hz, -19 dB) is the widest-gain point that stays under budget for a 27 s Transmission; 8 tones of 320 ms (31 Hz, -22 dB) takes 54 s. The default, at 124 Hz, is over the budget.
+- Caveat: with very long Transmissions the recording is mostly signal, which degrades the receiver's noise estimate; read the 142 s and 76 s rows with that in mind.
+
+### The same on hf-fading (turbo, 100 trials, step 2 dB)
+
+| Tones | Symbol | 95% | 90% | 80% | Best rate at high SNR |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| 8 | 80 ms | -4 | -10 | -12 | 92-99% |
+| **8** | **160 ms** | **-14** | -14 | -16 | 98-100% |
+| 8 | 320 ms | -16 | -16 | -16 | 100% |
+| 4 | 160 ms | not reached | -12 | -16 | 90-94% |
+| 4 | 320 ms | not reached | -16 | -16 | 90-96% |
+| 4 | 80 ms | not reached | not reached | -4 | 75-82% |
+
+With 8 tones and symbols of 160 ms or more the fading plateau disappears: the 95% bar is reached 10 dB lower than the default. With 4 tones fading still costs 5 to 10% of the Messages. Files: `docs/measurements/sweep/hf-fading-turbo.json`.
+
+### Interleaver and repetition (turbo, 80 ms, 200 trials, seed 1)
+
+| Variant (hf-fading) | 80% | 90% | 95% |
+| :-- | :-- | :-- | :-- |
+| none | -12 | -11 | -5 |
+| interleaver | -13 | -12 | -5 |
+| repetition x2 (twice the airtime, about 3 dB of energy) | -16 | -11 | not reached |
+| both | -16 | -16 | not reached |
+
+dirty is the same as hf-fading to within 1 dB; ssb is unchanged by the interleaver (-16 dB).
+
+- The interleaver gains about 1 dB on the steep part (72% against 33.5% at -14 dB) and does nothing for the plateau (94-95% before and after).
+- Repetition x2 lowers the 80% level by 4 dB, but it sends twice as long: at equal energy it is a draw, and the plateau drops to 91-93% because a longer Transmission gives a deep fade more chances to hide the Preamble.
+- The plateau is therefore the Preamble being missed, as suspected. The wider answer found here is not a longer Preamble but longer symbols (previous section). A doubled Preamble is left as an option, not needed for v1.
