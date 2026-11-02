@@ -93,10 +93,13 @@ def test_copies_of_a_message_are_received_as_one_message(modem):
 
 
 def test_later_copies_start_elsewhere_so_that_one_fade_does_not_hit_the_same_fragments():
-    modem = RecordingModem()
-    transmit(modem, message_of(60), "standard", msg_id=1, copies=2)
-    order = [Fragment.unpack(sent).index for sent in modem.messages]
-    assert order == [0, 1, 2, 3, 2, 3, 0, 1]
+    class OneValuePerFragment(RecordingModem):
+        def modulate(self, message, preset):
+            super().modulate(message, preset)
+            return np.full(10, float(Fragment.unpack(message).index))
+
+    audio = transmit(OneValuePerFragment(), message_of(60), "standard", msg_id=1, copies=2)
+    assert audio[::10].tolist() == [0, 1, 2, 3, 2, 3, 0, 1]
 
 
 def test_by_default_a_message_is_sent_once():

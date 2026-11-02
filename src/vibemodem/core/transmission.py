@@ -11,10 +11,27 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from vibemodem.core.message import Complete, Fragment, Incomplete, Reassembler, split
+from vibemodem.core import presets
+from vibemodem.core.coded_modem import SAMPLE_RATE
+from vibemodem.core.message import (
+    FRAGMENT_CAPACITY,
+    MAX_FRAGMENTS,
+    MAX_MESSAGE_BYTES,
+    Complete,
+    Fragment,
+    Incomplete,
+    Reassembler,
+    fragment_count,
+    split,
+)
 from vibemodem.core.modem import Modem
 
 MAX_COPIES = 8
+MAX_TRANSMISSION_SECONDS = 30 * 60
+
+
+class MessageTooLong(ValueError):
+    """The Message would make a Transmission longer than the ceiling, or than 255 Fragments."""
 
 
 @dataclass(frozen=True)
@@ -28,19 +45,84 @@ def _sending_order(total: int, copy: int, copies: int) -> list[int]:
     return [(start + position) % total for position in range(total)]
 
 
+def frame_seconds(modem: Modem, preset: str) -> float:
+    """How long one Frame lasts in a Preset: they all last the same."""
+    return modem.modulate(Fragment(0, 0, 1, b"").pack(), preset).size / SAMPLE_RATE
+
+
+def airtime_seconds(message_length: int, seconds_per_frame: float, copies: int = 1) -> float:
+    """How long the Transmission of a Message of `message_length` bytes lasts, with no silence."""
+    return fragment_count(message_length) * copies * seconds_per_frame
+
+
+def _fragments_allowed(samples_per_frame: int, copies: int) -> int:
+    """The most Fragments a Message may have: the ceiling counted in whole samples, one rule
+    for what `transmit` accepts and what `max_message_bytes` says."""
+    in_the_ceiling = MAX_TRANSMISSION_SECONDS * SAMPLE_RATE // (copies * samples_per_frame)
+    return min(MAX_FRAGMENTS, in_the_ceiling)
+
+
+def max_message_bytes(seconds_per_frame: float, copies: int = 1) -> int:
+    """The largest Message that fits in the ceiling (and in 255 Fragments), `copies` times over."""
+    samples_per_frame = round(seconds_per_frame * SAMPLE_RATE)
+    return _fragments_allowed(samples_per_frame, copies) * FRAGMENT_CAPACITY
+
+
+def _faster_presets(preset: str, message_length: int, seconds_per_frame: float, copies: int):
+    """The Presets with shorter symbols that would carry the Message, with their limits."""
+    try:
+        current_symbol_ms = presets.profile(preset).symbol_ms
+    except ValueError:
+        return []  # not one of the three Presets: nothing to compare with
+    carriers = []
+    for name, profile in presets.PRESETS.items():
+        if profile.symbol_ms < current_symbol_ms:
+            # A Frame is a number of symbols: its duration follows the symbol duration.
+            scaled = seconds_per_frame * profile.symbol_ms / current_symbol_ms
+            if message_length <= max_message_bytes(scaled, copies):
+                carriers.append(f"{name} (up to {max_message_bytes(scaled, copies)} bytes)")
+    return carriers
+
+
+def _refusal(message_length: int, preset: str, copies: int, seconds_per_frame: float) -> str:
+    airtime = airtime_seconds(message_length, seconds_per_frame, copies)
+    advice = [
+        f"at most {max_message_bytes(seconds_per_frame, copies)} bytes fit here; "
+        "send a shorter Message"
+    ]
+    if copies > 1 and airtime / copies <= MAX_TRANSMISSION_SECONDS:
+        advice.append("use fewer copies")
+    if faster := _faster_presets(preset, message_length, seconds_per_frame, copies):
+        advice.append("or use a faster Preset: " + ", ".join(faster))
+    return (
+        f"a Message of {message_length} bytes sent {copies} time(s) in the {preset!r} Preset "
+        f"would take {airtime:.0f} s, over the ceiling of {MAX_TRANSMISSION_SECONDS / 60:g} "
+        f"minutes: {'; '.join(advice)}."
+    )
+
+
 def transmit(
     modem: Modem, message: bytes, preset: str, *, msg_id: int, copies: int = 1
 ) -> np.ndarray:
     """The audio of a Transmission that carries the Message `copies` times over."""
     if not isinstance(copies, int) or isinstance(copies, bool) or not 1 <= copies <= MAX_COPIES:
         raise ValueError(f"copies must be a whole number from 1 to {MAX_COPIES}")
+    count = fragment_count(len(message))
+    if count > MAX_FRAGMENTS:
+        raise MessageTooLong(
+            f"a Message of {len(message)} bytes needs {count} Fragments, more than the "
+            f"{MAX_FRAGMENTS} a Message may have: send a shorter Message "
+            f"({MAX_MESSAGE_BYTES} bytes at most)"
+        )
     fragments = split(message, msg_id)
-    frames = [
-        modem.modulate(fragments[index].pack(), preset)
-        for copy in range(copies)
-        for index in _sending_order(len(fragments), copy, copies)
-    ]
-    return np.concatenate(frames)
+    # Every Frame lasts the same: the first one tells whether the Transmission fits, and the
+    # rest are made only if it does. A copy sends the same Frames again.
+    frames = [modem.modulate(fragments[0].pack(), preset)]
+    if count > _fragments_allowed(frames[0].size, copies):
+        raise MessageTooLong(_refusal(len(message), preset, copies, frames[0].size / SAMPLE_RATE))
+    frames += [modem.modulate(fragment.pack(), preset) for fragment in fragments[1:]]
+    order = [i for copy in range(copies) for i in _sending_order(count, copy, copies)]
+    return np.concatenate([frames[index] for index in order])
 
 
 def receive(modem: Modem, samples: np.ndarray, reassembler: Reassembler | None = None) -> Received:

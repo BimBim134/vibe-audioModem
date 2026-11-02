@@ -80,6 +80,11 @@ class Incomplete:
         return runs
 
 
+def fragment_count(length: int) -> int:
+    """How many Fragments a Message of `length` bytes needs (an empty Message needs one)."""
+    return max(1, -(-length // FRAGMENT_CAPACITY))
+
+
 def split(message: bytes, msg_id: int) -> list[Fragment]:
     """The Fragments of a Message (an empty Message is one empty Fragment)."""
     if len(message) > MAX_MESSAGE_BYTES:
@@ -89,11 +94,11 @@ def split(message: bytes, msg_id: int) -> list[Fragment]:
         )
     if not 0 <= msg_id < 256:
         raise ValueError("a Message identifier is one byte, from 0 to 255")
-    pieces = [
-        message[start : start + FRAGMENT_CAPACITY]
-        for start in range(0, len(message), FRAGMENT_CAPACITY)
-    ] or [b""]
-    return [Fragment(msg_id, index, len(pieces), piece) for index, piece in enumerate(pieces)]
+    total = fragment_count(len(message))
+    return [
+        Fragment(msg_id, index, total, message[index * FRAGMENT_CAPACITY :][:FRAGMENT_CAPACITY])
+        for index in range(total)
+    ]
 
 
 def random_message_id(previous: int | None = None, rng: random.Random | None = None) -> int:
