@@ -52,3 +52,5 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.lint.per-file-ignores]
 # The report is built from HTML, CSS and SVG strings that read worse when wrapped.
 "bench/report.py" = ["E501"]
+# The page is HTML, CSS and JavaScript in a string, which reads worse when wrapped.
+"src/vibemodem/app/page.py" = ["E501"]

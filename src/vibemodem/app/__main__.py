@@ -1,3 +1,3 @@
-from vibemodem.app.hello import main
+from vibemodem.app.main import main
 
 main()

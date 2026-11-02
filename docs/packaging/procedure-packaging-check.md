@@ -1,5 +1,7 @@
 # Procedure: check the packaged app on a clean machine
 
+> Written for the packaging spike (issue #3), whose hello application had a **Record 5 seconds** button. That button is gone: the application is now the real one (ticket #17), with Send, Start listening and Cancel. To repeat the check today, press **Start listening** with a microphone chosen and look for the word "listening" and no error; the steps below that mention recording are historical.
+
 Goal: confirm with your own eyes what CI cannot, namely that a non-developer can double-click the app, see the page, and **record 5 seconds from a real microphone**. This closes the last open point of issue #3.
 
 Time needed: about 15 minutes. Do not fix anything while testing; write down what happens and report it (Part E).

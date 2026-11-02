@@ -269,3 +269,52 @@ def test_the_fake_drops_the_oldest_blocks_like_the_real_thing():
     fake = FakeAudio(input_samples=tone(0.5))
     heard = fake.listen(block_seconds=0.1, capacity=2)
     assert heard.dropped == 3 and len(list(heard)) == 2
+
+
+# Stopping, and the cable between two fakes ------------------------------------------------------
+
+
+def test_the_sound_card_stops_what_it_is_playing(card, sd):
+    card.stop()
+    assert sd.stopped == 1
+
+
+def test_a_stop_while_the_fake_plays_cuts_the_sound_where_it_is():
+    import threading
+
+    sender, listener = FakeAudio(play_seconds=5.0), FakeAudio()
+    sender.connect_to(listener)
+    done = threading.Thread(target=sender.play, args=(tone(1.0),))
+    done.start()
+    while not sender.playing:
+        pass
+    sender.stop()
+    done.join(timeout=5)
+    assert not done.is_alive()
+    heard = listener.record(1.0)
+    assert 0 <= np.count_nonzero(heard) < 0.5 * FS  # a small part, if any, got through
+
+
+def test_what_a_fake_plays_arrives_at_the_fake_it_is_connected_to():
+    sender, receiver = FakeAudio(), FakeAudio()
+    sender.connect_to(receiver)
+    sender.play(tone())
+    assert np.allclose(receiver.record(0.25), tone(), atol=1e-6)
+
+
+def test_a_fake_that_is_connected_serves_a_listener_that_was_already_listening():
+    sender, receiver = FakeAudio(), FakeAudio()
+    sender.connect_to(receiver)
+    heard = receiver.listen(block_seconds=0.05)
+    sender.play(tone())
+    heard.close()
+    assert np.allclose(np.concatenate(list(heard)), tone(), atol=1e-6)
+
+
+def test_a_fake_knows_how_many_listeners_are_still_open():
+    fake = FakeAudio(loopback=True)
+    first, second = fake.listen(), fake.listen()
+    assert fake.open_listeners == 2
+    first.close()
+    second.close()
+    assert fake.open_listeners == 0

@@ -6,6 +6,7 @@ the rest of the system never knows which one it has.
 """
 
 import threading
+import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -136,6 +137,10 @@ class Audio(Protocol):
         """Start hearing the input; close the result (or leave its `with`) to stop."""
         ...
 
+    def stop(self) -> None:
+        """Cut short the sound being played, from another thread; nothing playing: nothing."""
+        ...
+
 
 def _playable(samples: np.ndarray) -> np.ndarray:
     return checked_samples(samples).astype(np.float32)
@@ -228,6 +233,9 @@ class SoundCard:
             raise NoAudioDeviceError(str(error)) from error
         return np.asarray(data[:, 0], dtype=np.float32)
 
+    def stop(self) -> None:
+        self._sd().stop()
+
     def listen(
         self, device: int | str | None = None, block_seconds: float = 0.5, capacity: int = 64
     ) -> InputBlocks:
@@ -272,7 +280,9 @@ class FakeAudio:
     """Sound hardware for tests: remembers what is played, serves the input it was given.
 
     With `loopback` what is played is heard on the input, as with a cable from the output to
-    the input of the same machine.
+    the input of the same machine; `connect_to` runs that cable to another fake, to try two
+    instances of the application. With `play_seconds` playing takes that long, in real time,
+    and `stop` cuts the sound where it is.
     """
 
     def __init__(
@@ -280,6 +290,7 @@ class FakeAudio:
         devices: list[DeviceInfo] | None = None,
         input_samples: np.ndarray | None = None,
         loopback: bool = False,
+        play_seconds: float = 0.0,
     ):
         self._devices = devices or [DeviceInfo(0, "Fake audio device", 1, 1, float(SAMPLE_RATE))]
         self._input = np.zeros(0, dtype=np.float32)
@@ -287,7 +298,32 @@ class FakeAudio:
             self._input = _playable(input_samples)
         self._loopback = loopback
         self._listeners: list[tuple[InputBlocks, int]] = []
+        self._cables: list[FakeAudio] = []
+        self._fed = False  # a cable from another fake ends here
+        self._play_seconds = play_seconds
+        self._cut = threading.Event()
+        self.playing = False
         self.played: list[np.ndarray] = []
+
+    @property
+    def open_listeners(self) -> int:
+        return len(self._listeners)
+
+    def connect_to(self, other: "FakeAudio") -> None:
+        """A cable from this output to the other's input."""
+        self._cables.append(other)
+        other._fed = True
+
+    def stop(self) -> None:
+        if self.playing:
+            self._cut.set()
+
+    def _hear(self, data: np.ndarray) -> None:
+        for blocks, size in list(self._listeners):  # whoever listens hears it at once
+            for start in range(0, data.size, size):
+                blocks.push(data[start : start + size])
+        if not self._listeners:
+            self._input = np.concatenate([self._input, data])
 
     def list_devices(self) -> list[DeviceInfo]:
         return list(self._devices)
@@ -295,13 +331,19 @@ class FakeAudio:
     def play(self, samples: np.ndarray, device: int | str | None = None) -> None:
         find_device(self._devices, device, "output")
         data = _playable(samples)
+        if self._play_seconds > 0:  # takes its time, and can be cut short
+            self.playing = True
+            started = time.monotonic()
+            self._cut.wait(self._play_seconds)
+            share = min(1.0, (time.monotonic() - started) / self._play_seconds)
+            data = data[: int(data.size * share)]
+            self.playing = False
+            self._cut.clear()
         self.played.append(data)
         if self._loopback:
-            for blocks, size in self._listeners:  # whoever listens hears it at once
-                for start in range(0, data.size, size):
-                    blocks.push(data[start : start + size])
-            if not self._listeners:
-                self._input = np.concatenate([self._input, data])
+            self._hear(data)
+        for other in self._cables:
+            other._hear(data)
 
     def _take(self, count: int | None) -> np.ndarray:
         count = self._input.size if count is None else count
@@ -328,7 +370,7 @@ class FakeAudio:
         blocks = InputBlocks(capacity, on_close=stop_listening)
         for start in range(0, everything.size, size):
             blocks.push(everything[start : start + size])
-        if self._loopback:
+        if self._loopback or self._fed:
             self._listeners.append((blocks, size))  # stays open, to hear what is played next
         else:
             blocks.close()  # the scripted input has ended

@@ -17,6 +17,7 @@ class FakeSounddevice:
         self.played = []
         self.recordings = []
         self.streams = []
+        self.stopped = 0
         self.fail_to_start = False
         self.fail_to_stop = False
 
@@ -47,6 +48,9 @@ class FakeSounddevice:
 
     def wait(self):
         pass
+
+    def stop(self):
+        self.stopped += 1
 
     def InputStream(self, **options):  # noqa: N802 (it stands for a class)
         stream = FakeInputStream(owner=self, **options)

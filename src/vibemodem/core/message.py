@@ -9,7 +9,7 @@ incomplete, never as a shorter Message.
 """
 
 import random
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from dataclasses import dataclass
 
 from vibemodem.core import frame
@@ -118,10 +118,13 @@ class Reassembler:
     which is then reported as incomplete.
     """
 
-    def __init__(self):
+    def __init__(self, max_given_up: int | None = None):
+        """`max_given_up` bounds the Messages given up on that are kept to be reported (the
+        oldest are forgotten); by default none is forgotten, which suits a reception that ends
+        with `finish`. A reception that never ends should bound them."""
         self._open: OrderedDict[tuple[int, int], dict[int, bytes]] = OrderedDict()
         self._done: OrderedDict[tuple[int, int], None] = OrderedDict()
-        self._dropped: list[Incomplete] = []  # bounded by the Fragments heard before `finish`
+        self._dropped: deque[Incomplete] = deque(maxlen=max_given_up)
 
     def add(self, fragment: Fragment) -> Complete | None:
         """The Message this Fragment completes, if it does and it was not delivered before."""
@@ -149,10 +152,16 @@ class Reassembler:
             (msg_id, total), heard = self._open.popitem(last=False)
             self._dropped.append(Incomplete(msg_id, total, heard))
 
+    def pending(self) -> list[Incomplete]:
+        """The Messages heard in part so far, without ending the reception."""
+        incomplete = list(self._dropped)
+        incomplete += [Incomplete(i, t, dict(heard)) for (i, t), heard in self._open.items()]
+        return incomplete
+
     def finish(self) -> list[Incomplete]:
         """The Messages heard in part, once the reception is over; they are forgotten."""
-        incomplete = self._dropped
+        incomplete = list(self._dropped)
         incomplete += [Incomplete(i, t, heard) for (i, t), heard in self._open.items()]
-        self._dropped = []
+        self._dropped.clear()
         self._open.clear()
         return incomplete

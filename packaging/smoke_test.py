@@ -2,7 +2,7 @@
 
 Usage: python packaging/smoke_test.py <path-to-packaged-executable> [--require-audio-library]
 
-It cannot check recording from a real microphone: CI machines have no audio input.
+It cannot check sending or listening through a real sound card: CI machines have no audio.
 That part is verified by hand on a clean machine (see docs/packaging/procedure-packaging-check.md).
 """
 
@@ -41,9 +41,11 @@ def main(executable, require_audio_library):
     try:
         wait_until_up(process)
         status, page = get("/")
-        assert status == 200 and "Record 5 seconds" in page, "page not served"
-        detected = json.loads(get("/api/selftest")[1])["detected_hz"]
-        assert abs(detected - 1000) <= 1, f"DSP self-test failed: {detected}"
+        assert status == 200 and "Vibe AudioModem" in page, "page not served"
+        assert 'id="send"' in page and 'id="listen"' in page, "page has no send or listen"
+        # The modem against itself without noise: NumPy, SciPy and the whole core are bundled.
+        assert json.loads(get("/api/selftest")[1])["roundtrip_ok"], "modem self-test failed"
+        assert json.loads(get("/api/status")[1])["listening"] is False
         audio = json.loads(get("/api/devices")[1])["audio_library"]
         # CI has no microphone, but the bundled audio library must still load.
         assert audio == "ok" or not require_audio_library, f"audio library: {audio}"

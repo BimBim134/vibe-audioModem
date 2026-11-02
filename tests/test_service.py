@@ -1,0 +1,434 @@
+"""The application's service: settings, sending, cancelling and listening, with fake sound cards."""
+
+import threading
+import time
+
+import numpy as np
+import pytest
+
+from vibemodem.app.service import BusyError, Cancelled, ModemService, SettingsError
+from vibemodem.core.message import FRAGMENT_CAPACITY, Fragment
+from vibemodem.core.transmission import MessageTooLong
+from vibemodem.core.turbo_modem import TurboModem
+from vibemodem.io.audio import DeviceInfo, FakeAudio
+
+DEVICES = [
+    DeviceInfo(0, "Radio sound card", 1, 1, 48_000.0),
+    DeviceInfo(1, "Laptop microphone", 1, 0, 48_000.0),
+]
+
+
+def wait_until(condition, timeout=30.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+@pytest.fixture
+def services():
+    made = []
+
+    def make(audio=None, **options):
+        service = ModemService(audio or FakeAudio(devices=DEVICES), **options)
+        made.append(service)
+        return service
+
+    yield make
+    for service in made:
+        service.close()
+
+
+@pytest.fixture
+def pair(services):
+    """Two instances of the application with a cable from the first one's output to the
+    second one's input, and both on the fast Preset."""
+    sender_audio, listener_audio = FakeAudio(), FakeAudio()
+    sender_audio.connect_to(listener_audio)
+    sender, listener = services(sender_audio), services(listener_audio)
+    sender.apply_settings(preset="fast")
+    listener.apply_settings(preset="fast")
+    return sender, listener
+
+
+def send_and_wait(sender, text, **options):
+    sent = sender.send(text, **options)
+    assert wait_until(lambda: not sender.status()["sending"])
+    return sent
+
+
+# Settings -----------------------------------------------------------------------------------
+
+
+def test_the_application_starts_idle_on_the_standard_preset(services):
+    status = services().status()
+    assert status["sending"] is False and status["listening"] is False
+    assert status["settings"] == {
+        "preset": "standard", "input_device": None, "output_device": None
+    }  # fmt: skip
+
+
+def test_settings_are_applied_together_and_reported(services):
+    service = services()
+    service.apply_settings(preset="max-range", input_device="laptop", output_device=0)
+    assert service.settings.preset == "max-range"
+    assert service.settings.input_device == "laptop" and service.settings.output_device == 0
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"preset": "turbo-boost"},
+        {"input_device": "no such card"},
+        {"output_device": "laptop"},  # it only records
+        {"colour": "red"},
+    ],
+)
+def test_a_setting_that_is_invalid_changes_nothing_not_even_the_valid_ones(services, bad):
+    service = services()
+    before = service.settings
+    with pytest.raises(SettingsError):
+        service.apply_settings(**{"preset": "fast", "output_device": "radio", **bad})
+    assert service.settings == before
+
+
+def test_every_problem_with_the_settings_is_reported_at_once(services):
+    with pytest.raises(SettingsError) as refusal:
+        services().apply_settings(preset="nope", input_device="nothing")
+    assert "preset" in str(refusal.value) and "input" in str(refusal.value)
+
+
+def test_settings_cannot_change_while_listening_or_sending(services):
+    service = services(FakeAudio(devices=DEVICES, loopback=True))
+    service.start_listening()
+    with pytest.raises(BusyError):
+        service.apply_settings(preset="fast")
+    service.stop_listening()
+    service.apply_settings(preset="fast")  # fine again
+
+
+# Sending and cancelling ---------------------------------------------------------------------
+
+
+def test_a_message_is_played_and_its_airtime_reported(services):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    sent = send_and_wait(service, "bonjour")
+    assert (sent.fragments, sent.copies) == (1, 1) and sent.airtime_seconds == pytest.approx(6.8)
+    assert len(audio.played) == 1 and audio.played[0].size / 48_000 == pytest.approx(6.8)
+
+
+def test_a_message_that_is_too_long_is_refused_with_the_reason_and_nothing_is_played(services):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    service.apply_settings(preset="max-range")
+    with pytest.raises(MessageTooLong, match="shorter Message"):
+        service.send("x" * 600)
+    assert audio.played == [] and service.status()["sending"] is False
+
+
+@pytest.mark.parametrize("copies", [0, 9, 1.5])
+def test_copies_out_of_range_are_refused(services, copies):
+    with pytest.raises(ValueError, match="copies"):
+        services().send("hi", copies=copies)
+
+
+def test_the_second_send_while_one_is_playing_is_refused(services):
+    audio = FakeAudio(devices=DEVICES, play_seconds=30.0)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    service.send("first")
+    assert wait_until(lambda: audio.playing)
+    with pytest.raises(BusyError):
+        service.send("second")
+    assert service.cancel()
+
+
+def test_cancelling_stops_the_sound_and_frees_the_service(services):
+    audio = FakeAudio(devices=DEVICES, play_seconds=30.0)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    service.send("to be cancelled")
+    assert wait_until(lambda: audio.playing)
+    assert service.cancel() is True
+    assert service.status()["sending"] is False and not audio.playing
+    assert service.cancel() is False  # nothing left to cancel
+    service.send("again")  # free to send again
+    service.cancel()
+
+
+def test_an_error_of_the_sound_card_while_playing_is_reported_not_lost(services):
+    class Broken(FakeAudio):
+        def play(self, samples, device=None):
+            raise RuntimeError("the output was unplugged")
+
+    service = services(Broken(devices=DEVICES))
+    service.apply_settings(preset="fast")
+    service.send("hello")
+    assert wait_until(lambda: not service.status()["sending"])
+    assert "unplugged" in service.status()["last_error"]
+
+
+def test_a_message_that_is_not_text_is_sent_as_it_is(services):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    assert send_and_wait(service, bytes([0, 255, 128])).fragments == 1
+
+
+# Two instances ------------------------------------------------------------------------------
+
+
+def test_a_message_sent_on_one_instance_arrives_intact_on_the_other(pair):
+    sender, listener = pair
+    listener.start_listening()
+    send_and_wait(sender, "Bonjour, ça marche ? 73")
+    listener.stop_listening()
+    (heard,) = listener.received()
+    assert heard.complete and heard.text == "Bonjour, ça marche ? 73"
+
+
+def test_a_message_of_several_fragments_arrives_whole(pair):
+    sender, listener = pair
+    text = "CQ CQ CQ de F4XYZ " * 3  # 54 bytes: 4 Fragments
+    listener.start_listening()
+    send_and_wait(sender, text)
+    listener.stop_listening()
+    (heard,) = listener.received()
+    assert heard.complete and heard.text == text and heard.total == 4
+
+
+def test_copies_of_a_message_are_listed_once(pair):
+    sender, listener = pair
+    listener.start_listening()
+    send_and_wait(sender, "twice", copies=2)
+    listener.stop_listening()
+    assert [r.text for r in listener.received()] == ["twice"]
+
+
+def test_a_transmission_cut_short_shows_as_incomplete_with_what_arrived():
+    sender_audio = FakeAudio(play_seconds=1.0)  # 1 s of real time for the whole sound
+    listener_audio = FakeAudio()
+    sender_audio.connect_to(listener_audio)
+    sender, listener = ModemService(sender_audio), ModemService(listener_audio)
+    try:
+        for service in (sender, listener):
+            service.apply_settings(preset="fast")
+        listener.start_listening()
+        sender.send("A" * 40)  # 3 Fragments, 20 s of sound
+        assert wait_until(lambda: sender_audio.playing)
+        time.sleep(0.5)  # half of it: the first Frame is whole, the second is cut
+        sender.cancel()
+        listener.stop_listening()
+        (heard,) = listener.received()
+        assert not heard.complete and heard.text is None
+        assert heard.parts == [(0, "A" * FRAGMENT_CAPACITY)]
+        assert heard.missing == (1, 2) and heard.total == 3
+    finally:
+        sender.close()
+        listener.close()
+
+
+def test_the_list_of_received_messages_is_bounded(services):
+    sender_audio, listener_audio = FakeAudio(), FakeAudio()
+    sender_audio.connect_to(listener_audio)
+    sender = services(sender_audio)
+    listener = services(listener_audio, max_received=3)
+    sender.apply_settings(preset="fast")
+    listener.apply_settings(preset="fast")
+    listener.start_listening()
+    for number in range(5):
+        send_and_wait(sender, f"message {number}")
+    listener.stop_listening()
+    assert [r.text for r in listener.received()] == ["message 2", "message 3", "message 4"]
+
+
+def test_a_listener_decodes_while_it_is_still_listening(services):
+    sender_audio, listener_audio = FakeAudio(), FakeAudio()
+    sender_audio.connect_to(listener_audio)
+    sender = services(sender_audio)
+    listener = services(listener_audio, decode_every_seconds=3.0)
+    sender.apply_settings(preset="fast")
+    listener.apply_settings(preset="fast")
+    listener.start_listening()
+    send_and_wait(sender, "no need to stop")
+    sender_audio.play(np.zeros(4 * 48_000))  # a microphone goes on hearing the room
+    assert wait_until(lambda: [r.text for r in listener.received()] == ["no need to stop"])
+    assert listener.status()["listening"] is True
+
+
+# Starting and stopping ------------------------------------------------------------------------
+
+
+def test_listening_twice_is_refused_and_stopping_when_not_listening_is_harmless(services):
+    service = services(FakeAudio(devices=DEVICES, loopback=True))
+    assert service.stop_listening() is False
+    service.start_listening()
+    with pytest.raises(BusyError):
+        service.start_listening()
+    assert service.stop_listening() is True
+
+
+def test_starting_and_stopping_again_and_again_leaks_nothing(services):
+    audio = FakeAudio(devices=DEVICES, loopback=True)
+    service = services(audio)
+    threads_before = threading.active_count()
+    for _ in range(20):
+        service.start_listening()
+        service.stop_listening()
+    assert audio.open_listeners == 0
+    assert threading.active_count() == threads_before
+
+
+def test_sending_and_cancelling_again_and_again_leaks_nothing(services):
+    audio = FakeAudio(devices=DEVICES, play_seconds=30.0)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    threads_before = threading.active_count()
+    for _ in range(10):
+        service.send("x")
+        assert wait_until(lambda: audio.playing)
+        service.cancel()
+    assert threading.active_count() == threads_before
+
+
+def test_closing_stops_everything_and_can_be_repeated(services):
+    audio = FakeAudio(devices=DEVICES, play_seconds=30.0, loopback=True)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    threads_before = threading.active_count()
+    service.start_listening()
+    service.send("closing")
+    assert wait_until(lambda: audio.playing)
+    service.close()
+    service.close()
+    assert audio.open_listeners == 0 and threading.active_count() <= threads_before
+    with pytest.raises(BusyError, match="closed"):
+        service.send("too late")
+
+
+def test_a_failing_sound_card_when_listening_is_reported_and_leaves_the_service_usable(services):
+    class NoInput(FakeAudio):
+        def listen(self, device=None, block_seconds=0.5, capacity=64):
+            raise RuntimeError("the microphone is unplugged")
+
+    service = services(NoInput(devices=DEVICES))
+    with pytest.raises(RuntimeError, match="unplugged"):
+        service.start_listening()
+    assert service.status()["listening"] is False
+    service.apply_settings(preset="fast")  # still usable
+
+
+def test_what_was_heard_before_is_still_there_after_stopping_and_starting_again(pair):
+    sender, listener = pair
+    listener.start_listening()
+    send_and_wait(sender, "first")
+    listener.stop_listening()
+    listener.start_listening()
+    send_and_wait(sender, "second")
+    listener.stop_listening()
+    assert [r.text for r in listener.received()] == ["first", "second"]
+
+
+def test_noise_alone_gives_nothing(services):
+    noise = np.random.default_rng(0).normal(0, 0.05, 48_000 * 12)
+    listener = services(FakeAudio(devices=DEVICES, input_samples=noise))
+    listener.apply_settings(preset="fast")
+    listener.start_listening()
+    listener.stop_listening()
+    assert listener.received() == []
+
+
+# Review fixes: cancelling while the sound is still being made, closing meanwhile, failures ----
+
+
+class GatedModem(TurboModem):
+    """A modem whose first Frame waits for the test, to cancel or close in the middle of it."""
+
+    def __init__(self, gate, **options):
+        super().__init__(**options)
+        self.gate = gate
+
+    def modulate(self, message, preset):
+        self.gate["entered"].set()
+        self.gate["release"].wait(timeout=30)
+        return super().modulate(message, preset)
+
+
+def gated_service(services, audio):
+    gate = {"entered": threading.Event(), "release": threading.Event()}
+    service = services(audio, make_modem=lambda preset: GatedModem(gate, preset=preset))
+    service.apply_settings(preset="fast")
+    outcome = {}
+
+    def send():
+        try:
+            outcome["sent"] = service.send("hello")
+        except Exception as error:
+            outcome["error"] = error
+
+    thread = threading.Thread(target=send)
+    thread.start()
+    assert gate["entered"].wait(timeout=10)
+    return service, gate, thread, outcome
+
+
+def test_cancelling_while_the_sound_is_being_made_means_it_is_never_played(services):
+    audio = FakeAudio(devices=DEVICES)
+    service, gate, thread, outcome = gated_service(services, audio)
+    assert service.cancel() is True
+    gate["release"].set()
+    thread.join(timeout=10)
+    assert isinstance(outcome["error"], Cancelled)
+    assert audio.played == [] and service.status()["sending"] is False
+
+
+def test_closing_while_the_sound_is_being_made_leaves_no_thread_and_plays_nothing(services):
+    audio = FakeAudio(devices=DEVICES)
+    before = threading.active_count()
+    service, gate, thread, outcome = gated_service(services, audio)
+    service.close()
+    gate["release"].set()
+    thread.join(timeout=10)
+    assert isinstance(outcome["error"], BusyError)
+    assert audio.played == [] and threading.active_count() <= before
+
+
+def test_a_decoding_that_fails_is_reported_and_the_listening_goes_on(services):
+    class Failing(TurboModem):
+        def demodulate(self, samples):
+            raise RuntimeError("the decoder broke")
+
+    audio = FakeAudio(devices=DEVICES, loopback=True)
+    service = services(audio, make_modem=lambda preset: Failing(preset=preset))
+    service.start_listening()
+    audio.play(tone_burst())
+    service.stop_listening()
+    assert "decoder broke" in service.status()["last_error"]
+    assert audio.open_listeners == 0
+
+
+def tone_burst():
+    return 0.1 * np.sin(2 * np.pi * 1000 * np.arange(48_000) / 48_000)
+
+
+def test_a_listening_that_ended_on_its_own_can_be_started_again(services):
+    audio = FakeAudio(devices=DEVICES, input_samples=tone_burst())
+    service = services(audio)
+    service.start_listening()  # the scripted input ends: so does the loop
+    assert wait_until(lambda: not service.status()["listening"])
+    service.start_listening()
+    assert service.stop_listening() in (True, False)
+    service.close()
+
+
+def test_what_was_given_up_on_is_bounded_in_a_service_that_never_ends(services):
+    service = services(max_received=3)
+    for msg_id in range(10):  # the same Message twice with other content: given up each time
+        service._take(Fragment(msg_id, 0, 2, b"a" * FRAGMENT_CAPACITY))
+        service._take(Fragment(msg_id, 0, 2, b"b" * FRAGMENT_CAPACITY))
+    given_up = [r for r in service.received() if r.parts and r.parts[0][1].startswith("a")]
+    assert len(given_up) == 3  # the newest three; the ten being heard are bounded by the memory

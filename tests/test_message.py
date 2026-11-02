@@ -176,3 +176,23 @@ def test_random_identifiers_differ_from_the_previous_one():
     rng = random.Random(0)
     ids = [random_message_id(previous=3, rng=rng) for _ in range(300)]
     assert 3 not in ids and all(0 <= i < 256 for i in ids) and len(set(ids)) > 100
+
+
+def test_what_is_still_incomplete_can_be_looked_at_without_ending_the_reception():
+    received = Reassembler()
+    parts = split(message_of(60), msg_id=9)
+    deliver(received, parts[:2])
+    (pending,) = received.pending()
+    assert pending.missing == (2, 3)
+    assert received.pending()[0].missing == (2, 3)  # looking changed nothing
+    deliver(received, parts[2:])  # the rest arrives: nothing is pending any more
+    assert received.pending() == [] and received.finish() == []
+
+
+def test_the_messages_given_up_on_can_be_bounded_for_a_reception_that_never_ends():
+    received = Reassembler(max_given_up=2)
+    for msg_id in range(5):  # each is replaced by a Message with other content, and given up
+        received.add(Fragment(msg_id, 0, 2, b"a" * FRAGMENT_CAPACITY))
+        received.add(Fragment(msg_id, 0, 2, b"b" * FRAGMENT_CAPACITY))
+    given_up = [p for p in received.pending() if p.fragments[0].startswith(b"a")]
+    assert len(given_up) == 2 and [p.msg_id for p in given_up] == [3, 4]
