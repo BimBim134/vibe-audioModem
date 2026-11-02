@@ -286,6 +286,7 @@ class FakeAudio:
         if input_samples is not None:
             self._input = _playable(input_samples)
         self._loopback = loopback
+        self._listeners: list[tuple[InputBlocks, int]] = []
         self.played: list[np.ndarray] = []
 
     def list_devices(self) -> list[DeviceInfo]:
@@ -296,7 +297,11 @@ class FakeAudio:
         data = _playable(samples)
         self.played.append(data)
         if self._loopback:
-            self._input = np.concatenate([self._input, data])
+            for blocks, size in self._listeners:  # whoever listens hears it at once
+                for start in range(0, data.size, size):
+                    blocks.push(data[start : start + size])
+            if not self._listeners:
+                self._input = np.concatenate([self._input, data])
 
     def _take(self, count: int | None) -> np.ndarray:
         count = self._input.size if count is None else count
@@ -315,8 +320,16 @@ class FakeAudio:
         _positive(block_seconds, "a block of sound")
         size = round(block_seconds * SAMPLE_RATE)
         everything = self._take(None)
-        blocks = InputBlocks(capacity)
+
+        def stop_listening() -> None:
+            if (blocks, size) in self._listeners:
+                self._listeners.remove((blocks, size))
+
+        blocks = InputBlocks(capacity, on_close=stop_listening)
         for start in range(0, everything.size, size):
             blocks.push(everything[start : start + size])
-        blocks.close()  # the scripted input has ended
+        if self._loopback:
+            self._listeners.append((blocks, size))  # stays open, to hear what is played next
+        else:
+            blocks.close()  # the scripted input has ended
         return blocks
