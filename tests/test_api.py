@@ -285,3 +285,40 @@ def test_a_device_listing_that_fails_for_another_reason_is_not_hidden(made):
 
     body = made(Broken())[1].get("/api/devices").json()
     assert body["devices"] == [] and "cannot query" in body["error"]
+
+
+def test_the_estimate_is_returned_without_any_sound(client, audio):
+    client.post("/api/settings", json={"preset": "fast"})
+    body = client.post("/api/estimate", json={"text": "bonjour", "copies": 2}).json()
+    assert body["fits"] is True and body["fragments"] == 1
+    assert body["airtime_seconds"] == pytest.approx(13.6)
+    assert body["frequency_range_hz"] == [350.0, 2475.0] and body["default_frequency_hz"] == 1450.0
+    assert audio.played == []
+
+
+def test_the_estimate_of_a_message_that_is_too_long_says_why(client):
+    client.post("/api/settings", json={"preset": "max-range"})
+    body = client.post("/api/estimate", json={"text": "x" * 600}).json()
+    assert body["fits"] is False and "shorter Message" in body["reason"]
+
+
+@pytest.mark.parametrize("bad", [{"text": "x", "copies": 0}, {"copies": 1}, {"text": "x", "x": 1}])
+def test_an_estimate_with_invalid_fields_is_rejected(client, bad):
+    assert client.post("/api/estimate", json=bad).status_code == 422
+
+
+def test_a_message_is_sent_at_the_frequency_asked_for_through_the_api(client, audio):
+    client.post("/api/settings", json={"preset": "fast"})
+    assert client.post("/api/send", json={"text": "hi", "frequency_hz": 900}).status_code == 200
+    assert idle(client)
+    sound = audio.played[0]
+    power = np.abs(np.fft.rfft(sound)) ** 2
+    centre = (np.fft.rfftfreq(sound.size, 1 / 48_000) * power).sum() / power.sum()
+    assert centre - 87.5 == pytest.approx(900, abs=15)  # the middle of the 8 tones, less 3.5 x 25
+
+
+def test_a_frequency_out_of_range_is_rejected_with_the_range(client, audio):
+    client.post("/api/settings", json={"preset": "fast"})
+    response = client.post("/api/send", json={"text": "hi", "frequency_hz": 100})
+    assert response.status_code == 422 and "350 and 2475" in response.json()["detail"]
+    assert audio.played == []

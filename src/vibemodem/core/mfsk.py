@@ -52,10 +52,11 @@ class Candidate:
 
 @dataclass(frozen=True)
 class Waveform:
-    """An M-FSK waveform: how many tones, and how long a symbol lasts."""
+    """An M-FSK waveform: how many tones, how long a symbol lasts, where the lowest tone is."""
 
     tones: int = 8
     symbol_seconds: float = 0.08
+    first_tone_hz: float = FIRST_TONE_HZ
 
     def __post_init__(self):
         if self.tones not in SUPPORTED_TONES:
@@ -71,6 +72,23 @@ class Waveform:
                 "symbol duration must be at most 1 s and a whole number of samples that is a "
                 f"multiple of {_SAMPLES_PER_SEARCH_STEP}, got {self.symbol_seconds} s"
             )
+        low, high = self.first_tone_range_hz
+        if not low <= self.first_tone_hz <= high:
+            raise ValueError(
+                f"the first tone must be between {low:g} and {high:g} Hz for this waveform "
+                f"(the whole Signal in the {SEARCH_BAND_HZ[0]:g} to {SEARCH_BAND_HZ[1]:g} Hz "
+                f"band), got {self.first_tone_hz}"
+            )
+
+    @cached_property
+    def first_tone_range_hz(self) -> tuple[float, float]:
+        """Where the lowest tone may be for the whole Signal to stay in the audio band, with two
+        tone spacings to spare below the lowest tone and above the highest (the band at -20 dB
+        reaches up to 1.2 spacings beyond the outer tones)."""
+        return (
+            SEARCH_BAND_HZ[0] + 2 * self.spacing_hz,
+            SEARCH_BAND_HZ[1] - (self.tones + 1) * self.spacing_hz,
+        )
 
     @cached_property
     def bits_per_symbol(self) -> int:
@@ -137,7 +155,9 @@ class Waveform:
 
     def synthesize(self, tones: np.ndarray) -> np.ndarray:
         """Audio for a sequence of tone numbers, one per symbol."""
-        frequencies = FIRST_TONE_HZ + self.spacing_hz * np.repeat(tones, self.samples_per_symbol)
+        frequencies = self.first_tone_hz + self.spacing_hz * np.repeat(
+            tones, self.samples_per_symbol
+        )
         return AMPLITUDE * np.sin(2 * np.pi * np.cumsum(frequencies) / SAMPLE_RATE)
 
     def _tone_basis(self, first_tone_hz: float) -> np.ndarray:

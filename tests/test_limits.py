@@ -11,6 +11,7 @@ from vibemodem.core.transmission import (
     MAX_TRANSMISSION_SECONDS,
     MessageTooLong,
     airtime_seconds,
+    explain_refusal,
     frame_seconds,
     max_message_bytes,
     transmit,
@@ -150,3 +151,22 @@ def test_the_advertised_maximum_is_what_transmit_accepts():
         transmit(LongFrames(seconds=1), bytes(longest), "standard", msg_id=1, copies=copies)
         with pytest.raises(MessageTooLong):
             transmit(LongFrames(seconds=1), bytes(longest + 1), "standard", msg_id=1, copies=copies)
+
+
+def test_a_refusal_can_be_asked_for_without_making_any_sound():
+    frame = round(54.4 * SAMPLE_RATE)
+    assert explain_refusal(561, "max-range", 1, frame) is None
+    reason = explain_refusal(562, "max-range", 1, frame)
+    assert "at most 561 bytes" in reason and "shorter Message" in reason
+
+
+def test_the_refusal_asked_for_is_word_for_word_the_one_transmit_gives():
+    modem = TurboModem(preset="max-range")
+    asked = explain_refusal(600, "max-range", 1, round(frame_seconds(modem, "max-range") * 48_000))
+    with pytest.raises(MessageTooLong) as given:
+        transmit(modem, bytes(600), "max-range", msg_id=1)
+    assert str(given.value) == asked
+
+
+def test_more_than_255_fragments_is_explained_whatever_the_frame_length():
+    assert "4335 bytes at most" in explain_refusal(4336, "fast", 1, 10)

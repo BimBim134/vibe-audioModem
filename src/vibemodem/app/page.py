@@ -19,6 +19,7 @@ PAGE = """<!doctype html>
   li { margin: 0.4rem 0; }
   .part { opacity: 0.8; }
   .gap { color: #b00020; }
+  #estimate.refused, #estimate .problem { color: #b00020; }
 </style>
 </head>
 <body>
@@ -44,6 +45,9 @@ PAGE = """<!doctype html>
   <legend>Send</legend>
   <textarea id="text" rows="3" placeholder="Message"></textarea>
   <label>Copies <input id="copies" type="number" min="1" max="8" value="1" style="width:4rem"></label>
+  <label>Lowest tone (Hz) <input id="frequency" type="number" step="any" style="width:6rem"></label>
+  <span id="range"></span>
+  <p id="estimate" aria-live="polite"></p>
   <button id="send">Send</button>
   <button id="cancel">Cancel</button>
   <span id="sending"></span>
@@ -62,6 +66,7 @@ PAGE = """<!doctype html>
 const $ = (id) => document.getElementById(id);
 const say = (id, text) => { $(id).textContent = text || ""; };
 let state = { listening: false, sending: false };
+let asked = 0;
 let lastSettings = null;
 
 async function call(path, method, body) {
@@ -85,6 +90,59 @@ async function act(promise, then) {
   try { const data = await promise; if (then) then(data); }
   catch (error) { say("error", String(error.message || error)); }
   refresh();
+}
+
+function sendBody() {  // what is estimated is what is sent
+  const frequency = $("frequency").value;
+  return {
+    text: $("text").value, copies: Number($("copies").value),
+    frequency_hz: frequency === "" ? null : Number(frequency),
+  };
+}
+function duration(seconds) {
+  const whole = Math.round(seconds);
+  if (whole < 60) return whole + " s";
+  return Math.floor(whole / 60) + " min " + (whole % 60) + " s";
+}
+let estimate = { fits: false, frequency_problem: null };  // Send waits for the first answer
+let estimateTimer = null;
+function askEstimate() {
+  clearTimeout(estimateTimer);
+  estimateTimer = setTimeout(async () => {
+    const mine = ++asked;
+    let answer;
+    try {
+      answer = await call("/api/estimate", "POST", sendBody());
+    } catch (error) {
+      if (mine !== asked) return;
+      estimate = { fits: false, frequency_problem: null };
+      $("estimate").className = "refused";
+      say("estimate", String(error.message || error));
+      $("send").disabled = true;
+      return;
+    }
+    if (mine !== asked) return;  // a newer question was asked: this answer is stale
+    estimate = answer;
+    const [low, high] = estimate.frequency_range_hz;
+    $("frequency").min = low; $("frequency").max = high;
+    if ($("frequency").value === "") $("frequency").placeholder = estimate.default_frequency_hz;
+    say("range", "from " + low + " to " + high + " Hz");
+    const line = $("estimate");
+    if (!estimate.fits) {
+      line.className = "refused";
+      line.textContent = estimate.reason;
+    } else {
+      line.className = "";
+      line.textContent = estimate.fragments + " Fragment(s), about " + duration(estimate.airtime_seconds) +
+        " on the air; at most " + estimate.max_bytes + " bytes in this Preset with these copies.";
+      if (estimate.frequency_problem) {
+        const problem = document.createElement("div");
+        problem.className = "problem"; problem.textContent = estimate.frequency_problem;
+        line.appendChild(problem);
+      }
+    }
+    $("send").disabled = state.sending || !estimate.fits || Boolean(estimate.frequency_problem);
+  }, 250);
 }
 
 function fillDevices(devices) {
@@ -134,6 +192,7 @@ async function refresh() {
     const shown = JSON.stringify(state.settings);
     if (shown !== lastSettings) {  // only when they changed, so a choice not yet applied is kept
       lastSettings = shown;
+      askEstimate();  // the Preset decides the airtime and the range of frequencies
       $("preset").value = state.settings.preset;
       $("input_device").value = state.settings.input_device === null ? "" : state.settings.input_device;
       $("output_device").value = state.settings.output_device === null ? "" : state.settings.output_device;
@@ -141,7 +200,7 @@ async function refresh() {
     for (const id of ["preset", "input_device", "output_device", "apply"]) {
       $(id).disabled = state.sending || state.listening;
     }
-    $("send").disabled = state.sending;
+    $("send").disabled = state.sending || !estimate.fits || Boolean(estimate.frequency_problem);
     $("cancel").disabled = !state.sending;
     if (state.last_error) say("error", state.last_error);
     showReceived((await call("/api/received")).received);
@@ -152,11 +211,10 @@ $("apply").onclick = () => act(call("/api/settings", "POST", {
   preset: $("preset").value, input_device: deviceValue("input_device"),
   output_device: deviceValue("output_device"),
 }), () => say("info", "Settings applied."));
-$("send").onclick = () => act(call("/api/send", "POST", {
-  text: $("text").value, copies: Number($("copies").value),
-}), (sent) => say("info", "Sending " + sent.fragments + " Fragment(s), " +
+$("send").onclick = () => act(call("/api/send", "POST", sendBody()), (sent) => say("info", "Sending " + sent.fragments + " Fragment(s), " +
   sent.copies + " cop" + (sent.copies > 1 ? "ies" : "y") + ", about " +
   Math.round(sent.airtime_seconds) + " s on the air."));
+for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
 $("cancel").onclick = () => act(call("/api/cancel", "POST"), () => say("info", "Cancelled."));
 $("listen").onclick = () => act(call(state.listening ? "/api/listen/stop" : "/api/listen/start", "POST"));
 $("quit").onclick = async () => {
@@ -164,7 +222,7 @@ $("quit").onclick = async () => {
   say("info", "Stopped. You can close this tab.");
 };
 
-(async () => { fillDevices((await call("/api/devices")).devices); lastSettings = null; refresh(); })();
+(async () => { fillDevices((await call("/api/devices")).devices); lastSettings = null; refresh(); askEstimate(); })();
 setInterval(refresh, 1500);
 </script>
 </body>

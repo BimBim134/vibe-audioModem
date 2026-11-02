@@ -32,6 +32,10 @@ _Avoid_: repeat, retry, retransmission
 A Message of which the receiver heard only some Fragments when the reception ended. It is reported with the Fragments received and the ones missing, never delivered as a Message.
 _Avoid_: partial message, truncated message
 
+**Lowest tone**:
+The lowest audio frequency a Transmission is sent at. The operator chooses it for each Message: it says where in the audio band the Signal is.
+_Avoid_: carrier, first tone, centre frequency
+
 **Signal**:
 What the receiver detects at a given audio frequency and time: a Transmission as seen from the receiving side.
 _Avoid_: carrier, track, peak

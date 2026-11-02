@@ -33,6 +33,7 @@ class CodedMfskModem(CodedModem):
         code: Code,
         *,
         preset: str = DEFAULT_PRESET,
+        first_tone_hz: float = mfsk.FIRST_TONE_HZ,
         tones: int | None = None,
         symbol_ms: float | None = None,
         interleave: bool | None = None,
@@ -43,7 +44,9 @@ class CodedMfskModem(CodedModem):
         symbol_ms = chosen.symbol_ms if symbol_ms is None else symbol_ms
         interleave = chosen.interleave if interleave is None else interleave
         super().__init__(code, preset=preset, interleave=interleave, repetitions=repetitions)
-        self.waveform = mfsk.Waveform(tones=tones, symbol_seconds=symbol_ms / 1000)
+        self.waveform = mfsk.Waveform(
+            tones=tones, symbol_seconds=symbol_ms / 1000, first_tone_hz=first_tone_hz
+        )
         self._data_symbols = math.ceil(self._sent_bits / self.waveform.bits_per_symbol)
         # How the energy ratio at a tone becomes an SNR: the noise of the reference bandwidth
         # over one symbol.

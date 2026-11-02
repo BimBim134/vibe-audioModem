@@ -432,3 +432,122 @@ def test_what_was_given_up_on_is_bounded_in_a_service_that_never_ends(services):
         service._take(Fragment(msg_id, 0, 2, b"b" * FRAGMENT_CAPACITY))
     given_up = [r for r in service.received() if r.parts and r.parts[0][1].startswith("a")]
     assert len(given_up) == 3  # the newest three; the ten being heard are bounded by the memory
+
+
+# The frequency of a Signal and the estimate before sending -------------------------------------
+
+
+def centre_frequency(sound):
+    """The power-weighted mean frequency: the middle of the 8 tones of the fast Preset."""
+    power = np.abs(np.fft.rfft(sound)) ** 2
+    return float((np.fft.rfftfreq(sound.size, 1 / 48_000) * power).sum() / power.sum())
+
+
+FAST_CENTRE_OFFSET_HZ = 3.5 * 25  # from the lowest tone to the middle of 8 tones 25 Hz apart
+
+
+def test_a_message_is_sent_at_the_frequency_asked_for(services):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    send_and_wait(service, "low", frequency_hz=700.0)
+    send_and_wait(service, "high", frequency_hz=2000.0)
+    low, high = (centre_frequency(sound) - FAST_CENTRE_OFFSET_HZ for sound in audio.played)
+    assert low == pytest.approx(700.0, abs=15) and high == pytest.approx(2000.0, abs=15)
+
+
+def test_the_default_frequency_is_1450_hz(services):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    send_and_wait(service, "default")
+    assert centre_frequency(audio.played[0]) - FAST_CENTRE_OFFSET_HZ == pytest.approx(1450, abs=15)
+
+
+@pytest.mark.parametrize("frequency", [100.0, 349.0, 2476.0, 5000.0, float("nan"), "1450", True])
+def test_a_frequency_outside_the_range_of_the_preset_is_refused_with_the_range(services, frequency):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    with pytest.raises(ValueError, match="350 and 2475"):
+        service.send("x", frequency_hz=frequency)
+    assert audio.played == [] and service.status()["sending"] is False
+
+
+def test_a_message_sent_at_another_frequency_is_received_by_a_listener_that_is_not_told(pair):
+    sender, listener = pair
+    listener.start_listening()
+    send_and_wait(sender, "somewhere else in the band", frequency_hz=2200.0)
+    listener.stop_listening()
+    assert [r.text for r in listener.received()] == ["somewhere else in the band"]
+
+
+def test_the_estimate_gives_the_airtime_without_playing_anything(services):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    estimate = service.estimate("x" * 40, copies=2)  # 3 Fragments twice
+    assert estimate.fits and estimate.reason is None and estimate.fragments == 3
+    assert estimate.airtime_seconds == pytest.approx(6 * 6.8)
+    assert estimate.max_bytes == 2244 and audio.played == []
+    assert estimate.frequency_range_hz == (350.0, 2475.0) and estimate.frequency_problem is None
+
+
+def test_the_estimate_of_a_message_that_is_too_long_carries_the_refusal_of_send(services):
+    service = services()
+    service.apply_settings(preset="max-range")
+    estimate = service.estimate("x" * 600)
+    assert not estimate.fits and "at most 561 bytes" in estimate.reason
+    with pytest.raises(MessageTooLong) as refusal:
+        service.send("x" * 600)
+    assert str(refusal.value) == estimate.reason
+
+
+def test_the_estimate_tells_when_the_frequency_is_wrong(services):
+    estimate = services().estimate("hello", frequency_hz=50.0)
+    assert estimate.fits and "between" in estimate.frequency_problem
+
+
+def test_the_estimate_follows_the_preset_and_can_be_asked_while_sending(services):
+    audio = FakeAudio(devices=DEVICES, play_seconds=30.0)
+    service = services(audio)
+    service.apply_settings(preset="fast")
+    service.send("busy")
+    assert wait_until(lambda: audio.playing)
+    assert service.estimate("hello").airtime_seconds == pytest.approx(6.8)
+    service.cancel()
+    service.apply_settings(preset="standard")
+    assert service.estimate("hello").airtime_seconds == pytest.approx(13.6)
+
+
+def test_the_estimate_is_the_length_of_the_audio_that_send_plays(services):
+    audio = FakeAudio(devices=DEVICES)
+    service = services(audio)
+    for preset in ("fast", "standard"):
+        service.apply_settings(preset=preset)
+        for text, copies, frequency in [("", 1, None), ("a" * 40, 2, 1000.0), ("b" * 18, 1, 500.0)]:
+            estimate = service.estimate(text, copies, frequency)
+            send_and_wait(service, text, copies=copies, frequency_hz=frequency)
+            assert estimate.airtime_seconds == audio.played[-1].size / 48_000
+
+
+@pytest.mark.parametrize("copies", [0, 9, True, 1.5])
+def test_the_estimate_refuses_copies_that_send_would_refuse(services, copies):
+    with pytest.raises(ValueError, match="copies"):
+        services().estimate("hello", copies=copies)
+
+
+def test_the_modems_kept_for_sending_are_few_however_many_frequencies_are_tried(services):
+    service = services(FakeAudio(devices=DEVICES))
+    service.apply_settings(preset="fast")
+    for frequency in range(400, 400 + 40):
+        send_and_wait(service, "x", frequency_hz=float(frequency))
+    assert len(service._sending_modems) <= 8
+
+
+def test_a_refused_frequency_does_not_leave_the_service_busy(services):
+    service = services(FakeAudio(devices=DEVICES))
+    with pytest.raises(ValueError):
+        service.send("x", frequency_hz=1.0)
+    assert service.status()["sending"] is False
+    service.apply_settings(preset="fast")  # not stuck "busy"

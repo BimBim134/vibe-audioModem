@@ -101,25 +101,47 @@ def _refusal(message_length: int, preset: str, copies: int, seconds_per_frame: f
     )
 
 
+def check_copies(copies: int) -> None:
+    if not isinstance(copies, int) or isinstance(copies, bool) or not 1 <= copies <= MAX_COPIES:
+        raise ValueError(f"copies must be a whole number from 1 to {MAX_COPIES}")
+
+
+def _too_many_fragments(message_length: int) -> str | None:
+    count = fragment_count(message_length)
+    if count <= MAX_FRAGMENTS:
+        return None
+    return (
+        f"a Message of {message_length} bytes needs {count} Fragments, more than the "
+        f"{MAX_FRAGMENTS} a Message may have: send a shorter Message "
+        f"({MAX_MESSAGE_BYTES} bytes at most)"
+    )
+
+
+def explain_refusal(
+    message_length: int, preset: str, copies: int, samples_per_frame: int
+) -> str | None:
+    """Why a Message may not be sent as asked, with what to do instead; None when it may."""
+    if reason := _too_many_fragments(message_length):
+        return reason
+    if fragment_count(message_length) > _fragments_allowed(samples_per_frame, copies):
+        return _refusal(message_length, preset, copies, samples_per_frame / SAMPLE_RATE)
+    return None
+
+
 def transmit(
     modem: Modem, message: bytes, preset: str, *, msg_id: int, copies: int = 1
 ) -> np.ndarray:
     """The audio of a Transmission that carries the Message `copies` times over."""
-    if not isinstance(copies, int) or isinstance(copies, bool) or not 1 <= copies <= MAX_COPIES:
-        raise ValueError(f"copies must be a whole number from 1 to {MAX_COPIES}")
+    check_copies(copies)
+    if reason := _too_many_fragments(len(message)):
+        raise MessageTooLong(reason)
     count = fragment_count(len(message))
-    if count > MAX_FRAGMENTS:
-        raise MessageTooLong(
-            f"a Message of {len(message)} bytes needs {count} Fragments, more than the "
-            f"{MAX_FRAGMENTS} a Message may have: send a shorter Message "
-            f"({MAX_MESSAGE_BYTES} bytes at most)"
-        )
     fragments = split(message, msg_id)
     # Every Frame lasts the same: the first one tells whether the Transmission fits, and the
     # rest are made only if it does. A copy sends the same Frames again.
     frames = [modem.modulate(fragments[0].pack(), preset)]
-    if count > _fragments_allowed(frames[0].size, copies):
-        raise MessageTooLong(_refusal(len(message), preset, copies, frames[0].size / SAMPLE_RATE))
+    if reason := explain_refusal(len(message), preset, copies, frames[0].size):
+        raise MessageTooLong(reason)
     frames += [modem.modulate(fragment.pack(), preset) for fragment in fragments[1:]]
     order = [i for copy in range(copies) for i in _sending_order(count, copy, copies)]
     return np.concatenate([frames[index] for index in order])

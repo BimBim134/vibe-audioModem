@@ -8,6 +8,8 @@ occupied band. The measurements behind the choices are in `docs/measurements/REA
 
 from dataclasses import dataclass
 
+from vibemodem.core import mfsk
+
 
 @dataclass(frozen=True)
 class PhyProfile:
@@ -23,6 +25,12 @@ PRESETS = {
     "standard": PhyProfile(tones=8, symbol_ms=80.0, interleave=True),
     "fast": PhyProfile(tones=8, symbol_ms=40.0, interleave=True),
 }
+
+
+def frequency_range_hz(preset: str) -> tuple[float, float]:
+    """Where the lowest tone of a Signal may be in a Preset, in Hz of audio."""
+    chosen = profile(preset)
+    return mfsk.Waveform(chosen.tones, chosen.symbol_ms / 1000).first_tone_range_hz
 
 
 def profile(preset: str) -> PhyProfile:

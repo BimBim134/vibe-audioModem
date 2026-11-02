@@ -17,10 +17,15 @@ from vibemodem.io.audio import AudioError, AudioLibraryUnavailableError
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 
 
-class SendRequest(BaseModel):
+class EstimateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     text: str = Field(max_length=4 * MAX_MESSAGE_BYTES)
     copies: int = Field(1, ge=1, le=MAX_COPIES)
+    frequency_hz: float | None = None
+
+
+class SendRequest(EstimateRequest):
+    """What it takes to send is what it takes to estimate."""
 
 
 class SettingsRequest(BaseModel):
@@ -102,11 +107,18 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     @app.post("/api/send")
     def send(request: SendRequest) -> dict:
         try:
-            return asdict(service.send(request.text, copies=request.copies))
+            sent = service.send(
+                request.text, copies=request.copies, frequency_hz=request.frequency_hz
+            )
+            return asdict(sent)
         except (SettingsError, MessageTooLong, BusyError, AudioError):
             raise
         except ValueError as error:  # what the service refuses in the request itself
             raise HTTPException(status_code=422, detail=str(error)) from error
+
+    @app.post("/api/estimate")
+    def estimate(request: EstimateRequest) -> dict:
+        return asdict(service.estimate(request.text, request.copies, request.frequency_hz))
 
     @app.post("/api/cancel")
     def cancel() -> dict:
