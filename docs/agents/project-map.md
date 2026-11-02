@@ -18,7 +18,7 @@ Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabu
 | `src/vibemodem/core/coded_mfsk.py` | `CodedMfskModem(code)`: the 8-FSK modem for any `Code`. |
 | `src/vibemodem/core/ldpc_modem.py` | `LdpcModem`: the same modem with the LDPC code. |
 | `src/vibemodem/core/baseline.py` | `BaselineModem`: the reference candidate, `CodedMfskModem` with the convolutional code (one fixed Frame per Transmission, up to 20 bytes, CRC-32, preamble search). Preset `standard` only. |
-| `src/vibemodem/core/mfsk.py` | 8 tones 12.5 Hz apart, 80 ms symbols, continuous phase; `synthesize`, `tone_energies`, and the search for the preamble over every start time and audio frequency (`find_signals`, then `refine`). |
+| `src/vibemodem/core/mfsk.py` | `Waveform(tones, symbol_seconds)` (2/4/8/16 tones; default `STANDARD` = 8 tones 12.5 Hz apart, 80 ms symbols), continuous phase; `synthesize`, `tone_energies`, and the search for the preamble over every start time and audio frequency (`find_signals`, then `refine`). |
 | `src/vibemodem/core/convolutional.py` | Rate-1/2, constraint length 7 code and its soft-decision Viterbi decoder. |
 | `src/vibemodem/core/frame.py` | The fixed-size Frame: length byte, padded Message, CRC-32, whitened; `encode_frame` / `decode_frame` (None when the checksum fails). |
 | `src/vibemodem/io/recorder.py` | Spike-grade audio input: list devices, record N seconds. Reports a missing audio library separately from a missing device. |
@@ -26,6 +26,7 @@ Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabu
 | `bench/channel.py` | Channel simulator: `apply_channel(samples, ChannelConfig, seed)`; fading, frequency offset, white noise at an SNR in 2,500 Hz, impulses, 300–2,700 Hz filter, clipping, clock drift. All off by default, each with its own seeded stream. |
 | `bench/toy.py` | `ToyModem`: coherent BPSK at 100 bit/s, no sync, no coding. Exists only to validate the bench against the textbook error curve. |
 | `bench/threshold.py` | `measure_curve`, `success_threshold` (lowest SNR reaching 95%, with every higher tested SNR also passing) and the command `python -m bench.threshold --modem pkg.mod:Class --out file.json`. |
+| `bench/bandwidth.py`, `bench/sweep.py`, `bench/settings.py` | `python -m bench.bandwidth` (occupied bandwidth at -20 dB), `python -m bench.sweep` (tones x symbol duration: bandwidth, transmission length, thresholds at 95/90/80%), and the shared `--set name=value` parsing. |
 | `bench/code_curves.py` | `frame_error_rate(code, ebn0_db, frames, seed)` and `python -m bench.code_curves --code pkg.mod:Class [--set name=value]`: share of frames a code loses on white noise against Eb/N0 (validated against Q(sqrt(2 Eb/N0)) for a single uncoded bit). |
 | `bench/speed.py` | `measure_speed` and `python -m bench.speed --modem pkg.mod:Class`: median time to receive a ~24 s recording, real-time factor, and the modem's code alone; saves it with the machine's description. |
 | `bench/report.py` | Self-contained HTML report (inline SVG chart, Wilson 95% intervals, ranking, not-comparable notice) from result JSON files: `render_report`, and the command `python -m bench.report a.json b.json --out r.html`; also reached through `--html` on the threshold command. |

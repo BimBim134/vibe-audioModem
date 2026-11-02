@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 from scipy.signal import welch
 
-from bench.settings import parse_settings
+from bench.settings import describe_settings, parse_settings
 from bench.threshold import load_modem
 from vibemodem.core.modem import Modem
 
@@ -84,11 +84,7 @@ def main(argv: list[str] | None = None) -> None:
     except ValueError as error:
         parser.error(str(error))
 
-    chosen = (
-        {"modem_options": options, "modem_parameters": getattr(modem, "parameters", None)}
-        if options
-        else {}
-    )
+    chosen = describe_settings(modem, options)
     result = {
         "schema_version": RESULT_SCHEMA_VERSION,
         "modem": args.modem,

@@ -11,7 +11,7 @@ import numpy as np
 from bench.channel import REFERENCE_BANDWIDTH_HZ, ChannelConfig, apply_channel
 from bench.report import write_report
 from bench.scenarios import SCENARIOS
-from bench.settings import parse_settings
+from bench.settings import describe_settings, parse_settings
 from vibemodem.core.modem import Modem
 
 REQUIRED_SUCCESS_RATE = 0.95
@@ -141,7 +141,7 @@ def load_modem(spec: str, options: dict | None = None) -> Modem:
         raise ValueError(f"cannot load modem {spec!r}: {error}") from error
 
 
-def _snr_grid(start: float, stop: float, step: float) -> list[float]:
+def snr_grid(start: float, stop: float, step: float) -> list[float]:
     if step <= 0 or stop < start:
         raise ValueError("need --snr-step > 0 and --snr-to >= --snr-from")
     return np.round(np.arange(start, stop + step / 2, step), 6).tolist()
@@ -174,11 +174,7 @@ def _result(
     threshold: float | None,
 ) -> dict:
     # No date or commit here on purpose: the same run must give a byte-identical file.
-    chosen = (
-        {"modem_options": options, "modem_parameters": getattr(modem, "parameters", None)}
-        if options
-        else {}
-    )
+    chosen = describe_settings(modem, options)
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "modem": args.modem,
@@ -240,7 +236,7 @@ def main(argv: list[str] | None = None) -> None:
         points = measure_curve(
             modem,
             preset=args.preset,
-            snr_db_values=_snr_grid(args.snr_from, args.snr_to, args.snr_step),
+            snr_db_values=snr_grid(args.snr_from, args.snr_to, args.snr_step),
             trials=args.trials,
             seed=args.seed,
             message_bytes=args.message_bytes,

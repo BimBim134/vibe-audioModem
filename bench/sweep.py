@@ -17,7 +17,7 @@ from bench.bandwidth import DEFAULT_DROP_DB, measure_band
 from bench.channel import REFERENCE_BANDWIDTH_HZ
 from bench.scenarios import SCENARIOS
 from bench.settings import parse_settings
-from bench.threshold import _snr_grid, load_modem, measure_curve, success_threshold
+from bench.threshold import load_modem, measure_curve, snr_grid, success_threshold
 
 RESULT_SCHEMA_VERSION = 1
 LEVELS = (0.95, 0.9, 0.8)
@@ -80,7 +80,7 @@ def _numbers(text: str, kind: type) -> list:
 
 
 def _print_table(configurations: list[dict]) -> None:
-    columns = ["tones", "symbol_ms", "bandwidth_hz", "airtime_s", "95%", "90%", "80%"]
+    columns = ["tones", "symbol_ms", "bandwidth_hz", "transmission_s", "95%", "90%", "80%"]
     print(" ".join(f"{name:>12}" for name in columns))
     for configuration in configurations:
         thresholds = [configuration["thresholds_db"][str(level)] for level in LEVELS]
@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> None:
         fixed = parse_settings(args.set)
         if args.jobs < 1 or args.trials < 1 or args.message_bytes < 1 or not args.drop_db > 0:
             raise ValueError("need --jobs >= 1, --trials >= 1, --message-bytes >= 1, --drop-db > 0")
-        grid = _snr_grid(args.snr_from, args.snr_to, args.snr_step)
+        grid = snr_grid(args.snr_from, args.snr_to, args.snr_step)
         jobs = [
             Job(
                 modem=args.modem,

@@ -137,7 +137,7 @@ What it shows:
 
 ## Occupied bandwidth, M-FSK sweep, interleaver and repetition (ticket #11)
 
-**Occupied bandwidth** is the span between the outermost audio frequencies where the averaged power spectrum of the modem's output is within 20 dB of its peak, averaged over random Messages. `python -m bench.bandwidth --modem vibemodem.core.turbo_modem:TurboModem --set tones=8 --set symbol_ms=160` measures it for any modem. The default waveform (8 tones, 80 ms) occupies about 124 Hz, a little over the 100 Hz budget.
+**Occupied bandwidth** is the span between the outermost audio frequencies where the averaged power spectrum of the modem's output is within 20 dB of its peak, averaged over random Messages. `python -m bench.bandwidth --modem vibemodem.core.turbo_modem:TurboModem --set tones=8 --set symbol_ms=160` measures it for any modem. The band runs from the lowest to the highest frequency above that level (not necessarily contiguous), so a stray spectral line widens it. The tone spacing is not a separate parameter: it is 1 / symbol duration (orthogonal tones), so the sweep covers tones and symbol duration. The default waveform (8 tones, 80 ms) occupies about 124 Hz, a little over the 100 Hz budget.
 
 ### Sweep on white noise (turbo, 100 trials, step 1 dB, seed 1)
 
@@ -157,14 +157,14 @@ What it shows:
 | 16 | 320 ms | 57 Hz | 43 s | -21 | -21 | -21 | -4.6 |
 | 16 | 40 ms | 448 Hz | 5.4 s | not reached | -8 | -12 | |
 
-(All 16 combinations are in `docs/measurements/sweep/white-turbo.json`.)
+The bandwidth is measured on 3 Messages with seed 1. (All 16 combinations, including 8 tones of 40 ms (213 Hz, -12 dB), are in `docs/measurements/sweep/white-turbo.json`.)
 
 - **A longer symbol lowers the threshold 3 dB per doubling, but only because the Transmission lasts longer.** For 8 and 16 tones the energy column is constant (-4.6 to -4.7 dB): at equal energy the waveforms are equivalent. The gain is real for the operator (a weaker signal is received) and costs airtime.
 - **8 tones is the best number**: 2 tones is 6 dB worse in energy, 4 tones about 0.5 to 1.5 dB worse, 16 tones ties 8 but is twice as wide at the same symbol duration.
-- **Inside 100 Hz**: 8 tones of 160 ms (64 Hz, -19 dB) is the widest-gain point that stays under budget for a 27 s Transmission; 8 tones of 320 ms (31 Hz, -22 dB) takes 54 s. The default, at 124 Hz, is over the budget.
+- **Inside 100 Hz**: every 8-tone point of 160 ms or more fits: 160 ms (64 Hz, -19 dB, 27 s) is the shortest Transmission that does, 320 ms (31 Hz, -22 dB) takes 54 s. 4 tones of 160 ms (29 Hz, -19 dB) needs 38 s for the same threshold. The default, at 124 Hz, is over the budget.
 - Caveat: with very long Transmissions the recording is mostly signal, which degrades the receiver's noise estimate; read the 142 s and 76 s rows with that in mind.
 
-### The same on hf-fading (turbo, 100 trials, step 2 dB)
+### The same on hf-fading (turbo, 100 trials, step 2 dB; only 4 and 8 tones of 80 to 320 ms)
 
 | Tones | Symbol | 95% | 90% | 80% | Best rate at high SNR |
 | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -184,9 +184,9 @@ With 8 tones and symbols of 160 ms or more the fading plateau disappears: the 95
 | none | -12 | -11 | -5 |
 | interleaver | -13 | -12 | -5 |
 | repetition x2 (twice the airtime, about 3 dB of energy) | -16 | -11 | not reached |
-| both | -16 | -16 | not reached |
+| both | -16 | -12 | not reached |
 
-dirty is the same as hf-fading to within 1 dB; ssb is unchanged by the interleaver (-16 dB).
+Measured on the named channels only (no white-noise run), at 8 tones and 80 ms. dirty is the same as hf-fading to within 1 dB; ssb is unchanged by the interleaver (-16 dB).
 
 - The interleaver gains about 1 dB on the steep part (72% against 33.5% at -14 dB) and does nothing for the plateau (94-95% before and after).
 - Repetition x2 lowers the 80% level by 4 dB, but it sends twice as long: at equal energy it is a draw, and the plateau drops to 91-93% because a longer Transmission gives a deep fade more chances to hide the Preamble.

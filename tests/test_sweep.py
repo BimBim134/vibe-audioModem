@@ -74,7 +74,7 @@ def test_the_table_is_printed(tmp_path, capsys):
         "tones",
         "symbol_ms",
         "bandwidth_hz",
-        "airtime_s",
+        "transmission_s",
         "95%",
         "90%",
         "80%",

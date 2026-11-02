@@ -62,4 +62,5 @@ _Avoid_: width, footprint
 
 **Interleaver**:
 The step that spreads the coded bits of a Frame over the whole Transmission, so that a fade or an impulse damages scattered bits that the Code can repair instead of a block it cannot.
+Not the Code's own internal interleaver (part of the turbo Code).
 _Avoid_: scrambler, shuffle
