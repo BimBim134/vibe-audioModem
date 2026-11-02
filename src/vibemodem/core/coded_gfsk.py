@@ -56,13 +56,15 @@ class CodedGfskModem(CodedModem):
     def _decode(self, samples: np.ndarray, signal: gfsk.Candidate) -> Reception | None:
         waveform = self.waveform
         work = waveform.decimate(samples)
-        start = signal.start_sample // 8 + waveform.preamble_bits.size * waveform._work_bit
-        if start + self._sent_bits * waveform._work_bit > work.size:
+        if not waveform.data_fits(work, signal, self._sent_bits):
             return None
+        start = waveform.data_start(signal)
         energy = waveform.bit_energies(work, start, signal.carrier_hz, self._sent_bits)
         noise = waveform.noise_energy(work, start, signal.carrier_hz, self._sent_bits)
         if not noise > 0:  # nowhere in the band to read noise (a Signal filling it)
+            # One of the two frequencies of a bit is loud: read below the median of all of them.
             noise = np.quantile(energy, 0.25) / np.log(2)
+        # Never less noise than a tiny share of the loudest energy (see mfsk.NOISE_FLOOR_RATIO).
         relative = energy / max(noise, 1e-9 * energy.max() + 1e-300)
 
         message = self._message(relative[:, 0] - relative[:, 1])

@@ -217,17 +217,20 @@ Sweep on white noise (turbo, 100 trials, step 1 dB, seed 1, same procedure as th
 
 On hf-fading (100 trials, step 2 dB, `docs/measurements/sweep/gfsk-hf-fading-turbo.json`):
 
-| Baud | bt | 95% | 90% | 80% |
-| :-- | :-- | :-- | :-- | :-- |
-| 25 | none | not reached (92-97%) | -10 | -12 |
-| 25 | 0.5 | not reached | -10 | -10 |
-| 50 | none | -6 | -8 | -8 |
-| 50 | 0.5 | -6 | -8 | -8 |
+| Baud | h | bt | 95% | 90% | 80% |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| 25 | 1 | none | not reached (92-97%) | -10 | -12 |
+| 25 | 1 | 0.5 | not reached | -10 | -10 |
+| 50 | 1 | none | -6 | -8 | -8 |
+| 50 | 1 | 0.5 | -6 | -8 | -8 |
+
+Only h = 1 was run under fading; GMSK (h = 0.5) was not, since it is already 3 to 4 dB behind on white noise. The M-FSK figures quoted below are from the sweep above (8 tones, 80 ms: 95% at -4, 90% at -10, 80% at -12; 160 ms: -14, -14, -16).
 
 What it shows:
 
 - **GFSK is behind M-FSK at the same band and energy.** The best GFSK point (25 Bd, h = 1, no filter: 45 Hz, -15 dB, 19 s, energy -2.2 dB) is about 2.5 dB worse in energy than 8-FSK (-4.7 dB), and 4 dB short of the 8-tone 160 ms point (64 Hz, -19 dB, 27 s). That is the textbook cost of choosing between two frequencies per bit without following the phase, instead of one of eight.
 - **GMSK (h = 0.5) is the weakest setting here**: 3 to 4 dB behind h = 1 at the same baud rate and filter. A non-coherent receiver cannot use the narrower tone spacing; a coherent one (Viterbi over the phase trellis) could, but it is more fragile under fading and was left out. This is the receiver's limit, not necessarily the modulation's.
-- **The Gaussian filter trades about 1 dB of threshold per step (none, 0.5, 0.3) for 10 to 15% of bandwidth**, and costs nothing visible under fading.
+- **The Gaussian filter trades 1 to 2 dB of threshold per step (none, 0.5, 0.3) for 7 to 19% of bandwidth** (at 50 Bd with h = 1 the two filters occupy the same 67 Hz), and costs nothing visible under fading.
 - **Under fading** the fastest setting does best at 95% (50 Bd reaches -6 dB, against -4 dB for the default M-FSK) because its Transmission is short, but the M-FSK 8-tone points with symbols of 160 ms or more reach -14 dB and above 95% at high SNR; slow GFSK stays on the 92-97% plateau.
+- The bandwidth budget is the same ~100 Hz as for M-FSK: at 100 Bd every GFSK setting is over it (117 to 136 Hz) and most do not reach 95%. The soft value passed to the Code is the difference of the two energies divided by the noise energy, not a calibrated log-likelihood ratio; the turbo code does not need one.
 - Same caveats as for the M-FSK sweep (100 trials per point, band from 3 Messages, long Transmissions fill the recording and degrade the noise estimate).

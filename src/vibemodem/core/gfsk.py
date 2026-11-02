@@ -57,6 +57,7 @@ class Waveform:
     bt: float | None = 0.5
 
     def __post_init__(self):
+        # A bit must hold a whole number of samples at the working rate, and a quarter bit too.
         if not isinstance(self.baud, int) or self.baud < 1 or 1500 % self.baud:
             raise ValueError(f"baud must be a whole number of bauds dividing 1500, got {self.baud}")
         if not (isinstance(self.h, (int, float)) and math.isfinite(self.h)):
@@ -131,6 +132,14 @@ class Waveform:
         n = np.arange(self._work_bit)
         rates = np.array([carrier_hz + self._probe_hz, carrier_hz - self._probe_hz])
         return np.exp(-2j * np.pi * np.outer(n, rates) / _WORK_RATE)
+
+    def data_start(self, signal: Candidate) -> int:
+        """Where the bits after this Signal's preamble begin, in samples of the working rate."""
+        return signal.start_sample // _DECIMATION + self.preamble_bits.size * self._work_bit
+
+    def data_fits(self, work: np.ndarray, signal: Candidate, bits: int) -> bool:
+        """Whether the recording holds `bits` bits after the preamble of this Signal."""
+        return self.data_start(signal) + bits * self._work_bit <= work.size
 
     def bit_energies(
         self, work: np.ndarray, start: int, carrier_hz: float, bits: int
