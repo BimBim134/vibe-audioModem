@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from vibemodem.app.hello import create_app
-from vibemodem.io.recorder import AudioLibraryUnavailableError, NoInputDeviceError
+from vibemodem.io.audio import AudioLibraryUnavailableError, NoAudioDeviceError
 
 
 def make_client(record=None, devices=None, quits=None):
@@ -54,7 +54,7 @@ def test_devices_report_when_the_audio_library_itself_is_missing():
 
 def test_devices_list_is_empty_when_no_audio_is_available():
     def broken():
-        raise NoInputDeviceError("no portaudio")
+        raise NoAudioDeviceError("no portaudio")
 
     body = make_client(devices=broken).get("/api/devices").json()
     assert body == {"devices": [], "audio_library": "ok"}
@@ -65,11 +65,20 @@ def test_record_reports_length_and_level_of_the_captured_audio():
     assert body["samples"] == 240_000
     assert body["rms"] == pytest.approx(0.5)
     assert body["peak"] == pytest.approx(0.5)
+    assert body["warnings"] == []
+
+
+def test_record_warns_when_the_input_is_silent():
+    def silence(seconds, device=None):
+        return np.zeros(int(48_000 * seconds), dtype=np.float32)
+
+    body = make_client(record=silence).post("/api/record", json={"seconds": 5}).json()
+    assert any("too low" in warning for warning in body["warnings"])
 
 
 def test_record_without_an_input_device_is_a_clear_error():
     def no_device(seconds, device=None):
-        raise NoInputDeviceError("Error querying device -1")
+        raise NoAudioDeviceError("Error querying device -1")
 
     response = make_client(record=no_device).post("/api/record", json={"seconds": 5})
     assert response.status_code == 503

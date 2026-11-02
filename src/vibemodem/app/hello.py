@@ -20,12 +20,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from vibemodem.io.recorder import (
-    AudioLibraryUnavailableError,
-    NoInputDeviceError,
-    list_input_devices,
-    record,
-)
+from vibemodem.io.audio import AudioError, AudioLibraryUnavailableError, SoundCard
+from vibemodem.io.levels import check_level
 
 SELFTEST_TONE_HZ = 1000
 SELFTEST_SAMPLE_RATE = 48_000
@@ -122,20 +118,21 @@ def create_app(
             return {"devices": list_devices(), "audio_library": "ok"}
         except AudioLibraryUnavailableError as exc:
             return {"devices": [], "audio_library": f"unavailable: {exc}"}
-        except NoInputDeviceError:
+        except AudioError:
             return {"devices": [], "audio_library": "ok"}
 
     @app.post("/api/record")
     def record_audio(request: RecordRequest) -> dict:
         try:
             samples = record(request.seconds, device=request.device)
-        except NoInputDeviceError as exc:
+        except AudioError as exc:
             raise HTTPException(status_code=503, detail=f"No usable audio input: {exc}") from exc
         return {
             "seconds": request.seconds,
             "samples": int(samples.size),
             "rms": float(np.sqrt(np.mean(np.square(samples)))),
             "peak": float(np.max(np.abs(samples))),
+            "warnings": check_level(samples).messages,
         }
 
     @app.get("/api/selftest")
@@ -184,7 +181,16 @@ def main(argv: list[str] | None = None) -> None:
     def on_quit() -> None:
         server.should_exit = True
 
-    app = create_app(record=record, list_devices=list_input_devices, on_quit=on_quit)
+    card = SoundCard()
+
+    def list_inputs() -> list[dict]:
+        return [
+            {"index": d.index, "name": d.name, "max_input_channels": d.inputs}
+            for d in card.list_devices()
+            if d.inputs
+        ]
+
+    app = create_app(record=card.record, list_devices=list_inputs, on_quit=on_quit)
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_config=None))
     if not args.no_browser:
         url = f"http://127.0.0.1:{port}/"
