@@ -322,3 +322,22 @@ def test_a_frequency_out_of_range_is_rejected_with_the_range(client, audio):
     response = client.post("/api/send", json={"text": "hi", "frequency_hz": 100})
     assert response.status_code == 422 and "350 and 2475" in response.json()["detail"]
     assert audio.played == []
+
+
+def test_the_page_is_the_html_file_next_to_the_module(client):
+    from pathlib import Path
+
+    import vibemodem.app
+
+    html = (Path(vibemodem.app.__file__).parent / "page.html").read_text(encoding="utf-8")
+    assert client.get("/").text == html and html.startswith("<!doctype html>")
+
+
+def test_the_page_file_is_shipped_with_the_package_and_the_packaged_application():
+    import tomllib
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    package_data = tomllib.loads((root / "pyproject.toml").read_text())["tool"]["setuptools"]
+    assert "page.html" in package_data["package-data"]["vibemodem.app"]
+    assert "page.html" in (root / "packaging" / "vibemodem.spec").read_text()

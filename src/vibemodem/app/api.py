@@ -3,18 +3,20 @@
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import asdict
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from vibemodem.app.page import PAGE
 from vibemodem.app.service import BusyError, Cancelled, ModemService, SettingsError
 from vibemodem.core.message import MAX_MESSAGE_BYTES
 from vibemodem.core.transmission import MAX_COPIES, MessageTooLong
 from vibemodem.io.audio import AudioError, AudioLibraryUnavailableError
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
+# Next to this module, also in the packaged application (see packaging/vibemodem.spec).
+PAGE = Path(__file__).with_name("page.html").read_text(encoding="utf-8")
 
 
 class EstimateRequest(BaseModel):
