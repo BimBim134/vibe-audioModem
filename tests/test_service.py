@@ -240,7 +240,8 @@ def test_the_list_of_received_messages_is_bounded(services):
     sender_audio, listener_audio = FakeAudio(), FakeAudio()
     sender_audio.connect_to(listener_audio)
     sender = services(sender_audio)
-    listener = services(listener_audio, max_received=3)
+    # One decode, when the listening stops: what is tried is the bound, not the timing of passes.
+    listener = services(listener_audio, max_received=3, decode_every_seconds=10_000)
     sender.apply_settings(preset="fast")
     listener.apply_settings(preset="fast")
     listener.start_listening()

@@ -16,8 +16,9 @@ from vibemodem.core.transmission import MAX_COPIES, MessageTooLong
 from vibemodem.io.audio import AudioError, AudioLibraryUnavailableError
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
-# Next to this module, also in the packaged application (see packaging/vibemodem.spec).
-PAGE = Path(__file__).with_name("page.html").read_text(encoding="utf-8")
+# Next to this module, also in the packaged application (see packaging/vibemodem.spec). It is read
+# at each request, so that a change to the page (its colours, for instance) shows on reload.
+PAGE_FILE = Path(__file__).with_name("page.html")
 
 
 class EstimateRequest(BaseModel):
@@ -83,7 +84,7 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
-        return PAGE
+        return PAGE_FILE.read_text(encoding="utf-8")
 
     @app.get("/api/health")
     def health() -> dict:
@@ -160,6 +161,10 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
             "received": [asdict(item) for item in service.received()],
             "undecoded": [asdict(item) for item in service.undecoded()],
         }
+
+    @app.get("/api/conversation")
+    def conversation() -> dict:
+        return {"items": service.conversation()}
 
     @app.get("/api/spectrum")
     def spectrum(since: int = Query(0, ge=0)) -> dict:

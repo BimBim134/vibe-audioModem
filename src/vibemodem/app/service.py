@@ -7,13 +7,14 @@ memory only (the last `max_received` Messages).
 
 import threading
 import time
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 import numpy as np
 
 from vibemodem.app import receiver as receiver_module
+from vibemodem.app.conversation import SentEntry, build_conversation
 from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
 from vibemodem.app.receiver import Receiver
 from vibemodem.app.store import ReceptionStore
@@ -104,6 +105,8 @@ class ModemService:
         # For sending only (listening has its own): the last few, each a heavy object.
         self._sending_modems: OrderedDict[tuple, object] = OrderedDict()
         self._frame_samples: dict[str, int] = {}  # of one Frame, for each Preset
+        self._sent_log: deque[SentEntry] = deque(maxlen=max_received)
+        self._sent_count = 0
         self._closed = False
         self._sending = False
         self._cancel_asked = False
@@ -262,8 +265,23 @@ class ModemService:
                     raise Cancelled("cancelled before any sound was played")
                 self._last_id = msg_id
                 self._last_error = None
+                self._sent_count += 1
+                entry = SentEntry(
+                    id=self._sent_count,
+                    text=data.decode("utf-8", errors="replace"),
+                    at=time.time(),
+                    status="sending",
+                    fragments=fragment_count(len(data)),
+                    copies=copies,
+                    frequency_hz=float(frequency_hz or mfsk.FIRST_TONE_HZ),
+                    airtime_seconds=sound.size / SAMPLE_RATE,
+                )
+                self._sent_log.append(entry)
                 self._send_thread = threading.Thread(
-                    target=self._play, args=(sound, device), name="vibemodem-send", daemon=True
+                    target=self._play,
+                    args=(sound, device, entry),
+                    name="vibemodem-send",
+                    daemon=True,
                 )
                 self._send_thread.start()
         except BaseException:
@@ -288,13 +306,24 @@ class ModemService:
             self._sending_modems.move_to_end(key)
             return self._sending_modems[key]
 
-    def _play(self, sound: np.ndarray, device) -> None:
+    def _play(self, sound: np.ndarray, device, entry: SentEntry) -> None:
+        outcome, error_text = "sent", None
+        began = time.monotonic()
         try:
             self._audio.play(sound, device=device)
         except Exception as error:  # a sound card can fail in many ways; say which, keep going
-            self._fail(str(error))
+            outcome, error_text = "failed", str(error)
+            self._fail(error_text)
         finally:
             with self._lock:
+                played = time.monotonic() - began
+                if (
+                    outcome == "sent"
+                    and self._cancel_asked
+                    and played < entry.airtime_seconds - 0.5
+                ):
+                    outcome = "cancelled"  # a cancel in the last instants cut nothing: it was sent
+                entry.status, entry.error = outcome, error_text
                 self._sending = False
 
     def cancel(self) -> bool:
@@ -372,6 +401,12 @@ class ModemService:
     def stop_listening(self) -> bool:
         """Stop hearing the input once what is already heard has been decoded."""
         return self._receiver.stop()
+
+    def conversation(self) -> list[dict]:
+        """What was sent and what was heard, oldest first, for the page."""
+        with self._lock:
+            sent = [replace(e) for e in self._sent_log]
+        return build_conversation(sent, self._receiver.received(), self._receiver.undecoded())
 
     def received(self) -> list[Heard]:
         """The Messages heard whole, in order of arrival, then those heard in part."""

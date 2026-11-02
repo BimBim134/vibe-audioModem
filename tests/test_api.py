@@ -442,3 +442,16 @@ def test_the_receptions_kept_are_deleted_on_request(tmp_path):
 
 def test_without_a_store_the_storage_is_reported_unavailable(client):
     assert client.get("/api/storage").json() == {"available": False, "keep": False}
+
+
+def test_a_change_to_the_page_file_shows_on_the_next_load_without_restarting(
+    client, monkeypatch, tmp_path
+):
+    import vibemodem.app.api as api
+
+    page = tmp_path / "page.html"
+    page.write_text("<!doctype html><title>first</title>")
+    monkeypatch.setattr(api, "PAGE_FILE", page)
+    assert "first" in client.get("/").text
+    page.write_text("<!doctype html><title>second</title>")
+    assert "second" in client.get("/").text

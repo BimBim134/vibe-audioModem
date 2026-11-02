@@ -5,96 +5,220 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vibe AudioModem</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 1.5rem auto; padding: 0 1rem; }
-  fieldset { margin: 1rem 0; border: 1px solid #8886; border-radius: 6px; }
-  legend { font-weight: 600; }
-  label { display: inline-block; margin: 0.25rem 0.75rem 0.25rem 0; }
-  textarea { width: 100%; box-sizing: border-box; font: inherit; }
-  button { font: inherit; padding: 0.4rem 0.9rem; margin: 0.25rem 0.25rem 0.25rem 0; }
-  #error { color: #b00020; min-height: 1.4em; }
-  #info { min-height: 1.4em; }
-  li { margin: 0.4rem 0; }
-  .part { opacity: 0.8; }
-  .gap { color: #b00020; }
-  #scope { position: relative; margin: 0.5rem 0; }
-  #scope canvas { display: block; width: 100%; image-rendering: pixelated; background: #000; }
-  #waterfall { height: 14rem; }
-  #spectrum { height: 6rem; }
-  #axis { position: relative; height: 1.4rem; font-size: 0.75rem; }
+  /* ============ THE COLOURS: the only place they are chosen =====================
+     Three colours, each as three numbers (red green blue, 0 to 255) separated by spaces,
+     not as #hex. Everything else on the page, and the charts (the script reads these same
+     three), is made of them: a tint is the same colour at another opacity.
+     Change a line here, save, and reload the page: no restart needed. */
+  :root {
+    --bg: 14 17 22;        /* background: the page, the dialogs, the darkest of the waterfall */
+    --text: 232 234 237;   /* text, lines, received bubbles, the loudest of the waterfall */
+    --accent: 255 154 31;  /* orange: what is yours (sent, the transmit band), the spectrum */
+  }
+  /* =============================================================================== */
+
+  :root {
+    color-scheme: dark;
+    --line: rgb(var(--text) / 0.14);
+    --soft: rgb(var(--text) / 0.62);
+    scrollbar-color: rgb(var(--text) / 0.3) transparent;  /* the browser's own greys: ours instead */
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: flex; flex-direction: column;
+    background: rgb(var(--bg)); color: rgb(var(--text));
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  ::placeholder { color: var(--soft); opacity: 1; }
+  option { background: rgb(var(--bg)); color: rgb(var(--text)); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  button {
+    background: rgb(var(--text) / 0.08); border: 1px solid transparent; border-radius: 999px;
+    padding: 0.4rem 1rem; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: rgb(var(--text) / 0.16); }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button.primary { background: rgb(var(--accent)); color: rgb(var(--bg)); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: rgb(var(--accent) / 0.85); }
+  button.sure { background: transparent; border-color: rgb(var(--accent)); color: rgb(var(--accent)); }
+  :focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+  input, select, textarea {
+    background: rgb(var(--text) / 0.06); border: 1px solid var(--line); border-radius: 10px;
+    padding: 0.4rem 0.6rem;
+  }
+  input[type="checkbox"] { accent-color: rgb(var(--accent)); width: 1rem; height: 1rem; padding: 0; }
+
+  /* The top bar */
+  .top {
+    display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .top h1 { font-size: 1rem; font-weight: 600; margin: 0 auto 0 0; letter-spacing: 0.02em; }
+  .status { display: flex; align-items: center; gap: 0.45rem; color: var(--soft); font-size: 0.85rem; }
+  .status .warn { color: rgb(var(--accent)); }
+  .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: rgb(var(--text) / 0.3); }
+  .dot.on { background: rgb(var(--accent)); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+
+  /* Two columns: the charts, and the conversation */
+  main {
+    flex: 1; min-height: 0; display: grid; gap: 1.1rem; padding: 1.1rem;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .charts { display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; }
+  .chart { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  canvas { display: block; width: 100%; border-radius: 10px; }
+  #spectrum { flex: 0 0 28%; min-height: 0; background: rgb(var(--text) / 0.04); }
+  #waterfall { flex: 1; min-height: 0; margin-top: 0.4rem; background: rgb(var(--bg)); }
+  #axis { position: relative; height: 1.3rem; margin-top: 0.3rem; font-size: 0.75rem; color: var(--soft); }
   #axis span { position: absolute; transform: translateX(-50%); }
-  .note { font-size: 0.75rem; opacity: 0.7; }
-  #legend, #legend2 { font-size: 0.75rem; opacity: 0.7; }
-  [title] { text-decoration: underline dotted; cursor: help; }
-  h3 { font-size: 1rem; margin: 0.8rem 0 0.2rem; }
-  #estimate.refused, #estimate .problem { color: #b00020; }
+
+  .chat { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); padding-left: 1.1rem; }
+  #conversation { flex: 1; min-height: 12rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.2rem 0.2rem 0.8rem; }
+  .empty { margin: auto; color: var(--soft); text-align: center; max-width: 18rem; }
+
+  /* Bubbles */
+  .row { display: flex; }
+  .row.fresh { animation: arrive 0.25s ease-out; }  /* only a bubble that has just come */
+  .row.out { justify-content: flex-end; }
+  @keyframes arrive { from { opacity: 0; transform: translateY(6px); } }
+  .bubble { max-width: 82%; padding: 0.5rem 0.8rem; border-radius: 16px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .bubble.in { background: rgb(var(--text) / 0.09); border-bottom-left-radius: 4px; }
+  .bubble.out { background: rgb(var(--accent)); color: rgb(var(--bg)); border-bottom-right-radius: 4px; }
+  .bubble.part { background: transparent; border: 1px dashed rgb(var(--text) / 0.45); border-bottom-left-radius: 4px; }
+  .bubble.failed { background: transparent; border: 1px solid rgb(var(--accent)); color: rgb(var(--text)); }
+  .meta { display: block; margin-top: 0.15rem; font-size: 0.75rem; opacity: 0.75; white-space: normal; }
+  .head { display: block; font-size: 0.78rem; opacity: 0.8; margin-bottom: 0.15rem; }
+  .note { align-self: center; font-size: 0.78rem; color: var(--soft); border: 1px dashed var(--line); border-radius: 999px; padding: 0.15rem 0.8rem; }
+
+  /* The composer */
+  #composer { padding-top: 0.6rem; border-top: 1px solid var(--line); }
+  #composer .line { display: flex; gap: 0.5rem; align-items: flex-end; }
+  #text { flex: 1; resize: none; border-radius: 16px; min-height: 2.6rem; max-height: 8rem; }
+  .send-at { display: flex; align-items: center; gap: 0.5rem; margin: 0 0.2rem 0.5rem; font-size: 0.85rem; color: var(--soft); }
+  .send-at input { padding: 0.2rem 0.5rem; }
+  canvas { cursor: crosshair; }  /* a click on a chart places the Signal */
+  .problem { margin: 0 0 0.4rem; font-size: 0.85rem; color: rgb(var(--accent)); }
+  .problem:empty { display: none; }
+  #estimate { margin: 0.4rem 0.2rem 0; font-size: 0.8rem; color: var(--soft); min-height: 1.1em; }
+  #estimate.refused { color: rgb(var(--accent)); }
+  .wide { width: 6rem; }
+  .narrow { width: 4rem; }
+
+  /* The settings */
+  dialog { background: rgb(var(--bg)); color: rgb(var(--text)); border: 1px solid var(--line); border-radius: 18px; padding: 1.3rem; width: min(34rem, 94vw); }
+  dialog::backdrop { background: rgb(var(--bg) / 0.75); }
+  dialog h2 { margin: 0 0 0.8rem; font-size: 1.05rem; }
+  dialog h3 { margin: 1.2rem 0 0.4rem; font-size: 0.9rem; }
+  dialog .field { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0; }
+  dialog .field > span { width: 5rem; color: var(--soft); }
+  dialog .field > span.plain { width: auto; }
+  dialog select { flex: 1; min-width: 0; }
+  dialog p { margin: 0.4rem 0; font-size: 0.82rem; color: var(--soft); }
+  dialog p.problem { color: rgb(var(--accent)); }
+  dialog .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+
+  @media (max-width: 860px) {
+    body { height: auto; }
+    main { grid-template-columns: 1fr; grid-template-rows: auto; }
+    .chat { order: -1; border-left: 0; padding-left: 0; }  /* the conversation first, as in a messenger */
+    .chart { flex: none; }
+    #spectrum { flex: none; height: 5.5rem; }
+    #waterfall { flex: none; height: 11rem; }
+    #conversation { min-height: 14rem; max-height: 55vh; }
+  }
+  @media (max-width: 560px) {
+    .top { padding: 0.6rem 0.8rem; gap: 0.5rem; }
+    .top h1 { white-space: nowrap; font-size: 0.95rem; }
+    .status > span:not(.warn) { display: none; }  /* the dot says it; a loss of sound is still told */
+    main { padding: 0.8rem; }
+  }
 </style>
 </head>
 <body>
-<h1>Vibe AudioModem</h1>
-<p id="error" role="alert"></p>
-<p id="info" aria-live="polite"></p>
 
-<fieldset>
-  <legend>Settings</legend>
-  <label>Preset
+<header class="top">
+  <h1>Vibe AudioModem</h1>
+  <span class="status"><i class="dot" id="dot"></i><span id="listening">Not listening</span></span>
+  <button id="listen" class="primary">Listen</button>
+  <button id="open-settings">Settings</button>
+</header>
+
+<main>
+  <section class="charts" aria-label="What is heard">
+    <div class="chart">
+      <canvas id="spectrum" role="img" aria-label="Spectrum of the sound heard, 300 to 2700 Hz"></canvas>
+      <canvas id="waterfall" role="img" aria-label="Waterfall: the spectrum over the last minute, newest at the top"></canvas>
+      <div id="axis" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="chat" aria-label="Messages">
+    <div id="conversation" role="log" aria-live="polite"></div>
+    <form id="composer" autocomplete="off">
+      <p id="error" class="problem" role="alert"></p>
+      <label class="send-at">Send at
+        <input id="frequency" class="wide" type="number" step="any" aria-describedby="range">
+        Hz <span id="range"></span>
+      </label>
+      <div class="line">
+        <textarea id="text" rows="1" placeholder="Write a message" aria-label="Message"></textarea>
+        <button id="send" class="primary" type="submit">Send</button>
+        <button id="cancel" type="button" hidden>Cancel</button>
+      </div>
+      <p id="estimate" aria-live="polite"></p>
+    </form>
+  </section>
+</main>
+
+<dialog id="settings" aria-labelledby="settings-title">
+  <h2 id="settings-title">Settings</h2>
+  <p id="settings-error" class="problem" role="alert"></p>
+  <label class="field"><span>Preset</span>
     <select id="preset">
       <option value="max-range">Maximum range (slowest)</option>
       <option value="standard" selected>Standard</option>
       <option value="fast">Fast</option>
     </select>
   </label>
-  <label>Input <select id="input_device"><option value="">default</option></select></label>
-  <label>Output <select id="output_device"><option value="">default</option></select></label>
-  <button id="apply">Apply</button>
-</fieldset>
+  <label class="field"><span>Input</span><select id="input_device"><option value="">default</option></select></label>
+  <label class="field"><span>Output</span><select id="output_device"><option value="">default</option></select></label>
+  <p id="settings-note" aria-live="polite"></p>
+  <div class="actions"><button id="apply" class="primary">Apply</button></div>
+  <
 
-<fieldset>
-  <legend>Send</legend>
-  <textarea id="text" rows="3" placeholder="Message"></textarea>
-  <label>Copies <input id="copies" type="number" min="1" max="8" value="1" style="width:4rem"></label>
-  <label>Lowest tone (Hz) <input id="frequency" type="number" step="any" style="width:6rem"></label>
-  <span id="range"></span>
-  <p id="estimate" aria-live="polite"></p>
-  <button id="send">Send</button>
-  <button id="cancel">Cancel</button>
-  <span id="sending"></span>
-</fieldset>
+  <h2>Sending</h2>
+  <label class="field"><span>Copies</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
+  <p>Each Message is sent this many times over.</p>
 
-<fieldset>
-  <legend>Receive</legend>
-  <button id="listen">Start listening</button>
-  <span id="listening"></span>
-  <div id="scope">
-    <canvas id="spectrum" width="480" height="90" role="img" aria-label="Spectrum of the sound heard, 300 to 2700 Hz"></canvas>
-    <canvas id="waterfall" width="480" height="120" role="img" aria-label="Waterfall: the spectrum over the last minute, newest at the top"></canvas>
-    <div id="axis" aria-hidden="true"></div>
-    <div id="legend">Levels from -100 dB (dark) to -20 dB (white), fixed. Blue band: where the next Message would be sent.</div>
-  </div>
-  <ul id="received"></ul>
-  <p id="legend2">Each Message: the frequency of its lowest tone and its <b>SNR</b> (signal-to-noise ratio, estimated in 2,500 Hz). Messages appear up to 10 s after their end.</p>
-  <h3>Detected, not decoded</h3>
-  <ul id="undecoded"><li>None.</li></ul>
-</fieldset>
-
-<fieldset id="storage">
-  <legend>Stored receptions</legend>
-  <label><input id="keep" type="checkbox"> Keep the audio and the indicators of what is received</label>
-  <label>Up to <input id="limit" type="number" min="10" max="100000" step="10" style="width:6rem"> MB</label>
-  <button id="clear">Delete all stored receptions</button>
+  <h3>Stored receptions</h3>
+  <label class="field"><input id="keep" type="checkbox"> Keep the audio and the figures of what is received</label>
+  <label class="field"><span>Up to</span><input id="limit" class="wide" type="number" min="10" max="100000" step="10"> MB</label>
   <p id="usage" aria-live="polite"></p>
-  <p class="note">This is the sound your input hears while it receives, with 3 s around each Signal: with a microphone or a radio it can hold voices of other people. It stays on this computer, in the folder shown above, and the oldest are deleted first when the limit is reached. To replay them: <code>python -m bench.replay FOLDER</code>.</p>
-</fieldset>
+  <p>This is the sound your input hears while it receives, with 3 s around each Signal: with a microphone or a radio it can hold voices of other people. It stays on this computer, in the folder shown above, and the oldest are deleted first when the limit is reached. To replay them: <code>python -m bench.replay FOLDER</code>.</p>
+  <div class="actions"><button id="clear">Delete all stored receptions</button></div>
 
-<p><button id="quit">Quit</button></p>
+  <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
+</dialog>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const say = (id, text) => { $(id).textContent = text || ""; };
-let state = { listening: false, sending: false };
-let asked = 0;
-let wasListening = false;
-let lastSettings = null;
+
+// The three colours are the ones of the style sheet above: read from it, never repeated here.
+const triple = (name, fallback) => {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim().split(/[\s,]+/).map(Number);
+  return value.length === 3 && value.every((n) => n >= 0 && n <= 255) ? value : fallback;  // not "r g b"? then ours
+};
+const BG = triple("--bg", [14, 17, 22]), TEXT = triple("--text", [232, 234, 237]), ACCENT = triple("--accent", [255, 154, 31]);
+const rgb = (c, alpha = 1) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
+const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
+
+let state = { listening: false, sending: false, settings: {} };
+let asked = 0, refreshes = 0, wasListening = false, lastSettings = null;
 
 async function call(path, method, body) {
   const options = { method: method || "GET" };
@@ -111,204 +235,226 @@ async function call(path, method, body) {
   }
   return data;
 }
-async function act(promise, then) {
-  say("error", "");
-  say("info", "");
+// A failure is told where the person is looking: under the composer, or in the open dialog.
+const showError = (text, where = "error") => say(where, text ? "! " + text : "");
+async function act(promise, then, where = "error") {
+  showError("", where);
   try { const data = await promise; if (then) then(data); }
-  catch (error) { say("error", String(error.message || error)); }
+  catch (error) { showError(String(error.message || error), where); }
   refresh();
 }
+// A click that cannot be undone asks for a second one (the browser's own dialogs ignore our colours).
+function confirmed(button, label, action) {
+  button.onclick = () => {
+    if (button.dataset.sure) { clearTimeout(Number(button.dataset.sure)); delete button.dataset.sure; button.textContent = label; button.classList.remove("sure"); action(); return; }
+    button.textContent = "Click again to confirm"; button.classList.add("sure");
+    button.dataset.sure = setTimeout(() => { delete button.dataset.sure; button.textContent = label; button.classList.remove("sure"); }, 4000);
+  };
+}
 
+// The estimate, before sending ------------------------------------------------------------------
 function sendBody() {  // what is estimated is what is sent
   const frequency = $("frequency").value;
-  return {
-    text: $("text").value, copies: Number($("copies").value),
-    frequency_hz: frequency === "" ? null : Number(frequency),
-  };
+  return { text: $("text").value, copies: Number($("copies").value), frequency_hz: frequency === "" ? null : Number(frequency) };
 }
 function duration(seconds) {
   const whole = Math.round(seconds);
-  if (whole < 60) return whole + " s";
-  return Math.floor(whole / 60) + " min " + (whole % 60) + " s";
+  return whole < 60 ? whole + " s" : Math.floor(whole / 60) + " min " + (whole % 60) + " s";
 }
 let estimate = { fits: false, frequency_problem: null };  // Send waits for the first answer
 let estimateTimer = null;
+function canSend() {
+  return !state.sending && estimate.fits && !estimate.frequency_problem && $("text").value.trim() !== "";
+}
 function askEstimate() {
+  const mine = ++asked;  // any answer to an earlier question is stale from now on
+  $("send").disabled = true;
   clearTimeout(estimateTimer);
   estimateTimer = setTimeout(async () => {
-    const mine = ++asked;
     let answer;
-    try {
-      answer = await call("/api/estimate", "POST", sendBody());
-    } catch (error) {
+    try { answer = await call("/api/estimate", "POST", sendBody()); }
+    catch (error) {
       if (mine !== asked) return;
       estimate = { fits: false, frequency_problem: null };
-      $("estimate").className = "refused";
-      say("estimate", String(error.message || error));
-      $("send").disabled = true;
+      $("estimate").className = "refused"; say("estimate", String(error.message || error));
       return;
     }
-    if (mine !== asked) return;  // a newer question was asked: this answer is stale
+    if (mine !== asked) return;
     estimate = answer;
     const [low, high] = estimate.frequency_range_hz;
     signalWidthHz = estimate.signal_width_hz;
-    drawScope();
     $("frequency").min = low; $("frequency").max = high;
     if ($("frequency").value === "") $("frequency").placeholder = estimate.default_frequency_hz;
-    say("range", "from " + low + " to " + high + " Hz");
+    say("range", low + " to " + high + " Hz");
     const line = $("estimate");
-    if (!estimate.fits) {
-      line.className = "refused";
-      line.textContent = estimate.reason;
-    } else {
-      line.className = "";
-      line.textContent = estimate.fragments + " Fragment(s), about " + duration(estimate.airtime_seconds) +
-        " on the air; at most " + estimate.max_bytes + " bytes in this Preset with these copies.";
-      if (estimate.frequency_problem) {
-        const problem = document.createElement("div");
-        problem.className = "problem"; problem.textContent = estimate.frequency_problem;
-        line.appendChild(problem);
-      }
-    }
-    $("send").disabled = state.sending || !estimate.fits || Boolean(estimate.frequency_problem);
+    const problem = !estimate.fits ? estimate.reason : estimate.frequency_problem;
+    line.className = problem ? "refused" : "";
+    line.textContent = problem || (estimate.fragments + (estimate.fragments > 1 ? " Fragments" : " Fragment") +
+      " · about " + duration(estimate.airtime_seconds) + " on the air · up to " + estimate.max_bytes + " bytes here");
+    $("send").disabled = !canSend();
+    drawScope();
   }, 250);
 }
 
-function fillDevices(devices) {
-  for (const [id, key] of [["input_device", "inputs"], ["output_device", "outputs"]]) {
-    const select = $(id);
-    if (select.options.length > 1) continue;
-    for (const d of devices.filter((d) => d[key] > 0)) {
-      const option = document.createElement("option");
-      option.value = d.index; option.textContent = d.name; select.appendChild(option);
-    }
+// The conversation ------------------------------------------------------------------------------
+const clock = (at) => new Date(at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const hz = (v) => Math.round(v) + " Hz";
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function partialText(item) {  // what was read of a Message, the gaps shown as "..."
+  const pieces = item.parts.slice().sort((a, b) => a[0] - b[0]);
+  let text = pieces.length && pieces[0][0] > 0 ? "… " : "";
+  pieces.forEach(([offset, part], i) => { text += (i ? " … " : "") + part; });
+  return text + (item.missing.includes(item.total - 1) ? " …" : "");
+}
+function bubble(item) {
+  if (item.kind === "lost") return element("div", "note", "Signal detected at " + hz(item.frequency_hz) + ", not decoded · " + clock(item.at));
+  const row = element("div", "row " + (item.kind === "sent" ? "out" : "in"));
+  const box = element("div", "bubble");
+  row.appendChild(box);
+  let meta = [];
+  box.appendChild(element("span", "sr", item.kind === "sent" ? "You sent: " : "Received: "));
+  if (item.kind === "sent") {
+    box.classList.add(item.status === "failed" ? "failed" : "out");
+    box.appendChild(document.createTextNode(item.text));
+    const status = { sending: "sending…", sent: "sent", cancelled: "cancelled", failed: "failed" }[item.status];
+    meta = [status, duration(item.airtime_seconds), hz(item.frequency_hz)];
+    if (item.copies > 1) meta.push(item.copies + " copies");
+    if (item.error) meta.push(item.error);
+  } else if (item.kind === "incomplete") {
+    box.classList.add("in", "part");
+    const got = item.total - item.missing.length;
+    box.appendChild(element("span", "head", "Incomplete · " + got + " of " + item.total + " fragments"));
+    box.appendChild(document.createTextNode(partialText(item)));
+    meta = [item.frequency_hz === null ? null : hz(item.frequency_hz)];
+  } else {
+    box.classList.add("in");
+    box.appendChild(document.createTextNode(item.text));
+    meta = [item.frequency_hz === null ? null : hz(item.frequency_hz), item.snr_db === null ? null : "SNR " + Math.round(item.snr_db) + " dB"];
   }
+  box.appendChild(element("span", "meta", meta.filter(Boolean).concat(clock(item.at)).join(" · ")));
+  return row;
 }
-function deviceValue(id) {
-  const value = $(id).value;
-  return value === "" ? null : Number(value);
-}
-
-function qualityLine(item) {  // how a Message was received: each figure says what it is when pointed at
-  const line = document.createElement("div");
-  line.className = "part";
-  const figures = [
-    [item.frequency_hz, (v) => Math.round(v) + " Hz", "Frequency of the lowest tone of the Signal."],
-    [item.snr_db, (v) => "SNR " + Math.round(v) + " dB", "Signal-to-noise ratio, estimated in a 2,500 Hz bandwidth (the one of the Success threshold). The mean of the Fragments."],
-  ];
-  figures.filter(([value]) => value !== null).forEach(([value, show, help], index) => {
-    if (index) line.append(" · ");
-    const span = document.createElement("span");
-    span.textContent = show(value); span.title = help;
-    line.append(span);
+// What is on screen, by identifier: a bubble is built once, rebuilt only when it changes (the
+// text of a Message can be selected, a bubble does not play its arrival again), and only a new
+// one arrives with a movement.
+const shown = new Map();
+let firstFill = true;
+function showConversation(items) {
+  const box = $("conversation");
+  const atBottom = firstFill || box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  const keep = new Set(items.map((item) => item.id));
+  for (const [id, entry] of shown) if (!keep.has(id)) { entry.node.remove(); shown.delete(id); }
+  const nodes = items.map((item) => {
+    const signature = JSON.stringify(item), entry = shown.get(item.id);
+    if (entry && entry.signature === signature) return entry.node;
+    const node = bubble(item);
+    if (!entry && !firstFill) {
+      node.classList.add("fresh");
+      node.addEventListener("animationend", () => node.classList.remove("fresh"), { once: true });  // a move later must not replay it
+    }
+    if (entry) entry.node.replaceWith(node);
+    shown.set(item.id, { signature, node });
+    return node;
   });
-  return line;
-}
-function showReceived(items) {
-  const list = $("received");
-  list.replaceChildren();
-  for (const item of items) {
-    const li = document.createElement("li");
-    if (item.complete) {
-      li.textContent = "#" + item.number + "  " + item.text;
-    } else {
-      li.className = "part";
-      const label = document.createElement("strong");
-      label.textContent = "Incomplete (" + item.parts.length + " part(s), Fragments missing: " +
-        item.missing.join(", ") + " of " + item.total + ")";
-      li.appendChild(label);
-      for (const [offset, text] of item.parts) {
-        const piece = document.createElement("div");
-        piece.textContent = "from byte " + offset + ": " + text;
-        li.appendChild(piece);
-      }
-    }
-    li.appendChild(qualityLine(item));
-    list.appendChild(li);
-  }
-}
-function showUndecoded(items) {
-  const list = $("undecoded");
-  list.replaceChildren();
-  const now = Date.now() / 1000;
-  for (const item of items.slice().reverse()) {
-    const li = document.createElement("li");
-    li.textContent = "Signal at " + Math.round(item.frequency_hz) + " Hz, " + duration(Math.max(0, now - item.heard_at)) + " ago";
-    list.appendChild(li);
-  }
-  if (!items.length) {
-    const none = document.createElement("li");
-    none.textContent = "None.";
-    list.appendChild(none);
-  }
+  box.querySelector(".empty")?.remove();
+  nodes.forEach((node, i) => { if (box.children[i] !== node) box.insertBefore(node, box.children[i] || null); });
+  if (!items.length) box.appendChild(element("div", "empty", "No messages yet. Press Listen to receive, or write one below."));
+  if (atBottom) box.scrollTop = box.scrollHeight;
+  firstFill = false;
 }
 
-// The spectrum and the waterfall ----------------------------------------------------------
+// The spectrum and the waterfall ----------------------------------------------------------------
 const MAX_ROWS = 120, MARKER_SECONDS = 120;
 let lowHz = 300, highHz = 2700;  // the band of a row, told by the application with the rows
 const FLOOR_DB = -100, CEILING_DB = -20;  // a fixed range: the same level is the same colour
 let spectrumNext = 0, history = [], markers = [], signalWidthHz = 175;
-function colour(t) {  // 0..1: black, blue, cyan, yellow, white
-  t = Math.max(0, Math.min(1, t));
-  const stops = [[0, 0, 0], [0, 0, 160], [0, 200, 220], [255, 230, 0], [255, 255, 255]];
-  const x = t * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
-  return stops[i].map((c, k) => Math.round(c + (stops[i + 1][k] - c) * f));
+// The waterfall, from the quietest to the loudest: background, a dim orange, orange, white.
+const RAMP = [[0, BG], [0.5, mix(BG, ACCENT, 0.25)], [0.85, ACCENT], [1, TEXT]];
+function colour(t) {
+  t = Number.isFinite(t) ? Math.max(0, Math.min(1, t)) : 0;
+  const next = RAMP.findIndex(([at]) => at > t);  // the first stop above this level
+  const i = next < 0 ? RAMP.length - 2 : next - 1;
+  const [t0, c0] = RAMP[i], [t1, c1] = RAMP[i + 1];
+  return mix(c0, c1, (t - t0) / (t1 - t0));
 }
 function transmitBand() {  // where the next Message would be sent: from the lowest tone up
   const typed = $("frequency").value;
   const start = typed === "" ? Number($("frequency").placeholder) || 1450 : Number(typed);
   return Number.isFinite(start) ? [start, start + signalWidthHz] : null;
 }
+let axisFor = "";
 function drawAxis() {
+  if (axisFor === lowHz + "-" + highHz) return;
+  axisFor = lowHz + "-" + highHz;
   const axis = $("axis");
-  if (axis.childElementCount) return;
-  for (let hz = 300; hz <= 2700; hz += 300) {
-    const tick = document.createElement("span");
-    tick.style.left = ((hz - lowHz) / (highHz - lowHz) * 100) + "%";
-    tick.textContent = hz;
+  axis.replaceChildren();
+  const step = 300;
+  for (let f = Math.ceil(lowHz / step) * step; f <= highHz; f += step) {
+    const tick = element("span", "", f);
+    tick.style.left = ((f - lowHz) / (highHz - lowHz) * 100) + "%";
     axis.appendChild(tick);
   }
 }
+const buffer = document.createElement("canvas");  // one pixel per cell, scaled when drawn
+function fit(canvas) {  // as many pixels as the screen shows, so that lines stay thin
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(canvas.clientWidth * scale));
+  canvas.height = Math.max(1, Math.round(canvas.clientHeight * scale));
+}
 function drawScope() {
-  const lo = FLOOR_DB, hi = CEILING_DB;
   const water = $("waterfall"), wctx = water.getContext("2d");
-  const image = wctx.createImageData(water.width, water.height);
-  history.slice().reverse().forEach((row, y) => {  // the newest at the top
-    row.forEach((value, x) => {
-      const [r, g, b] = colour((value - lo) / (hi - lo));
-      const at = (y * water.width + x) * 4;
-      image.data[at] = r; image.data[at + 1] = g; image.data[at + 2] = b; image.data[at + 3] = 255;
+  wctx.fillStyle = rgb(BG); wctx.fillRect(0, 0, water.width, water.height);
+  const width = history.length ? history[0].length : 480;
+  if (history.length) {
+    buffer.width = width; buffer.height = MAX_ROWS;
+    const bctx = buffer.getContext("2d");
+    const image = bctx.createImageData(width, MAX_ROWS);
+    history.slice().reverse().forEach((row, y) => {  // the newest at the top
+      for (let x = 0; x < width; x++) {
+        const [r, g, b] = colour((row[x] - FLOOR_DB) / (CEILING_DB - FLOOR_DB));
+        const at = (y * width + x) * 4;
+        image.data[at] = r; image.data[at + 1] = g; image.data[at + 2] = b; image.data[at + 3] = 255;
+      }
     });
-  });
-  wctx.putImageData(image, 0, 0);
+    bctx.putImageData(image, 0, 0);
+    wctx.imageSmoothingEnabled = false;
+    wctx.drawImage(buffer, 0, 0, width, MAX_ROWS, 0, 0, water.width, water.height);
+  }
   const curve = $("spectrum"), cctx = curve.getContext("2d");
-  cctx.fillStyle = "#000"; cctx.fillRect(0, 0, curve.width, curve.height);
+  cctx.clearRect(0, 0, curve.width, curve.height);
   const last = history[history.length - 1];
+  const line = Math.max(1, window.devicePixelRatio || 1);
   if (last) {
-    cctx.strokeStyle = "#7fdc7f"; cctx.beginPath();
+    cctx.strokeStyle = rgb(ACCENT); cctx.lineWidth = 1.5 * line; cctx.beginPath();
     last.forEach((value, x) => {
-      const y = curve.height - 2 - Math.max(0, Math.min(1, (value - lo) / (hi - lo))) * (curve.height - 6);
-      x === 0 ? cctx.moveTo(x, y) : cctx.lineTo(x, y);
+      const level = Number.isFinite(value) ? Math.max(0, Math.min(1, (value - FLOOR_DB) / (CEILING_DB - FLOOR_DB))) : 0;
+      const px = x / (last.length - 1) * curve.width, py = curve.height - 3 * line - level * (curve.height - 8 * line);
+      x === 0 ? cctx.moveTo(px, py) : cctx.lineTo(px, py);
     });
     cctx.stroke();
   }
+  const span = highHz - lowHz;
   const band = transmitBand();
-  if (band) {  // the Signal that would be sent, to choose a free place for it
-    for (const [canvas, context] of [[curve, cctx], [water, wctx]]) {
-      const x0 = (band[0] - lowHz) / (highHz - lowHz) * canvas.width;
-      const x1 = (band[1] - lowHz) / (highHz - lowHz) * canvas.width;
-      context.fillStyle = "rgba(90, 160, 255, 0.35)";
-      context.fillRect(x0, 0, Math.max(x1 - x0, 2), canvas.height);
-      context.fillStyle = "#5aa0ff";
-      context.fillRect(x0 - 1, 0, 2, canvas.height);
+  if (band) {  // the Signal that would be sent: to choose a free place for it
+    for (const [canvas, ctx] of [[curve, cctx], [water, wctx]]) {
+      const x0 = (band[0] - lowHz) / span * canvas.width, x1 = (band[1] - lowHz) / span * canvas.width;
+      ctx.fillStyle = rgb(ACCENT, 0.28); ctx.fillRect(x0, 0, Math.max(x1 - x0, 2 * line), canvas.height);
+      ctx.fillStyle = rgb(ACCENT); ctx.fillRect(x0 - line, 0, 2 * line, canvas.height);
     }
   }
-  for (const marker of markers) {  // where Messages were heard, or lost: on both drawings
-    const x = (marker.hz - lowHz) / (highHz - lowHz);
-    const colourOf = marker.lost ? "#ff5a5a" : "#5aff7a";
-    cctx.fillStyle = colourOf; cctx.fillRect(x * curve.width - 1, 0, 3, curve.height);
-    wctx.fillStyle = colourOf; wctx.fillRect(x * water.width - 1, 0, 2, water.height);
+  for (const marker of markers) {  // where Messages were heard, or lost (dashed): on both drawings
+    for (const [canvas, ctx] of [[curve, cctx], [water, wctx]]) {
+      const x = (marker.hz - lowHz) / span * canvas.width;
+      ctx.strokeStyle = rgb(TEXT, 0.9); ctx.lineWidth = 2 * line; ctx.setLineDash(marker.lost ? [4 * line, 4 * line] : []);
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); ctx.setLineDash([]);
+    }
   }
+  drawAxis();
 }
 async function refreshSpectrum() {
   if (!state.listening) return;  // nothing new while it does not listen: the last picture stays
@@ -322,7 +468,18 @@ async function refreshSpectrum() {
     drawScope();
   } catch (error) { /* the next refresh will say if the application does not answer */ }
 }
+function fitAll() { fit($("spectrum")); fit($("waterfall")); drawScope(); }
+window.addEventListener("resize", fitAll);
 
+// Settings and storage --------------------------------------------------------------------------
+function fillDevices(devices) {
+  for (const [id, key] of [["input_device", "inputs"], ["output_device", "outputs"]]) {
+    const select = $(id);
+    if (select.options.length > 1) continue;
+    for (const d of devices.filter((d) => d[key] > 0)) select.appendChild(new Option(d.name, d.index));
+  }
+}
+const deviceValue = (id) => ($(id).value === "" ? null : Number($(id).value));
 async function refreshStorage() {
   try {
     const info = await call("/api/storage");
@@ -333,67 +490,94 @@ async function refreshStorage() {
     say("usage", info.count + " kept, " + info.used_mb.toFixed(1) + " MB of " + Math.round(info.limit_mb) + " MB, in " + info.directory);
   } catch (error) { /* refresh will say if the application does not answer */ }
 }
-$("keep").onchange = () => act(call("/api/storage", "POST", { keep: $("keep").checked }), refreshStorage);
-$("limit").onchange = () => act(call("/api/storage", "POST", { limit_mb: Number($("limit").value) }), refreshStorage);
-$("clear").onclick = () => {
-  if (confirm("Delete every stored reception?")) {
-    act(call("/api/storage/clear", "POST"), (done) => { say("info", done.deleted + " deleted."); refreshStorage(); });
-  }
+$("apply").onclick = () => act(call("/api/settings", "POST", {
+  preset: $("preset").value, input_device: deviceValue("input_device"), output_device: deviceValue("output_device"),
+}), () => say("settings-note", "Applied."), "settings-error");
+$("keep").onchange = () => act(call("/api/storage", "POST", { keep: $("keep").checked }), refreshStorage, "settings-error");
+$("limit").onchange = () => act(call("/api/storage", "POST", { limit_mb: Number($("limit").value) }), refreshStorage, "settings-error");
+confirmed($("clear"), "Delete all stored receptions", () =>
+  act(call("/api/storage/clear", "POST"), (done) => { say("usage", done.deleted + " deleted."); refreshStorage(); }, "settings-error"));
+$("open-settings").onclick = () => $("settings").showModal();
+$("close-settings").onclick = () => $("settings").close();
+confirmed($("quit"), "Quit the application", async () => {
+  await call("/api/quit", "POST").catch(() => {});
+  $("settings").close();
+  document.body.replaceChildren(element("p", "empty", "Stopped. You can close this tab."));
+});
+
+// Sending, listening ----------------------------------------------------------------------------
+$("composer").onsubmit = (event) => {
+  event.preventDefault();
+  if (!canSend()) return;
+  act(call("/api/send", "POST", sendBody()), () => { $("text").value = ""; grow(); askEstimate(); });
 };
+$("cancel").onclick = () => act(call("/api/cancel", "POST"));
+$("listen").onclick = () => act(call(state.listening ? "/api/listen/stop" : "/api/listen/start", "POST"));
+const grow = () => { $("text").style.height = "auto"; $("text").style.height = Math.min($("text").scrollHeight, 128) + "px"; };
+$("text").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); $("composer").requestSubmit(); }
+});
+// What is set for sending is kept for next time (if the browser allows it).
+for (const id of ["copies", "frequency"]) {
+  try { const saved = localStorage.getItem("vibemodem." + id); if (saved !== null) $(id).value = saved; } catch (error) { /* no storage: the page still works */ }
+  $(id).addEventListener("input", () => { try { localStorage.setItem("vibemodem." + id, $(id).value); } catch (error) { /* idem */ } });
+}
+for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
+$("text").addEventListener("input", grow);
+$("frequency").addEventListener("input", drawScope);  // the band moves as it is typed
+// A click on a chart puts the Signal there: the band is centred on the click.
+for (const canvas of [$("spectrum"), $("waterfall")]) {
+  canvas.addEventListener("click", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const clicked = lowHz + (event.clientX - rect.left) / rect.width * (highHz - lowHz);
+    let start = clicked - signalWidthHz / 2;
+    if (estimate.frequency_range_hz) start = Math.max(estimate.frequency_range_hz[0], Math.min(estimate.frequency_range_hz[1], start));
+    $("frequency").value = Math.round(start);
+    $("frequency").dispatchEvent(new Event("input"));  // saved, estimated, drawn
+  });
+}
 
 async function refresh() {
+  const mine = ++refreshes;  // an answer that comes after a newer one is not shown
   try {
-    state = await call("/api/status");
-    say("sending", state.sending ? "sending..." : "");
-    say("listening", state.listening ? "listening" + (state.blocks_lost ? " (" + state.blocks_lost + " blocks lost)" : "") : "");
+    const status = await call("/api/status");
+    const conversation = (await call("/api/conversation")).items;
+    if (mine !== refreshes) return;
+    state = status;
+    $("dot").className = "dot" + (state.listening ? " on" : "");
+    const lost = state.blocks_lost ? " · " + state.blocks_lost + " blocks of sound lost" : "";
+    $("listening").className = state.blocks_lost ? "warn" : "";
+    say("listening", state.listening ? "Listening" + lost : "Not listening");
     if (state.listening && !wasListening) history = [];  // a new waterfall
     wasListening = state.listening;
-    $("listen").textContent = state.listening ? "Stop listening" : "Start listening";
-    const shown = JSON.stringify(state.settings);
-    if (shown !== lastSettings) {  // only when they changed, so a choice not yet applied is kept
-      lastSettings = shown;
+    $("listen").textContent = state.listening ? "Stop" : "Listen";
+    const settings = JSON.stringify(state.settings);
+    if (settings !== lastSettings) {  // only when they changed, so a choice not yet applied is kept
+      lastSettings = settings;
       askEstimate();  // the Preset decides the airtime and the range of frequencies
       $("preset").value = state.settings.preset;
       $("input_device").value = state.settings.input_device === null ? "" : state.settings.input_device;
       $("output_device").value = state.settings.output_device === null ? "" : state.settings.output_device;
     }
-    for (const id of ["preset", "input_device", "output_device", "apply"]) {
-      $(id).disabled = state.sending || state.listening;
-    }
-    $("send").disabled = state.sending || !estimate.fits || Boolean(estimate.frequency_problem);
-    $("cancel").disabled = !state.sending;
-    if (state.last_error) say("error", state.last_error);
+    const busy = state.sending || state.listening;
+    for (const id of ["preset", "input_device", "output_device", "apply"]) $(id).disabled = busy;
+    if (busy) say("settings-note", "Stop listening and sending to change these.");
+    else if ($("settings-note").textContent.startsWith("Stop listening")) say("settings-note", "");
+    $("send").hidden = state.sending; $("cancel").hidden = !state.sending;
+    $("send").disabled = !canSend();
+    if (state.last_error) showError(state.last_error);
     refreshStorage();
-    const heard = await call("/api/received");
-    showReceived(heard.received);
-    showUndecoded(heard.undecoded);
+    showConversation(conversation);
     const now = Date.now() / 1000;
-    markers = [
-      ...heard.received.filter((m) => m.complete && m.frequency_hz !== null && now - m.heard_at < MARKER_SECONDS).map((m) => ({ hz: m.frequency_hz, lost: false })),
-      ...heard.undecoded.filter((u) => now - u.heard_at < MARKER_SECONDS).map((u) => ({ hz: u.frequency_hz, lost: true })),
-    ];
+    markers = conversation
+      .filter((m) => (m.kind === "received" || m.kind === "lost") && m.frequency_hz !== null && now - m.at < MARKER_SECONDS)
+      .map((m) => ({ hz: m.frequency_hz, lost: m.kind === "lost" }));
     drawScope();
-  } catch (error) { say("error", "The application does not answer."); }
+  } catch (error) { showError("The application does not answer."); }
 }
 
-$("apply").onclick = () => act(call("/api/settings", "POST", {
-  preset: $("preset").value, input_device: deviceValue("input_device"),
-  output_device: deviceValue("output_device"),
-}), () => say("info", "Settings applied."));
-$("send").onclick = () => act(call("/api/send", "POST", sendBody()), (sent) => say("info", "Sending " + sent.fragments + " Fragment(s), " +
-  sent.copies + " cop" + (sent.copies > 1 ? "ies" : "y") + ", about " +
-  Math.round(sent.airtime_seconds) + " s on the air."));
-for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
-$("frequency").addEventListener("input", drawScope);  // the band moves as it is typed
-$("cancel").onclick = () => act(call("/api/cancel", "POST"), () => say("info", "Cancelled."));
-$("listen").onclick = () => act(call(state.listening ? "/api/listen/stop" : "/api/listen/start", "POST"));
-$("quit").onclick = async () => {
-  await call("/api/quit", "POST").catch(() => {});
-  say("info", "Stopped. You can close this tab.");
-};
-
-(async () => { fillDevices((await call("/api/devices")).devices); lastSettings = null; refresh(); askEstimate(); })();
-drawAxis();
+fitAll();
+(async () => { fillDevices((await call("/api/devices")).devices); lastSettings = null; refresh(); askEstimate(); grow(); })();
 setInterval(refresh, 1500);
 setInterval(refreshSpectrum, 500);
 </script>
