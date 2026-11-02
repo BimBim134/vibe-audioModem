@@ -13,7 +13,7 @@ import numpy as np
 
 from vibemodem.core import frame, presets
 from vibemodem.core.code import Code
-from vibemodem.core.modem import Reception
+from vibemodem.core.modem import Detection, Reception, Report
 from vibemodem.core.presets import DEFAULT_PRESET
 
 SAMPLE_RATE = 48_000
@@ -21,6 +21,10 @@ NOISE_BANDWIDTH_HZ = 2500  # the reference bandwidth in which SNRs are quoted
 # The search keeps a few arrays of (windows x frequencies) numbers; this bounds their size.
 MAX_RECORDING_SECONDS = 600
 MAX_REPETITIONS = 8
+# A Signal that cannot be read is only reported when its Preamble stands out this much. Noise
+# alone gives matches of 7 to 7.7 (the search keeps those: it costs a failed decode), while a
+# Signal at the Success threshold of any Preset gives 15 or more (docs/measurements/README.md).
+UNDECODED_MIN_SCORE = 10.0
 _GOLDEN_RATIO_FRACTION = (math.sqrt(5) - 1) / 2
 
 
@@ -92,6 +96,18 @@ class CodedModem:
     def _decode(self, samples: np.ndarray, signal) -> Reception | None:
         raise NotImplementedError
 
+    def frame_samples(self) -> int:
+        """How long a Frame lasts, Preamble included."""
+        raise NotImplementedError
+
+    def _same_signal_samples(self) -> int:
+        """Two Signals closer than this are one: the preamble match has side peaks."""
+        raise NotImplementedError
+
+    def _fits(self, samples: np.ndarray, signal) -> bool:
+        """Whether the whole Frame of a Signal is in the recording (it may still be arriving)."""
+        return signal.start_sample + self.frame_samples() <= samples.size
+
     def modulate(self, message: bytes, preset: str) -> np.ndarray:
         presets.profile(preset)  # refuses a name that is no Preset
         if preset != self.preset:
@@ -99,6 +115,10 @@ class CodedModem:
         return self._audio(message)
 
     def demodulate(self, samples: np.ndarray) -> list[Reception]:
+        return self.demodulate_report(samples).receptions
+
+    def demodulate_report(self, samples: np.ndarray) -> Report:
+        """The Messages in a recording, and the Signals found whole whose Message was not read."""
         samples = np.asarray(samples, dtype=float)
         if samples.ndim != 1:
             raise ValueError("audio must be one channel (a 1-D array of samples)")
@@ -110,11 +130,29 @@ class CodedModem:
             raise ValueError("audio samples must be finite numbers")
 
         received: dict[bytes, Reception] = {}
+        lost, read_at = [], []
         for signal in self._find(samples):
             reception = self._decode(samples, signal)
-            if reception and (
+            if reception is None:
+                if self._fits(samples, signal) and signal.score >= UNDECODED_MIN_SCORE:
+                    lost.append(Detection(signal.start_sample, signal.first_tone_hz, signal.score))
+                continue
+            read_at.append(signal.start_sample)
+            if (
                 reception.message not in received
                 or reception.sync_score > received[reception.message].sync_score
             ):
                 received[reception.message] = reception
-        return sorted(received.values(), key=lambda r: -r.sync_score)
+        found = sorted(received.values(), key=lambda r: -r.sync_score)
+        return Report(receptions=found, undecoded=self._without_side_peaks(lost, read_at))
+
+    def _without_side_peaks(self, lost: list[Detection], read_at: list[int]) -> list[Detection]:
+        """The Signals lost, without the side peaks of a Preamble (inside a Frame that was read,
+        or inside a stronger Signal that was lost)."""
+        apart = self.frame_samples() - self._same_signal_samples()
+        kept: list[Detection] = []
+        for detection in sorted(lost, key=lambda d: -d.sync_score):
+            near = [*read_at, *(k.start_sample for k in kept)]
+            if all(abs(detection.start_sample - other) >= apart for other in near):
+                kept.append(detection)
+        return sorted(kept, key=lambda d: d.start_sample)

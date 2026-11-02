@@ -20,6 +20,23 @@ class Reception:
     start_sample: int | None = None  # where the Signal starts in the audio that was given
 
 
+@dataclass(frozen=True)
+class Detection:
+    """A Signal found in the audio whose Message could not be read."""
+
+    start_sample: int
+    frequency_hz: float  # of its lowest tone
+    sync_score: float
+
+
+@dataclass(frozen=True)
+class Report:
+    """Everything a receiver found in a recording."""
+
+    receptions: list[Reception]
+    undecoded: list[Detection]  # found whole, but the checksum or the code refused them
+
+
 class Modem(Protocol):
     """A candidate modem: Message and Preset to audio samples, and audio samples to Messages."""
 

@@ -1,21 +1,24 @@
-"""The application's service: settings, sending, cancelling and listening. No HTTP here.
+"""The application's service: settings, sending and cancelling, and listening. No HTTP here.
 
-One `ModemService` owns the sound hardware and the threads: at most one Transmission being
-played, and one listening loop that decodes a sliding window of what it hears. Messages that
-are heard are kept in memory only (the last `max_received`).
+One `ModemService` owns the sound hardware: at most one Transmission being played, and the
+`Receiver` that listens, decodes a sliding window of what it hears, and keeps what was heard in
+memory only (the last `max_received` Messages).
 """
 
 import threading
 import time
-from collections import OrderedDict, deque
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 import numpy as np
 
+from vibemodem.app import receiver as receiver_module
+from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
+from vibemodem.app.receiver import Receiver
 from vibemodem.core import mfsk, presets
 from vibemodem.core.coded_modem import SAMPLE_RATE
-from vibemodem.core.message import Fragment, Reassembler, fragment_count, random_message_id
+from vibemodem.core.message import Fragment, fragment_count, random_message_id
 from vibemodem.core.transmission import (
     check_copies,
     explain_refusal,
@@ -23,17 +26,10 @@ from vibemodem.core.transmission import (
     transmit,
 )
 from vibemodem.core.turbo_modem import TurboModem
-from vibemodem.io.audio import Audio, AudioError, DeviceInfo, InputBlocks, find_device
+from vibemodem.io.audio import Audio, AudioError, DeviceInfo, find_device
 
-WINDOW_SECONDS = 150.0  # more than two of the longest Frames, so every Frame is whole at a decode
-DECODE_EVERY_SECONDS = 10.0
-BLOCK_SECONDS = 0.5
-MAX_RECEIVED = 100
 MAX_SENDING_MODEMS = 8  # one per Preset and frequency recently sent at
 JOIN_SECONDS = 10.0  # for the thread that plays a Transmission, once it has been told to stop
-# For the listening thread: it decodes what was heard last, up to 150 s of sound, and a slow or busy
-# computer takes its time; a Message heard just before the stop must not be missed for want of it.
-STOP_LISTENING_SECONDS = 120.0
 
 
 class SettingsError(ValueError):
@@ -77,38 +73,25 @@ class Estimate:
     frequency_problem: str | None
 
 
-@dataclass(frozen=True)
-class Heard:
-    """A Message heard: whole, or only in part (`text` is then None and `parts` shows what)."""
-
-    number: int | None  # the order of arrival of a whole Message
-    complete: bool
-    msg_id: int
-    total: int  # of Fragments
-    text: str | None
-    parts: list[tuple[int, str]]  # (offset in bytes, text) of each stretch heard of a part Message
-    missing: tuple[int, ...]
-    heard_at: float
-
-
-def _text(data: bytes) -> str:
-    return data.decode("utf-8", errors="replace")
-
-
 class ModemService:
     def __init__(
         self,
         audio: Audio,
         *,
         make_modem: Callable = TurboModem,
-        window_seconds: float = WINDOW_SECONDS,
-        decode_every_seconds: float = DECODE_EVERY_SECONDS,
-        max_received: int = MAX_RECEIVED,
+        window_seconds: float = receiver_module.WINDOW_SECONDS,
+        decode_every_seconds: float = receiver_module.DECODE_EVERY_SECONDS,
+        max_received: int = receiver_module.MAX_RECEIVED,
     ):
         self._audio = audio
         self._make_modem = make_modem
-        self._window_samples = round(window_seconds * SAMPLE_RATE)
-        self._decode_every = round(decode_every_seconds * SAMPLE_RATE)
+        self._receiver = Receiver(
+            audio,
+            make_modem,
+            window_seconds=window_seconds,
+            decode_every_seconds=decode_every_seconds,
+            max_received=max_received,
+        )
         self._lock = threading.RLock()
         self._settings = Settings()
         # For sending only (listening has its own): the last few, each a heavy object.
@@ -119,11 +102,6 @@ class ModemService:
         self._cancel_asked = False
         self._send_thread: threading.Thread | None = None
         self._last_id: int | None = None
-        self._blocks: InputBlocks | None = None
-        self._listen_thread: threading.Thread | None = None
-        self._reassembler = Reassembler(max_given_up=max_received)
-        self._whole: deque[Heard] = deque(maxlen=max_received)
-        self._count = 0
         self._last_error: str | None = None
 
     # Settings -------------------------------------------------------------------------------
@@ -134,7 +112,7 @@ class ModemService:
 
     def _check_idle(self) -> None:
         self._not_closed()
-        if self._sending or self._listening():
+        if self._sending or self._receiver.listening:
             raise BusyError("stop sending and listening before changing the settings")
 
     def apply_settings(self, **changes) -> Settings:
@@ -224,10 +202,7 @@ class ModemService:
         if self._closed:
             raise BusyError("the application is closed")
 
-    def _listening(self) -> bool:
-        return self._listen_thread is not None and self._listen_thread.is_alive()
-
-    def _fail(self, message: str | None) -> None:
+    def _fail(self, message: str) -> None:
         with self._lock:
             self._last_error = message
 
@@ -235,16 +210,16 @@ class ModemService:
         with self._lock:
             return {
                 "sending": self._sending,
-                "listening": self._listening(),
+                "listening": self._receiver.listening,
                 "settings": {
                     "preset": self._settings.preset,
                     "input_device": self._settings.input_device,
                     "output_device": self._settings.output_device,
                 },
-                "received": len(self._whole),
-                "incomplete": len(self._reassembler.pending()),
-                "blocks_lost": self._blocks.dropped if self._blocks else 0,
-                "last_error": self._last_error,
+                "received": self._receiver.counts[0],
+                "incomplete": self._receiver.counts[1],
+                "blocks_lost": self._receiver.blocks_lost,
+                "last_error": self._receiver.last_error or self._last_error,
             }
 
     # Sending --------------------------------------------------------------------------------
@@ -331,112 +306,25 @@ class ModemService:
     def start_listening(self) -> None:
         with self._lock:
             self._not_closed()
-            if self._listening():
+            if self._receiver.listening:
                 raise BusyError("already listening")
-            if self._blocks is not None:
-                self._blocks.close()  # the stream of a listening that ended on its own
-            modem = self._make_modem(preset=self._settings.preset)  # not shared with sending
-            self._blocks = self._audio.listen(
-                device=self._settings.input_device,
-                block_seconds=BLOCK_SECONDS,
-                capacity=int(2 * WINDOW_SECONDS / BLOCK_SECONDS),
-            )
-            self._last_error = None
-            self._listen_thread = threading.Thread(
-                target=self._listen,
-                args=(self._blocks, modem),
-                name="vibemodem-listen",
-                daemon=True,
-            )
-            self._listen_thread.start()
+            self._receiver.start(self._settings.preset, self._settings.input_device)
 
     def stop_listening(self) -> bool:
         """Stop hearing the input once what is already heard has been decoded."""
-        with self._lock:
-            thread, blocks = self._listen_thread, self._blocks
-        if thread is None or blocks is None:
-            return False
-        was_listening = thread.is_alive()
-        blocks.close()
-        thread.join(timeout=STOP_LISTENING_SECONDS)
-        with self._lock:
-            if not thread.is_alive() and self._listen_thread is thread:
-                self._listen_thread = None  # still alive after the wait: it stays reported
-        return was_listening
-
-    def _listen(self, blocks: InputBlocks, modem) -> None:
-        window: deque[np.ndarray] = deque()
-        held = since_decode = 0
-        try:
-            for block in blocks:
-                window.append(block)
-                held += block.size
-                since_decode += block.size
-                while held - window[0].size >= self._window_samples:
-                    held -= window.popleft().size
-                if since_decode >= self._decode_every:
-                    self._decode(window, modem)
-                    since_decode = 0
-            self._decode(window, modem)  # what was heard last
-        except Exception as error:  # whatever happens, the stream is closed below
-            self._fail(f"listening stopped: {error}")
-        finally:
-            blocks.close()
-
-    def _decode(self, window: deque[np.ndarray], modem) -> None:
-        if not window:
-            return
-        try:
-            receptions = modem.demodulate(np.concatenate(list(window)).astype(np.float64))
-        except Exception as error:  # a bad stretch of audio must not end the listening
-            self._fail(f"decoding failed: {error}")
-            return
-        # What is heard first is delivered first: the receiver sorts by how sure it is.
-        for reception in sorted(receptions, key=lambda r: (r.start_sample is None, r.start_sample)):
-            try:
-                self._take(Fragment.unpack(reception.message))
-            except Exception as error:  # one bad reception must not hide the others
-                self._fail(f"a reception was not understood: {error}")
-
-    def _take(self, fragment: Fragment | None) -> None:
-        if fragment is None:
-            return
-        with self._lock:
-            done = self._reassembler.add(fragment)
-            if done:
-                self._count += 1
-                self._whole.append(
-                    Heard(
-                        number=self._count,
-                        complete=True,
-                        msg_id=done.msg_id,
-                        total=fragment.total,
-                        text=_text(done.message),
-                        parts=[],
-                        missing=(),
-                        heard_at=time.time(),
-                    )
-                )
+        return self._receiver.stop()
 
     def received(self) -> list[Heard]:
         """The Messages heard whole, in order of arrival, then those heard in part."""
-        with self._lock:
-            whole = list(self._whole)
-            pending = self._reassembler.pending()
-        partial = [
-            Heard(
-                number=None,
-                complete=False,
-                msg_id=part.msg_id,
-                total=part.total,
-                text=None,
-                parts=[(offset, _text(data)) for offset, data in part.runs()],
-                missing=part.missing,
-                heard_at=0.0,
-            )
-            for part in pending
-        ]
-        return whole + partial
+        return self._receiver.received()
+
+    def undecoded(self) -> list[Undecoded]:
+        """The Signals found whole whose Message was not read, the last few, oldest first."""
+        return self._receiver.undecoded()
+
+    def spectrum(self, since: int = 0) -> SpectrumRows:
+        """The rows of the spectrum of the sound heard, from number `since` on."""
+        return self._receiver.spectrum(since)
 
     # Closing --------------------------------------------------------------------------------
 

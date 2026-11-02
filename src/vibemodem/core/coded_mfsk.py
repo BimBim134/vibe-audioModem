@@ -87,19 +87,22 @@ class CodedMfskModem(CodedModem):
     def _find(self, samples: np.ndarray) -> list[mfsk.Candidate]:
         # A Transmission is a Frame after another, each with its own Preamble: look for as many
         # Signals as Frames that would fill the recording, and a couple more.
-        frame_samples = (
-            mfsk.PREAMBLE_SYMBOLS + self._data_symbols
-        ) * self.waveform.samples_per_symbol
         found = self.waveform.find_signals(
-            samples, max_candidates=max(MIN_SIGNALS, samples.size // frame_samples + 2)
+            samples, max_candidates=max(MIN_SIGNALS, samples.size // self.frame_samples() + 2)
         )
         return [self.waveform.refine(samples, candidate) for candidate in found]
+
+    def frame_samples(self) -> int:
+        return (mfsk.PREAMBLE_SYMBOLS + self._data_symbols) * self.waveform.samples_per_symbol
+
+    def _same_signal_samples(self) -> int:
+        return self.waveform.samples_per_symbol  # a symbol: the refined start is much finer
 
     def _decode(self, samples: np.ndarray, signal: mfsk.Candidate) -> Reception | None:
         waveform = self.waveform
         size = waveform.samples_per_symbol
         first_data_sample = signal.start_sample + mfsk.PREAMBLE_SYMBOLS * size
-        if first_data_sample + self._data_symbols * size > samples.size:
+        if not self._fits(samples, signal):
             return None
         energy = waveform.tone_energies(
             samples, first_data_sample, signal.first_tone_hz, self._data_symbols

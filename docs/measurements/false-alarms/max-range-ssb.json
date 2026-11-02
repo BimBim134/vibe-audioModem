@@ -1,0 +1,8 @@
+{
+  "preset": "max-range",
+  "noise": "ssb",
+  "hours": 10.0,
+  "reported_signals": 0,
+  "reported_messages": 0,
+  "signals_per_hour": 0.0
+}

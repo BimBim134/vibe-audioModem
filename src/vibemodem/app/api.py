@@ -5,12 +5,13 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from vibemodem.app.service import BusyError, Cancelled, ModemService, SettingsError
 from vibemodem.core.message import MAX_MESSAGE_BYTES
+from vibemodem.core.spectrum import BAND_HZ, BIN_HZ
 from vibemodem.core.transmission import MAX_COPIES, MessageTooLong
 from vibemodem.io.audio import AudioError, AudioLibraryUnavailableError
 
@@ -137,7 +138,15 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
 
     @app.get("/api/received")
     def received() -> dict:
-        return {"received": [asdict(item) for item in service.received()]}
+        return {
+            "received": [asdict(item) for item in service.received()],
+            "undecoded": [asdict(item) for item in service.undecoded()],
+        }
+
+    @app.get("/api/spectrum")
+    def spectrum(since: int = Query(0, ge=0)) -> dict:
+        rows = service.spectrum(since)
+        return {**asdict(rows), "low_hz": BAND_HZ[0], "bin_hz": BIN_HZ}
 
     @app.get("/api/selftest")
     def selftest() -> dict:

@@ -253,3 +253,28 @@ Each Preset measured as a modem built for it (`--preset`), with the turbo code, 
 - **The interleaver on hf-fading** gives about 1 to 2 dB at 90% (standard: -12 dB, against -10 to -11 without), as in the interleaver table above. The 95% level moved from -4 to -8 dB, but the standard curve is flat at 93 to 99% from -12 dB up, so that move is plateau noise, not a gain. Max-range at -16 dB equals the non-interleaved 320 ms result.
 - **Fast under hf-fading** passes 90% only at 0 dB and never reaches 95% (89 to 94% from -4 to 0 dB): 6.8 s is too short to ride out the fades.
 - The earlier sweep tables (white-turbo, hf-fading-turbo, GFSK) were measured without interleaving.
+
+## Signals found but not read, and false alarms (ticket #18)
+
+The receiver reports a **Signal it found whole but could not read** (its Preamble matched, its Frame did not pass the checksum), so that a Transmission that was heard but lost is not taken for silence. A report is a false alarm when there was only noise. The search keeps every Preamble match of 7 or more (it costs one failed decode), so the question is the score above which a lost Signal is worth telling the operator about.
+
+**Scores** (turbo, 60 recordings of 120 s of white noise per Preset for the noise, 40 Transmissions at the Success threshold of the Preset for the Signal; best Preamble match of each):
+
+| Preset | Matches in noise alone (3 hours of it) | Best match of a Signal at the Success threshold (minimum, 5th percentile, median) |
+| :-- | :-- | :-- |
+| max-range (-22 dB) | 1 match, 7.2 | 15.1, 16.0, 19.5 |
+| standard (-16 dB) | 6 matches, 7.0 to 7.5 | 15.4, 16.4, 19.4 |
+| fast (-13 dB) | 13 matches, 7.0 to 7.7 | 15.7, 18.0, 21.5 |
+
+Noise only ever scores between 7 and 7.7, a Signal at the Success threshold never under 15: **a lost Signal is reported from a score of 10**, which leaves a margin on both sides (`UNDECODED_MIN_SCORE`). A Signal about 3 to 4 dB below the Success threshold may match under 10 and not be reported.
+
+**Reports in noise alone**, counted over independent recordings of 120 s (`python -m bench.false_alarms --preset fast --hours 10 [--ssb]`, files in `docs/measurements/false-alarms/`):
+
+| Preset | White noise, from a score of 7 | SSB noise (300-2,700 Hz), from 7 | From a score of 10, white or SSB |
+| :-- | :-- | :-- | :-- |
+| max-range | 2.1 per hour | 1.9 per hour | 0 in 20 hours |
+| standard | 3.5 per hour | 3.6 per hour | 0 in 20 hours |
+| fast | 3.6 per hour | 3.8 per hour | 0 in 20 hours |
+
+The application listens to a sliding window, which sees the same noise again and again, and it lists a Signal once (the same time and frequency, to two symbols and a tone spacing, count as one); so what an operator sees is at most these rates. No Message was ever read from noise (CRC-32), in any of the 80 hours. The first row of numbers was measured before the threshold of 10 existed; the second after it.
+

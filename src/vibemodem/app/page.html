@@ -17,6 +17,13 @@
   li { margin: 0.4rem 0; }
   .part { opacity: 0.8; }
   .gap { color: #b00020; }
+  #scope { position: relative; margin: 0.5rem 0; }
+  #scope canvas { display: block; width: 100%; image-rendering: pixelated; background: #000; }
+  #waterfall { height: 14rem; }
+  #spectrum { height: 6rem; }
+  #axis { position: relative; height: 1.4rem; font-size: 0.75rem; }
+  #axis span { position: absolute; transform: translateX(-50%); }
+  h3 { font-size: 1rem; margin: 0.8rem 0 0.2rem; }
   #estimate.refused, #estimate .problem { color: #b00020; }
 </style>
 </head>
@@ -55,7 +62,14 @@
   <legend>Receive</legend>
   <button id="listen">Start listening</button>
   <span id="listening"></span>
+  <div id="scope">
+    <canvas id="spectrum" width="480" height="90" role="img" aria-label="Spectrum of the sound heard, 300 to 2700 Hz"></canvas>
+    <canvas id="waterfall" width="480" height="120" role="img" aria-label="Waterfall: the spectrum over the last minute, newest at the top"></canvas>
+    <div id="axis" aria-hidden="true"></div>
+  </div>
   <ul id="received"></ul>
+  <h3>Detected, not decoded</h3>
+  <ul id="undecoded"><li>None.</li></ul>
 </fieldset>
 
 <p><button id="quit">Quit</button></p>
@@ -65,6 +79,7 @@ const $ = (id) => document.getElementById(id);
 const say = (id, text) => { $(id).textContent = text || ""; };
 let state = { listening: false, sending: false };
 let asked = 0;
+let wasListening = false;
 let lastSettings = null;
 
 async function call(path, method, body) {
@@ -158,6 +173,13 @@ function deviceValue(id) {
   return value === "" ? null : Number(value);
 }
 
+function quality(item) {
+  const parts = [];
+  if (item.frequency_hz !== null) parts.push(Math.round(item.frequency_hz) + " Hz (" + (item.offset_hz >= 0 ? "+" : "") + Math.round(item.offset_hz) + ")");
+  if (item.snr_db !== null) parts.push("SNR " + Math.round(item.snr_db) + " dB");
+  if (item.sync_score !== null) parts.push("sync " + Math.round(item.sync_score));
+  return parts.join(", ");
+}
 function showReceived(items) {
   const list = $("received");
   list.replaceChildren();
@@ -177,8 +199,96 @@ function showReceived(items) {
         li.appendChild(piece);
       }
     }
+    const detail = document.createElement("div");
+    detail.className = "part"; detail.textContent = quality(item);
+    li.appendChild(detail);
     list.appendChild(li);
   }
+}
+function showUndecoded(items) {
+  const list = $("undecoded");
+  list.replaceChildren();
+  const now = Date.now() / 1000;
+  for (const item of items.slice().reverse()) {
+    const li = document.createElement("li");
+    li.textContent = "Signal at " + Math.round(item.frequency_hz) + " Hz, " + duration(Math.max(0, now - item.heard_at)) + " ago, sync " + Math.round(item.sync_score);
+    list.appendChild(li);
+  }
+  if (!items.length) {
+    const none = document.createElement("li");
+    none.textContent = "None.";
+    list.appendChild(none);
+  }
+}
+
+// The spectrum and the waterfall ----------------------------------------------------------
+const MAX_ROWS = 120, MARKER_SECONDS = 120;
+let lowHz = 300, highHz = 2700;  // the band of a row, told by the application with the rows
+let spectrumNext = 0, history = [], markers = [], quiet = -100, loud = -40;
+function colour(t) {  // 0..1: black, blue, cyan, yellow, white
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[0, 0, 0], [0, 0, 160], [0, 200, 220], [255, 230, 0], [255, 255, 255]];
+  const x = t * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+  return stops[i].map((c, k) => Math.round(c + (stops[i + 1][k] - c) * f));
+}
+function setLevels() {  // quiet and loud: the 5th and 99th percentiles of what is on show
+  const all = history.flat().sort((a, b) => a - b);
+  if (!all.length) { quiet = -100; loud = -40; return; }
+  quiet = all[Math.floor(all.length * 0.05)];
+  loud = Math.max(all[Math.floor(all.length * 0.99)], quiet + 10);
+}
+function drawAxis() {
+  const axis = $("axis");
+  if (axis.childElementCount) return;
+  for (let hz = 300; hz <= 2700; hz += 300) {
+    const tick = document.createElement("span");
+    tick.style.left = ((hz - lowHz) / (highHz - lowHz) * 100) + "%";
+    tick.textContent = hz;
+    axis.appendChild(tick);
+  }
+}
+function drawScope() {
+  const lo = quiet, hi = loud;
+  const water = $("waterfall"), wctx = water.getContext("2d");
+  const image = wctx.createImageData(water.width, water.height);
+  history.slice().reverse().forEach((row, y) => {  // the newest at the top
+    row.forEach((value, x) => {
+      const [r, g, b] = colour((value - lo) / (hi - lo));
+      const at = (y * water.width + x) * 4;
+      image.data[at] = r; image.data[at + 1] = g; image.data[at + 2] = b; image.data[at + 3] = 255;
+    });
+  });
+  wctx.putImageData(image, 0, 0);
+  const curve = $("spectrum"), cctx = curve.getContext("2d");
+  cctx.fillStyle = "#000"; cctx.fillRect(0, 0, curve.width, curve.height);
+  const last = history[history.length - 1];
+  if (last) {
+    cctx.strokeStyle = "#7fdc7f"; cctx.beginPath();
+    last.forEach((value, x) => {
+      const y = curve.height - 2 - Math.max(0, Math.min(1, (value - lo) / (hi - lo))) * (curve.height - 6);
+      x === 0 ? cctx.moveTo(x, y) : cctx.lineTo(x, y);
+    });
+    cctx.stroke();
+  }
+  for (const marker of markers) {  // where Messages were heard, or lost: on both drawings
+    const x = (marker.hz - lowHz) / (highHz - lowHz);
+    const colourOf = marker.lost ? "#ff5a5a" : "#5aff7a";
+    cctx.fillStyle = colourOf; cctx.fillRect(x * curve.width - 1, 0, 3, curve.height);
+    wctx.fillStyle = colourOf; wctx.fillRect(x * water.width - 1, 0, 2, water.height);
+  }
+}
+async function refreshSpectrum() {
+  if (!state.listening) return;  // nothing new while it does not listen: the last picture stays
+  try {
+    const data = await call("/api/spectrum?since=" + spectrumNext);
+    lowHz = data.low_hz; highHz = data.low_hz + data.bin_hz * (data.rows[0] ? data.rows[0].length : 480);
+    if (data.next < spectrumNext) history = [];  // the application started again
+    spectrumNext = data.next;
+    if (!data.rows.length) return;
+    history = history.concat(data.rows).slice(-MAX_ROWS);
+    setLevels();
+    drawScope();
+  } catch (error) { /* the next refresh will say if the application does not answer */ }
 }
 
 async function refresh() {
@@ -186,6 +296,8 @@ async function refresh() {
     state = await call("/api/status");
     say("sending", state.sending ? "sending..." : "");
     say("listening", state.listening ? "listening" + (state.blocks_lost ? " (" + state.blocks_lost + " blocks lost)" : "") : "");
+    if (state.listening && !wasListening) { history = []; setLevels(); }  // a new waterfall
+    wasListening = state.listening;
     $("listen").textContent = state.listening ? "Stop listening" : "Start listening";
     const shown = JSON.stringify(state.settings);
     if (shown !== lastSettings) {  // only when they changed, so a choice not yet applied is kept
@@ -201,7 +313,15 @@ async function refresh() {
     $("send").disabled = state.sending || !estimate.fits || Boolean(estimate.frequency_problem);
     $("cancel").disabled = !state.sending;
     if (state.last_error) say("error", state.last_error);
-    showReceived((await call("/api/received")).received);
+    const heard = await call("/api/received");
+    showReceived(heard.received);
+    showUndecoded(heard.undecoded);
+    const now = Date.now() / 1000;
+    markers = [
+      ...heard.received.filter((m) => m.complete && m.frequency_hz !== null && now - m.heard_at < MARKER_SECONDS).map((m) => ({ hz: m.frequency_hz, lost: false })),
+      ...heard.undecoded.filter((u) => now - u.heard_at < MARKER_SECONDS).map((u) => ({ hz: u.frequency_hz, lost: true })),
+    ];
+    drawScope();
   } catch (error) { say("error", "The application does not answer."); }
 }
 
@@ -221,7 +341,9 @@ $("quit").onclick = async () => {
 };
 
 (async () => { fillDevices((await call("/api/devices")).devices); lastSettings = null; refresh(); askEstimate(); })();
+drawAxis();
 setInterval(refresh, 1500);
+setInterval(refreshSpectrum, 500);
 </script>
 </body>
 </html>

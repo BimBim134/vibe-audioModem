@@ -6,12 +6,16 @@ import time
 import numpy as np
 import pytest
 
+from vibemodem.app.receiver import Tolerance
 from vibemodem.app.service import BusyError, Cancelled, ModemService, SettingsError
 from vibemodem.core.message import FRAGMENT_CAPACITY, Fragment
+from vibemodem.core.modem import Reception, Report
 from vibemodem.core.transmission import MessageTooLong
 from vibemodem.core.turbo_modem import TurboModem
 from vibemodem.io.audio import DeviceInfo, FakeAudio
 
+TOLERANCE = Tolerance(seconds=0.16, hertz=25.0, frame_seconds=6.8, preamble_samples=61_440)
+HEARD = Reception(b"", snr_db=-10.0, frequency_offset_hz=0.0, sync_score=20.0, start_sample=0)
 DEVICES = [
     DeviceInfo(0, "Radio sound card", 1, 1, 48_000.0),
     DeviceInfo(1, "Laptop microphone", 1, 0, 48_000.0),
@@ -399,7 +403,7 @@ def test_closing_while_the_sound_is_being_made_leaves_no_thread_and_plays_nothin
 
 def test_a_decoding_that_fails_is_reported_and_the_listening_goes_on(services):
     class Failing(TurboModem):
-        def demodulate(self, samples):
+        def demodulate_report(self, samples):
             raise RuntimeError("the decoder broke")
 
     audio = FakeAudio(devices=DEVICES, loopback=True)
@@ -428,8 +432,12 @@ def test_a_listening_that_ended_on_its_own_can_be_started_again(services):
 def test_what_was_given_up_on_is_bounded_in_a_service_that_never_ends(services):
     service = services(max_received=3)
     for msg_id in range(10):  # the same Message twice with other content: given up each time
-        service._take(Fragment(msg_id, 0, 2, b"a" * FRAGMENT_CAPACITY))
-        service._take(Fragment(msg_id, 0, 2, b"b" * FRAGMENT_CAPACITY))
+        service._receiver._take(
+            Fragment(msg_id, 0, 2, b"a" * FRAGMENT_CAPACITY), HEARD, 0.0, TOLERANCE
+        )
+        service._receiver._take(
+            Fragment(msg_id, 0, 2, b"b" * FRAGMENT_CAPACITY), HEARD, 0.0, TOLERANCE
+        )
     given_up = [r for r in service.received() if r.parts and r.parts[0][1].startswith("a")]
     assert len(given_up) == 3  # the newest three; the ten being heard are bounded by the memory
 
@@ -556,8 +564,9 @@ def test_a_refused_frequency_does_not_leave_the_service_busy(services):
 class ReverseOrder(TurboModem):
     """Gives what it receives backwards in time, as a receiver sorting by score may do."""
 
-    def demodulate(self, samples):
-        return sorted(super().demodulate(samples), key=lambda r: -r.start_sample)
+    def demodulate_report(self, samples):
+        report = super().demodulate_report(samples)
+        return Report(sorted(report.receptions, key=lambda r: -r.start_sample), report.undecoded)
 
 
 def test_messages_heard_in_one_pass_are_listed_in_the_order_they_were_sent(services):
@@ -577,3 +586,202 @@ def test_messages_heard_in_one_pass_are_listed_in_the_order_they_were_sent(servi
         send_and_wait(sender, f"message {number}")
     listener.stop_listening()
     assert [r.text for r in listener.received()] == [f"message {n}" for n in range(4)]
+
+
+# Quality, losses and the spectrum ----------------------------------------------------------------
+
+
+def test_a_message_heard_carries_how_it_was_received(pair):
+    sender, listener = pair
+    listener.start_listening()
+    send_and_wait(sender, "quality", frequency_hz=1800.0)
+    listener.stop_listening()
+    (heard,) = listener.received()
+    assert heard.frequency_hz == pytest.approx(1800.0, abs=3)
+    assert heard.offset_hz == pytest.approx(350.0, abs=3)
+    assert heard.sync_score > 7 and heard.snr_db is not None and np.isfinite(heard.snr_db)
+
+
+def test_a_message_of_several_fragments_is_summed_up_by_its_weakest_link(services):
+    service = services()
+    parts = [Fragment(5, 0, 3, b"a" * 17), Fragment(5, 1, 3, b"b" * 17), Fragment(5, 2, 3, b"c")]
+    for fragment, (snr, hz, score) in zip(
+        parts, [(-10.0, 1500.0, 30.0), (-14.0, 1500.5, 9.0), (-12.0, 1499.5, 20.0)], strict=True
+    ):
+        service._receiver._take(
+            fragment,
+            Reception(b"", snr_db=snr, frequency_offset_hz=hz - 1450.0, sync_score=score),
+            100.0,
+            TOLERANCE,
+        )
+    (heard,) = service.received()
+    assert heard.snr_db == pytest.approx(-12.0) and heard.sync_score == 9.0
+    assert heard.frequency_hz == pytest.approx(1500.0) and heard.heard_at == 100.0
+
+
+def test_a_message_heard_in_part_says_how_the_part_was_received(services):
+    service = services()
+    service._receiver._take(
+        Fragment(5, 0, 3, b"a" * 17), Reception(b"", -9.0, 100.0, 15.0), 100.0, TOLERANCE
+    )
+    (heard,) = service.received()
+    assert not heard.complete and heard.snr_db == -9.0 and heard.sync_score == 15.0
+    assert heard.frequency_hz == pytest.approx(1550.0)
+
+
+def test_a_signal_whose_message_cannot_be_read_is_listed_once_however_many_passes(services):
+    modem = TurboModem(preset="fast")
+    size = modem.waveform.samples_per_symbol
+    first = modem.modulate(Fragment(1, 0, 1, b"first").pack(), "fast")
+    second = modem.modulate(Fragment(2, 0, 1, b"second").pack(), "fast").copy()
+    third = modem.modulate(Fragment(3, 0, 1, b"third").pack(), "fast")
+    start = mfsk_preamble() * size
+    second[start : start + 100 * size] = (
+        np.random.default_rng(1).normal(0, 0.3, 100 * size).clip(-1, 1)
+    )
+    recording = np.concatenate([first, second, third, np.zeros(48_000 * 4)])
+    listener = services(
+        FakeAudio(devices=DEVICES, input_samples=recording), decode_every_seconds=3.0
+    )
+    listener.apply_settings(preset="fast")
+    listener.start_listening()
+    assert wait_until(lambda: not listener.status()["listening"])
+    listener.stop_listening()
+    assert [r.text for r in listener.received()] == ["first", "third"]
+    (lost,) = listener.undecoded()  # decoded in many passes of the window, listed once
+    assert lost.frequency_hz == pytest.approx(1450.0, abs=3) and lost.sync_score > 7
+
+
+def mfsk_preamble():
+    from vibemodem.core import mfsk
+
+    return mfsk.PREAMBLE_SYMBOLS
+
+
+def test_the_spectrum_shows_the_tone_that_is_heard(services):
+    tone = 0.3 * np.sin(2 * np.pi * 1000 * np.arange(48_000 * 3) / 48_000)
+    service = services(FakeAudio(devices=DEVICES, input_samples=tone))
+    service.start_listening()
+    assert wait_until(lambda: not service.status()["listening"])
+    rows = service.spectrum(0)
+    assert rows.first == 0 and rows.next == 6 and len(rows.rows) == 6  # 3 s in blocks of 0.5 s
+    assert all(len(row) == 480 for row in rows.rows)
+    assert 300 + 5 * int(np.argmax(rows.rows[2])) == pytest.approx(1000, abs=10)
+
+
+def test_only_the_rows_after_the_last_one_asked_for_are_given(services):
+    sound = np.zeros(48_000 * 4)
+    service = services(FakeAudio(devices=DEVICES, input_samples=sound))
+    service.start_listening()
+    assert wait_until(lambda: not service.status()["listening"])
+    assert service.spectrum(5).first == 5 and len(service.spectrum(5).rows) == 3
+    assert service.spectrum(8).rows == [] and service.spectrum(100).next == 8
+
+
+def test_the_spectrum_history_is_bounded_to_a_minute(services):
+    service = services(FakeAudio(devices=DEVICES, input_samples=np.zeros(48_000 * 100)))
+    service.start_listening()
+    assert wait_until(lambda: not service.status()["listening"])
+    rows = service.spectrum(0)
+    assert len(rows.rows) == 120 and rows.next == 200 and rows.first == 80
+
+
+# The Receiver, after the reviews ---------------------------------------------------------------
+
+
+class ScriptedModem:
+    """A modem that reports what it is told to, whatever the sound."""
+
+    def __init__(self, receptions=(), undecoded=()):
+        self.report = Report(list(receptions), list(undecoded))
+
+    def demodulate_report(self, samples):
+        return self.report
+
+
+def receiver_of(services):
+    return services()._receiver
+
+
+def window_of_silence():
+    from collections import deque
+
+    return deque([np.zeros(48_000)])
+
+
+def test_a_signal_lost_in_one_pass_and_read_in_a_later_one_is_no_longer_listed_as_lost(services):
+    receiver = receiver_of(services)
+    receiver._note_lost(100.0, 1450.0, 20.0, TOLERANCE)
+    assert len(receiver.undecoded()) == 1
+    reception = Reception(b"", -10.0, 0.0, 30.0, start_sample=0)  # at 1450 Hz
+    receiver._take(Fragment(1, 0, 1, b"found"), reception, 100.05, TOLERANCE)
+    assert receiver.undecoded() == []
+
+
+def test_a_signal_next_to_a_frame_that_was_read_at_the_same_frequency_is_a_side_peak(services):
+    receiver = receiver_of(services)
+    reception = Reception(b"", -10.0, 0.0, 30.0, start_sample=0)
+    receiver._take(Fragment(1, 0, 1, b"read"), reception, 100.0, TOLERANCE)
+    receiver._note_lost(101.5, 1450.0, 20.0, TOLERANCE)  # inside the 6.8 s of that Frame
+    assert receiver.undecoded() == []
+    receiver._note_lost(106.8, 1450.0, 20.0, TOLERANCE)  # the next Frame: a real loss
+    receiver._note_lost(101.5, 1900.0, 20.0, TOLERANCE)  # another frequency: another Signal
+    assert len(receiver.undecoded()) == 2
+
+
+def test_two_sightings_of_one_signal_are_one_and_two_signals_that_differ_are_two(services):
+    receiver = receiver_of(services)
+    receiver._note_lost(100.0, 1450.0, 20.0, TOLERANCE)
+    receiver._note_lost(100.1, 1451.0, 22.0, TOLERANCE)  # within 2 symbols and a tone spacing
+    assert len(receiver.undecoded()) == 1
+    receiver._note_lost(100.5, 1450.0, 20.0, TOLERANCE)  # later than 2 symbols: another Frame
+    receiver._note_lost(100.1, 1500.0, 20.0, TOLERANCE)  # farther than a tone spacing
+    assert len(receiver.undecoded()) == 3
+
+
+def test_a_frame_cut_by_the_start_of_the_window_is_not_reported_as_lost(services):
+    from vibemodem.core.modem import Detection
+
+    receiver = receiver_of(services)
+    modem = ScriptedModem(
+        undecoded=[Detection(start_sample=10_000, frequency_hz=1450.0, sync_score=15.0)]
+    )
+    receiver._decode(window_of_silence(), modem, TOLERANCE, 1000.0, window_start=480_000)
+    assert receiver.undecoded() == []  # near the edge of a window that is not the first
+    receiver._decode(window_of_silence(), modem, TOLERANCE, 1000.0, window_start=0)
+    assert len(receiver.undecoded()) == 1  # but at the very start of the listening it is judged
+
+
+def test_the_clearest_sighting_of_a_fragment_is_the_one_that_counts(services):
+    receiver = receiver_of(services)
+    fragment = Fragment(4, 0, 2, b"x" * FRAGMENT_CAPACITY)
+    receiver._take(fragment, Reception(b"", -20.0, 0.0, 9.0), 10.0, TOLERANCE)
+    receiver._take(fragment, Reception(b"", -8.0, 0.0, 40.0), 20.0, TOLERANCE)
+    receiver._take(fragment, Reception(b"", -15.0, 0.0, 12.0), 30.0, TOLERANCE)
+    (heard,) = receiver.received()
+    assert heard.snr_db == -8.0 and heard.sync_score == 40.0 and heard.heard_at == 20.0
+
+
+def test_a_new_listening_starts_a_new_waterfall(services):
+    service = services(FakeAudio(devices=DEVICES, input_samples=np.zeros(48_000 * 2)))
+    service.start_listening()
+    assert wait_until(lambda: not service.status()["listening"])
+    first = service.spectrum(0)
+    assert first.next == 4
+    service._receiver._audio = FakeAudio(devices=DEVICES, input_samples=np.zeros(48_000))
+    service.start_listening()
+    assert wait_until(lambda: not service.status()["listening"])
+    second = service.spectrum(0)
+    assert second.first == 4 and second.next == 6 and len(second.rows) == 2
+
+
+def test_the_time_of_a_message_heard_is_the_time_of_its_sound(pair):
+    import time as clock
+
+    sender, listener = pair
+    before = clock.time()
+    listener.start_listening()
+    send_and_wait(sender, "timed")
+    listener.stop_listening()
+    (heard,) = listener.received()
+    assert before - 1 <= heard.heard_at <= before + 10  # the sound began as the listening did

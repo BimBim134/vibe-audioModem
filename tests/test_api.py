@@ -341,3 +341,39 @@ def test_the_page_file_is_shipped_with_the_package_and_the_packaged_application(
     package_data = tomllib.loads((root / "pyproject.toml").read_text())["tool"]["setuptools"]
     assert "page.html" in package_data["package-data"]["vibemodem.app"]
     assert "page.html" in (root / "packaging" / "vibemodem.spec").read_text()
+
+
+def test_the_received_messages_come_with_how_they_were_received(made):
+    sender_audio, listener_audio = FakeAudio(devices=DEVICES), FakeAudio(devices=DEVICES)
+    sender_audio.connect_to(listener_audio)
+    _, sender = made(sender_audio)
+    _, listener = made(listener_audio)
+    for client in (sender, listener):
+        client.post("/api/settings", json={"preset": "fast"})
+    listener.post("/api/listen/start")
+    sender.post("/api/send", json={"text": "with quality", "frequency_hz": 1700})
+    assert idle(sender)
+    listener.post("/api/listen/stop")
+    body = listener.get("/api/received").json()
+    (heard,) = body["received"]
+    assert heard["frequency_hz"] == pytest.approx(1700, abs=3) and heard["sync_score"] > 7
+    assert heard["offset_hz"] == pytest.approx(250, abs=3) and heard["snr_db"] is not None
+    assert body["undecoded"] == []
+
+
+def test_the_spectrum_is_served_from_the_row_asked_for(made):
+    tone = 0.3 * np.sin(2 * np.pi * 1500 * np.arange(48_000 * 2) / 48_000)
+    audio = FakeAudio(devices=DEVICES, input_samples=tone)
+    service, client = made(audio)
+    client.post("/api/listen/start")
+    assert wait_until(lambda: not client.get("/api/status").json()["listening"])
+    body = client.get("/api/spectrum").json()
+    assert (body["first"], body["next"], body["low_hz"], body["bin_hz"]) == (0, 4, 300.0, 5.0)
+    assert len(body["rows"]) == 4 and all(len(row) == 480 for row in body["rows"])
+    assert client.get("/api/spectrum", params={"since": 3}).json()["rows"] == body["rows"][3:]
+    assert client.get("/api/spectrum", params={"since": 4}).json()["rows"] == []
+
+
+@pytest.mark.parametrize("since", ["-1", "abc"])
+def test_a_spectrum_request_with_a_bad_row_number_is_rejected(client, since):
+    assert client.get("/api/spectrum", params={"since": since}).status_code == 422
