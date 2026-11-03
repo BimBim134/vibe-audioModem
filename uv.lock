@@ -729,6 +729,7 @@ source = { editable = "." }
 dependencies = [
     { name = "numpy" },
     { name = "scipy" },
+    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
@@ -756,6 +757,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0" },
     { name = "scipy", specifier = ">=1.14" },
     { name = "sounddevice", marker = "extra == 'io'", specifier = ">=0.5" },
+    { name = "uvicorn", specifier = ">=0.54.0" },
     { name = "uvicorn", marker = "extra == 'app'", specifier = ">=0.32" },
 ]
 provides-extras = ["io", "app"]
