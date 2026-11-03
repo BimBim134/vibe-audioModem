@@ -730,6 +730,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "numpy" },
     { name = "scipy" },
+    { name = "sounddevice" },
     { name = "uvicorn" },
 ]
 
@@ -758,6 +759,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'app'", specifier = ">=0.115" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "scipy", specifier = ">=1.14" },
+    { name = "sounddevice", specifier = ">=0.5.6" },
     { name = "sounddevice", marker = "extra == 'io'", specifier = ">=0.5" },
     { name = "uvicorn", specifier = ">=0.54.0" },
     { name = "uvicorn", marker = "extra == 'app'", specifier = ">=0.32" },
