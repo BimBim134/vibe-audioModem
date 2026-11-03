@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 dependencies = [
+    "fastapi>=0.162.0",
     "numpy>=2.0",
     "scipy>=1.14",
     "uvicorn>=0.54.0",
