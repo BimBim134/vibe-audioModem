@@ -60,6 +60,22 @@
     padding: 0.4rem 0.6rem;
   }
   input[type="checkbox"] { accent-color: rgb(var(--accent)); width: 1rem; height: 1rem; padding: 0; }
+  #keep {
+    appearance: none; position: relative; flex: none; margin-left: auto;
+    width: 2.4rem; height: 1.35rem; padding: 0; border: 0; border-radius: 999px;
+    background: rgb(var(--text) / 0.18); cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  #keep::before {
+    content: ""; position: absolute; top: 0.18rem; left: 0.18rem;
+    width: 0.99rem; height: 0.99rem; border-radius: 50%;
+    background: rgb(var(--text) / 0.8);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  #keep:checked { background: rgb(var(--accent)); }
+  #keep:checked::before { transform: translateX(1.05rem); background: rgb(var(--bg)); }
+  #keep:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+  #keep:disabled { opacity: 0.4; cursor: default; }
 
   /* Never wider than this, however large the window: a page this wide reads badly */
   :root { --page-width: 1000px; }
@@ -140,7 +156,39 @@
   dialog { background: rgb(var(--bg)); color: rgb(var(--text)); border: 1px solid var(--line); border-radius: 18px; padding: 1.3rem; width: min(34rem, 94vw); }
   dialog::backdrop { background: rgb(var(--bg) / 0.75); }
   dialog h2 { margin: 0 0 0.8rem; font-size: 1.05rem; }
-  dialog h3 { margin: 1.2rem 0 0.4rem; font-size: 0.9rem; }
+  dialog h3 { margin: 0 0 0.6rem; font-size: 0.9rem; }
+  dialog .tabs {
+    display: flex; gap: 0.35rem; margin: 0.2rem 0 1rem; padding: 0.25rem;
+    border-radius: 12px; background: rgb(var(--text) / 0.04);
+  }
+  dialog .tab {
+    flex: 1; border: 0; border-radius: 9px; padding: 0.45rem 0.8rem;
+    background: transparent; color: var(--soft);
+  }
+  dialog .tab:hover:not(:disabled) { background: rgb(var(--text) / 0.08); }
+  dialog .tab[aria-selected="true"] { background: rgb(var(--accent) / 0.14); color: rgb(var(--accent)); }
+  dialog .tab[aria-selected="true"]:hover:not(:disabled) { background: rgb(var(--accent) / 0.2); }
+  dialog .group { padding: 0.8rem 0.9rem; border-radius: 12px; background: rgb(var(--text) / 0.03); }
+  dialog .group + .group { margin-top: 0.6rem; }
+  dialog .group h3 { margin: 0 0 0.4rem; }
+  #panel-general .field { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+  #panel-general .field > span { width: auto; }
+  #panel-general .field > select,
+  #panel-general .field > input { width: 100%; }
+  #panel-advanced .field.limit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+  #panel-advanced .field.limit > span { width: auto; }
+  .limit-control {
+    display: flex; align-items: center;
+    background: rgb(var(--text) / 0.06); border: 1px solid var(--line); border-radius: 10px;
+    padding-right: 0.6rem;
+  }
+  .limit-control input {
+    flex: 1; min-width: 0; background: transparent; border: 0; border-radius: 0;
+    padding: 0.4rem 0.6rem;
+  }
+  .limit-control > span { color: var(--soft); }
+  .limit-control:has(input:focus-visible) { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+  .limit-control input:focus-visible { outline: none; }
   dialog .field { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0; }
   dialog .field > span { width: 5rem; color: var(--soft); }
   dialog .field > span.plain { width: auto; }
@@ -149,6 +197,11 @@
   dialog p.problem { color: rgb(var(--accent)); }
   dialog p.applied { color: rgb(var(--accent)); }
   dialog .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+  dialog .footer { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 1rem; }
+  dialog .footer .messages { flex: 1; min-width: 0; }
+  dialog .footer p { margin: 0; }
+  dialog .footer p + p { margin-top: 0.15rem; }
+  dialog .footer .actions { margin-top: 0; flex: none; }
   #apply, #clear { width: 100%; }
 
   @media (max-width: 860px) {
@@ -206,30 +259,56 @@
 
 <dialog id="settings" aria-labelledby="settings-title">
   <h2 id="settings-title">Settings</h2>
-  <p id="settings-error" class="problem" role="alert"></p>
-  <p id="settings-note" aria-live="polite"></p>
-  <label class="field"><span>Preset</span>
-    <select id="preset">
-      <option value="max-range">Slow - Maximum Range (29 Hz)</option>
-      <option value="standard" selected>Standard (107 Hz)</option>
-      <option value="fast">Fast - Good Conditions (212 Hz)</option>
-    </select>
-  </label>
-  <label class="field"><span>Repetitions</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
-  <label class="field"><span>Input</span><select id="input_device"><option value="">default</option></select></label>
-  <label class="field"><span>Output</span><select id="output_device"><option value="">default</option></select></label>
-  <div class="actions"><button id="apply" class="primary">Apply</button></div>
-  <br>
 
-  <h2>Stored receptions</h2>
-  <p>For debug purpose only, each message reception can be stored with 3 s around each Signal. The oldest are deleted first when the limit is reached.</p>
-  <label class="field"><input id="keep" type="checkbox"> Keep the audio and the figures of what is received</label>
-  <label class="field"><span>Up to</span><input id="limit" class="wide" type="number" min="10" max="100000" step="10"> MB</label>
-  <p id="usage" aria-live="polite"></p>
-  <div class="actions"><button id="clear">Delete all stored receptions</button></div>
-  <br>
-  <br>
-  <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
+  <div class="tabs" role="tablist" aria-label="Settings sections">
+    <button class="tab" id="tab-general" role="tab" aria-selected="true" aria-controls="panel-general">General</button>
+    <button class="tab" id="tab-advanced" role="tab" aria-selected="false" aria-controls="panel-advanced" tabindex="-1">Advanced settings</button>
+  </div>
+
+  <section id="panel-general" role="tabpanel" aria-labelledby="tab-general">
+    <div class="group">
+      <h3>Modulation</h3>
+      <label class="field"><span>Preset</span>
+        <select id="preset">
+          <option value="max-range">Slow - Maximum Range (29 Hz)</option>
+          <option value="standard" selected>Standard (107 Hz)</option>
+          <option value="fast">Fast - Good Conditions (212 Hz)</option>
+        </select>
+      </label>
+      <label class="field"><span>Repetitions</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
+    </div>
+    <div class="group">
+      <h3>Audio device</h3>
+      <label class="field"><span>Input</span><select id="input_device"><option value="">default</option></select></label>
+      <label class="field"><span>Output</span><select id="output_device"><option value="">default</option></select></label>
+    </div>
+    <div class="actions"><button id="apply" class="primary">Apply</button></div>
+  </section>
+
+  <section id="panel-advanced" role="tabpanel" aria-labelledby="tab-advanced" hidden>
+    <div class="group">
+      <h3>Stored receptions</h3>
+      <p>For debug purpose only, each message reception can be stored with 3 s around each Signal. The oldest are deleted first when the limit is reached.</p>
+      <label class="field">
+        Keep the audio and the figures of what is received
+        <input id="keep" type="checkbox">
+      </label>
+      <label class="field limit">
+        <span>Up to</span>
+        <span class="limit-control"><input id="limit" type="number" min="10" max="100000" step="10"><span>MB</span></span>
+      </label>
+      <p id="usage" aria-live="polite"></p>
+      <div class="actions"><button id="clear">Delete all stored receptions</button></div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <div class="messages">
+      <p id="settings-error" class="problem" role="alert"></p>
+      <p id="settings-note" aria-live="polite"></p>
+    </div>
+    <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
+  </div>
 </dialog>
 
 <script>
@@ -527,6 +606,30 @@ async function refreshStorage() {
     $("keep").checked = info.keep;
     say("usage", info.count + " kept, " + info.used_mb.toFixed(1) + " MB of " + Math.round(info.limit_mb) + " MB, in " + info.directory);
   } catch (error) { /* refresh will say if the application does not answer */ }
+}
+const tabs = [$("tab-general"), $("tab-advanced")];
+function showTab(tab) {
+  for (const other of tabs) {
+    const selected = other === tab;
+    other.setAttribute("aria-selected", selected);
+    other.tabIndex = selected ? 0 : -1;
+    $(other.getAttribute("aria-controls")).hidden = !selected;
+  }
+}
+for (const tab of tabs) {
+  tab.onclick = () => showTab(tab);
+  tab.addEventListener("keydown", (event) => {
+    const index = tabs.indexOf(tab);
+    let next;
+    if (event.key === "ArrowRight") next = tabs[(index + 1) % tabs.length];
+    else if (event.key === "ArrowLeft") next = tabs[(index - 1 + tabs.length) % tabs.length];
+    else if (event.key === "Home") next = tabs[0];
+    else if (event.key === "End") next = tabs[tabs.length - 1];
+    else return;
+    event.preventDefault();
+    showTab(next);
+    next.focus();
+  });
 }
 $("apply").onclick = () => act(call("/api/settings", "POST", {
   preset: $("preset").value, input_device: deviceValue("input_device"), output_device: deviceValue("output_device"),
