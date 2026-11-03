@@ -26,13 +26,24 @@
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
-    margin: 0; display: flex; flex-direction: column;
+    margin: 0; padding: 0.9rem; gap: 0.9rem; display: flex; flex-direction: column;
     background: rgb(var(--bg)); color: rgb(var(--text));
     font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   button, input, select, textarea { font: inherit; color: inherit; }
   ::placeholder { color: var(--soft); opacity: 1; }
   option { background: rgb(var(--bg)); color: rgb(var(--text)); }
+  select { accent-color: rgb(var(--accent)); }
+  @supports (appearance: base-select) {
+    select, ::picker(select) { appearance: base-select; }
+    select::picker(select) {
+      background: rgb(var(--bg)); border: 1px solid var(--line); border-radius: 12px;
+      padding: 0.3rem; margin-top: 0.25rem;
+    }
+    select option { padding: 0.35rem 0.5rem; border-radius: 8px; }
+    select option:hover, select option:focus { background: rgb(var(--accent) / 0.25); }
+    select option:checked { background: rgb(var(--accent)); color: rgb(var(--bg)); }
+  }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   button {
     background: rgb(var(--text) / 0.08); border: 1px solid transparent; border-radius: 999px;
@@ -56,8 +67,8 @@
 
   /* The top bar */
   .top {
-    display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.1rem;
-    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem;
+    border-radius: 16px; background: rgb(var(--text) / 0.03);
   }
   .top h1 { font-size: 1rem; font-weight: 600; margin: 0 auto 0 0; letter-spacing: 0.02em; }
   .status { display: flex; align-items: center; gap: 0.45rem; color: var(--soft); font-size: 0.85rem; }
@@ -68,11 +79,14 @@
 
   /* Two columns: the charts, and the conversation */
   main {
-    flex: 1; min-height: 0; display: grid; gap: 1.1rem; padding: 1.1rem;
+    flex: 1; min-height: 0; display: grid; gap: 0.9rem;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
-  .charts { display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; }
+  .charts {
+    display: flex; flex-direction: column; gap: 0.5rem; min-height: 0;
+    border-radius: 16px; padding: 0.9rem; background: rgb(var(--text) / 0.02);
+  }
   .chart { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   canvas { display: block; width: 100%; border-radius: 10px; }
   #spectrum { flex: 0 0 28%; min-height: 0; background: rgb(var(--text) / 0.04); }
@@ -80,7 +94,10 @@
   #axis { position: relative; height: 1.3rem; margin-top: 0.3rem; font-size: 0.75rem; color: var(--soft); }
   #axis span { position: absolute; transform: translateX(-50%); }
 
-  .chat { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); padding-left: 1.1rem; }
+  .chat {
+    display: flex; flex-direction: column; min-height: 0;
+    border-radius: 16px; padding: 0.9rem; background: rgb(var(--text) / 0.02);
+  }
   #conversation { flex: 1; min-height: 12rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.2rem 0.2rem 0.8rem; }
   .empty { margin: auto; color: var(--soft); text-align: center; max-width: 18rem; }
 
@@ -104,7 +121,9 @@
   .note { align-self: center; font-size: 0.78rem; color: var(--soft); border: 1px dashed var(--line); border-radius: 999px; padding: 0.15rem 0.8rem; }
 
   /* The composer */
-  #composer { padding-top: 0.6rem; border-top: 1px solid var(--line); }
+  #composer {
+    border-radius: 16px; padding: 0.75rem; background: rgb(var(--text) / 0.03);
+  }
   #composer .line { display: flex; gap: 0.5rem; align-items: flex-end; }
   #text { flex: 1; resize: none; border-radius: 16px; min-height: 2.6rem; max-height: 8rem; }
   .send-at { display: flex; align-items: center; gap: 0.5rem; margin: 0 0.2rem 0.5rem; font-size: 0.85rem; color: var(--soft); }
@@ -128,12 +147,14 @@
   dialog select { flex: 1; min-width: 0; }
   dialog p { margin: 0.4rem 0; font-size: 0.82rem; color: var(--soft); }
   dialog p.problem { color: rgb(var(--accent)); }
+  dialog p.applied { color: rgb(var(--accent)); }
   dialog .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+  #apply, #clear { width: 100%; }
 
   @media (max-width: 860px) {
     body { height: auto; }
     main { grid-template-columns: 1fr; grid-template-rows: auto; }
-    .chat { order: -1; border-left: 0; padding-left: 0; }  /* the conversation first, as in a messenger */
+    .chat { order: -1; }  /* the conversation first, as in a messenger */
     .chart { flex: none; }
     #spectrum { flex: none; height: 5.5rem; }
     #waterfall { flex: none; height: 11rem; }
@@ -143,7 +164,7 @@
     .top { padding: 0.6rem 0.8rem; gap: 0.5rem; }
     .top h1 { white-space: nowrap; font-size: 0.95rem; }
     .status > span:not(.warn) { display: none; }  /* the dot says it; a loss of sound is still told */
-    main { padding: 0.8rem; }
+    body { padding: 0.6rem; gap: 0.6rem; }
   }
 </style>
 </head>
@@ -213,7 +234,7 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const say = (id, text) => { $(id).textContent = text || ""; };
+const say = (id, text) => { const node = $(id); node.textContent = text || ""; node.classList.remove("applied"); };
 
 // The three colours are the ones of the style sheet above: read from it, never repeated here.
 const triple = (name, fallback) => {
@@ -509,7 +530,7 @@ async function refreshStorage() {
 }
 $("apply").onclick = () => act(call("/api/settings", "POST", {
   preset: $("preset").value, input_device: deviceValue("input_device"), output_device: deviceValue("output_device"),
-}), () => say("settings-note", "Applied."), "settings-error");
+}), () => { say("settings-note", "Applied."); $("settings-note").classList.add("applied"); }, "settings-error");
 $("keep").onchange = () => act(call("/api/storage", "POST", { keep: $("keep").checked }), refreshStorage, "settings-error");
 $("limit").onchange = () => act(call("/api/storage", "POST", { limit_mb: Number($("limit").value) }), refreshStorage, "settings-error");
 confirmed($("clear"), "Delete all stored receptions", () =>
