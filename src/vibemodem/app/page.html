@@ -486,7 +486,7 @@ function showConversation(items) {
 }
 
 // The spectrum and the waterfall ----------------------------------------------------------------
-const MAX_ROWS = 120, MARKER_SECONDS = 120;
+const MAX_ROWS = 120, MARKER_SECONDS = 60;
 let lowHz = 300, highHz = 2700;  // the band of a row, told by the application with the rows
 const FLOOR_DB = -100, CEILING_DB = -20;  // a fixed range: the same level is the same colour
 let spectrumNext = 0, history = [], markers = [], signalWidthHz = 175;
@@ -564,14 +564,16 @@ function drawScope() {
     for (const [canvas, ctx] of [[curve, cctx], [water, wctx]]) {
       const x0 = (band[0] - lowHz) / span * canvas.width, x1 = (band[1] - lowHz) / span * canvas.width;
       ctx.fillStyle = rgb(ACCENT, 0.28); ctx.fillRect(x0, 0, Math.max(x1 - x0, 2 * line), canvas.height);
-      ctx.fillStyle = rgb(ACCENT); ctx.fillRect(x0 - line, 0, 2 * line, canvas.height);
+      ctx.fillStyle = rgb(ACCENT); ctx.fillRect(x0 - line / 2, 0, line, canvas.height);
     }
   }
-  for (const marker of markers) {  // where Messages were heard, or lost (dashed): on both drawings
+  const now = Date.now() / 1000;
+  for (const marker of markers) {  // where Messages were heard: on both drawings
+    const fade = Math.min(1, Math.max(0, 1 - (now - marker.at) / MARKER_SECONDS));
     for (const [canvas, ctx] of [[curve, cctx], [water, wctx]]) {
       const x = (marker.hz - lowHz) / span * canvas.width;
-      ctx.strokeStyle = rgb(TEXT, 0.9); ctx.lineWidth = 2 * line; ctx.setLineDash(marker.lost ? [4 * line, 4 * line] : []);
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = rgb(TEXT, 0.9 * fade); ctx.lineWidth = line;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
     }
   }
   drawAxis();
@@ -714,8 +716,8 @@ async function refresh() {
     showConversation(conversation);
     const now = Date.now() / 1000;
     markers = conversation
-      .filter((m) => (m.kind === "received" || m.kind === "lost") && m.frequency_hz !== null && now - m.at < MARKER_SECONDS)
-      .map((m) => ({ hz: m.frequency_hz, lost: m.kind === "lost" }));
+      .filter((m) => m.kind === "received" && m.frequency_hz !== null && now - m.at < MARKER_SECONDS)
+      .map((m) => ({ hz: m.frequency_hz, at: m.at }));
     drawScope();
   } catch (error) { showError("The application does not answer."); }
 }
