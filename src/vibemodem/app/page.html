@@ -547,13 +547,16 @@ function drawScope() {
   const last = history[history.length - 1];
   const line = Math.max(1, window.devicePixelRatio || 1);
   if (last) {
-    cctx.strokeStyle = rgb(ACCENT); cctx.lineWidth = 1.5 * line; cctx.beginPath();
+    const curvePath = new Path2D();
     last.forEach((value, x) => {
       const level = Number.isFinite(value) ? Math.max(0, Math.min(1, (value - FLOOR_DB) / (CEILING_DB - FLOOR_DB))) : 0;
       const px = x / (last.length - 1) * curve.width, py = curve.height - 3 * line - level * (curve.height - 8 * line);
-      x === 0 ? cctx.moveTo(px, py) : cctx.lineTo(px, py);
+      x === 0 ? curvePath.moveTo(px, py) : curvePath.lineTo(px, py);
     });
-    cctx.stroke();
+    const fillPath = new Path2D(curvePath);
+    fillPath.lineTo(curve.width, curve.height); fillPath.lineTo(0, curve.height); fillPath.closePath();
+    cctx.fillStyle = rgb(ACCENT); cctx.fill(fillPath);
+    cctx.strokeStyle = rgb(ACCENT); cctx.lineWidth = line; cctx.stroke(curvePath);
   }
   const span = highHz - lowHz;
   const band = transmitBand();
