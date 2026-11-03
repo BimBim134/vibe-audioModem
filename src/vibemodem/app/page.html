@@ -6,27 +6,28 @@
 <title>Vibe AudioModem</title>
 <style>
   /* ============ THE COLOURS: the only place they are chosen =====================
-     Three colours, each as three numbers (red green blue, 0 to 255) separated by spaces,
+     Four colours, each as three numbers (red green blue, 0 to 255) separated by spaces,
      not as #hex. Everything else on the page, and the charts (the script reads these same
-     three), is made of them: a tint is the same colour at another opacity.
+     four), is made of them: a tint is the same colour at another opacity.
      Change a line here, save, and reload the page: no restart needed. */
   :root {
-    --bg: 14 17 22;        /* background: the page, the dialogs, the darkest of the waterfall */
-    --text: 232 234 237;   /* text, lines, received bubbles, the loudest of the waterfall */
-    --accent: 255 154 31;  /* orange: what is yours (sent, the transmit band), the spectrum */
+    --bg: 21 20 25;        /* #151419 dark lava: the page, the dialogs, the darkest of the waterfall */
+    --grey: 135 135 135;   /* #878787 dusty grey: lines, muted text, the quiet surfaces */
+    --text: 251 251 251;   /* #FBFBFB snow: text, received bubbles, the loudest of the waterfall */
+    --accent: 245 110 15;  /* #F56E0F liquid lava: what is yours (sent, the transmit band), the spectrum */
   }
   /* =============================================================================== */
 
   :root {
     color-scheme: dark;
-    --line: rgb(var(--text) / 0.14);
-    --soft: rgb(var(--text) / 0.62);
-    scrollbar-color: rgb(var(--text) / 0.3) transparent;  /* the browser's own greys: ours instead */
+    --line: rgb(var(--grey) / 0.3);
+    --soft: rgb(var(--grey));
+    scrollbar-color: rgb(var(--grey) / 0.5) transparent;  /* the browser's own greys: ours instead */
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
-    margin: 0; padding: 0.9rem; gap: 0.9rem; display: flex; flex-direction: column;
+    margin: 0; padding: clamp(1rem, 3vw, 2.5rem); display: flex; flex-direction: column;
     background: rgb(var(--bg)); color: rgb(var(--text));
     font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
@@ -46,30 +47,35 @@
   }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   button {
-    background: rgb(var(--text) / 0.08); border: 1px solid transparent; border-radius: 999px;
+    background: rgb(var(--grey) / 0.16); border: 0px solid transparent; border-radius: 999px;
     padding: 0.4rem 1rem; cursor: pointer;
+    --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+    box-shadow:
+      inset 1px 1px 1px rgb(var(--text) / 0.1),   /* a small specular edge, light from above */
+      inset -1px -1px 1px rgb(0 0 0 / 0.03),        /* a faint lower edge, for volume */
+      var(--small_lift);
   }
-  button:hover:not(:disabled) { background: rgb(var(--text) / 0.16); }
+  button:hover:not(:disabled) { background: rgb(var(--grey) / 0.28); }
   button:disabled { opacity: 0.4; cursor: default; }
   button.primary { background: rgb(var(--accent)); color: rgb(var(--bg)); font-weight: 600; }
   button.primary:hover:not(:disabled) { background: rgb(var(--accent) / 0.85); }
   button.sure { background: transparent; border-color: rgb(var(--accent)); color: rgb(var(--accent)); }
   :focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
   input, select, textarea {
-    background: rgb(var(--text) / 0.06); border: 1px solid var(--line); border-radius: 10px;
+    background: rgb(var(--grey) / 0.12); border: 1px solid var(--line); border-radius: 10px;
     padding: 0.4rem 0.6rem;
   }
   input[type="checkbox"] { accent-color: rgb(var(--accent)); width: 1rem; height: 1rem; padding: 0; }
   #keep {
     appearance: none; position: relative; flex: none; margin-left: auto;
     width: 2.4rem; height: 1.35rem; padding: 0; border: 0; border-radius: 999px;
-    background: rgb(var(--text) / 0.18); cursor: pointer;
+    background: rgb(var(--grey) / 0.35); cursor: pointer;
     transition: background 0.15s ease;
   }
   #keep::before {
     content: ""; position: absolute; top: 0.18rem; left: 0.18rem;
     width: 0.99rem; height: 0.99rem; border-radius: 50%;
-    background: rgb(var(--text) / 0.8);
+    background: rgb(var(--text));
     transition: transform 0.15s ease, background 0.15s ease;
   }
   #keep:checked { background: rgb(var(--accent)); }
@@ -78,18 +84,36 @@
   #keep:disabled { opacity: 0.4; cursor: default; }
 
   /* Never wider than this, however large the window: a page this wide reads badly */
-  :root { --page-width: 1000px; }
-  .top, main { width: min(100%, var(--page-width)); margin-inline: auto; }
+  :root { --page-width: 1100px; }
+  /* Everything sits in one framed area, lifted off the page by a deep black shadow. */
+  .frame {
+    flex: 1; min-height: 0;
+    width: min(100%, var(--page-width)); margin-inline: auto;
+    display: flex; flex-direction: column; gap: 0.9rem;
+    padding: 0.9rem; border-radius: 22px;
+    background: rgb(var(--bg));
+    --lift: 0 3rem 10rem 3rem rgb(0 0 0 / 0.25);
+    box-shadow:
+      inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+      inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+      var(--lift);
+  }
+  .top, main { width: 100%; }
 
   /* The top bar */
   .top {
     display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem;
-    border-radius: 16px; background: rgb(var(--text) / 0.03);
+    border-radius: 16px; background: rgb(var(--grey) / 0.07);
+    --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+    box-shadow:
+      inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+      inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+      var(--small_lift);
   }
   .top h1 { font-size: 1rem; font-weight: 600; margin: 0 auto 0 0; letter-spacing: 0.02em; }
   .status { display: flex; align-items: center; gap: 0.45rem; color: var(--soft); font-size: 0.85rem; }
   .status .warn { color: rgb(var(--accent)); }
-  .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: rgb(var(--text) / 0.3); }
+  .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: rgb(var(--grey) / 0.5); }
   .dot.on { background: rgb(var(--accent)); animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: 0.35; } }
 
@@ -101,11 +125,16 @@
   }
   .charts {
     display: flex; flex-direction: column; gap: 0.5rem; min-height: 0;
-    border-radius: 16px; padding: 0.9rem; background: rgb(var(--text) / 0.02);
+    border-radius: 16px; padding: 0.9rem; background: rgb(var(--grey) / 0.05);
+    --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+    box-shadow:
+      inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+      inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+      var(--small_lift);
   }
   .chart { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   canvas { display: block; width: 100%; border-radius: 10px; }
-  #spectrum { flex: 0 0 28%; min-height: 0; background: rgb(var(--text) / 0.04); }
+  #spectrum { flex: 0 0 28%; min-height: 0; background: rgb(var(--grey) / 0.1); }
   #waterfall { flex: 1; min-height: 0; background: rgb(var(--bg)); }
   #axis { position: relative; height: 1.3rem; margin: 0.55rem 0; font-size: 0.75rem; color: var(--soft); }
   #axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
@@ -114,7 +143,12 @@
 
   .chat {
     display: flex; flex-direction: column; min-height: 0;
-    border-radius: 16px; padding: 0.9rem; background: rgb(var(--text) / 0.02);
+    border-radius: 16px; padding: 0.9rem; background: rgb(var(--grey) / 0.05);
+    --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+    box-shadow:
+      inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+      inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+      var(--small_lift);
   }
   #conversation { flex: 1; min-height: 12rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.2rem 0.2rem 0.8rem; }
   .empty { margin: auto; color: var(--soft); text-align: center; max-width: 18rem; }
@@ -125,9 +159,9 @@
   .row.out { justify-content: flex-end; }
   @keyframes arrive { from { opacity: 0; transform: translateY(6px); } }
   .bubble { max-width: 82%; padding: 0.5rem 0.8rem; border-radius: 16px; overflow-wrap: anywhere; white-space: pre-wrap; }
-  .bubble.in { background: rgb(var(--text) / 0.09); border-bottom-left-radius: 4px; }
+  .bubble.in { background: rgb(var(--grey) / 0.22); border-bottom-left-radius: 4px; }
   .bubble.out { background: rgb(var(--accent)); color: rgb(var(--bg)); border-bottom-right-radius: 4px; }
-  .bubble.part { background: transparent; border: 1px dashed rgb(var(--text) / 0.45); border-bottom-left-radius: 4px; }
+  .bubble.part { background: transparent; border: 1px dashed rgb(var(--grey) / 0.65); border-bottom-left-radius: 4px; }
   .bubble.failed { background: transparent; border: 1px solid rgb(var(--accent)); color: rgb(var(--text)); }
   .meta { display: block; margin-top: 0.15rem; font-size: 0.75rem; opacity: 0.75; white-space: normal; }
   .head { display: block; font-size: 0.78rem; opacity: 0.8; margin-bottom: 0.15rem; }
@@ -140,7 +174,12 @@
 
   /* The composer */
   #composer {
-    border-radius: 16px; padding: 0.75rem; background: rgb(var(--text) / 0.03);
+    border-radius: 16px; padding: 0.75rem; background: rgb(var(--grey) / 0.07);
+      --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+    box-shadow:
+      inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+      inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+      var(--small_lift);
   }
   #composer .line { display: flex; gap: 0.5rem; align-items: flex-end; }
   #text { flex: 1; resize: none; border-radius: 16px; min-height: 2.6rem; max-height: 8rem; }
@@ -161,16 +200,16 @@
   dialog h3 { margin: 0 0 0.6rem; font-size: 0.9rem; }
   dialog .tabs {
     display: flex; gap: 0.35rem; margin: 0.2rem 0 1rem; padding: 0.25rem;
-    border-radius: 12px; background: rgb(var(--text) / 0.04);
+    border-radius: 12px; background: rgb(var(--grey) / 0.08);
   }
   dialog .tab {
     flex: 1; border: 0; border-radius: 9px; padding: 0.45rem 0.8rem;
     background: transparent; color: var(--soft);
   }
-  dialog .tab:hover:not(:disabled) { background: rgb(var(--text) / 0.08); }
+  dialog .tab:hover:not(:disabled) { background: rgb(var(--grey) / 0.16); }
   dialog .tab[aria-selected="true"] { background: rgb(var(--accent) / 0.14); color: rgb(var(--accent)); }
   dialog .tab[aria-selected="true"]:hover:not(:disabled) { background: rgb(var(--accent) / 0.2); }
-  dialog .group { padding: 0.8rem 0.9rem; border-radius: 12px; background: rgb(var(--text) / 0.03); }
+  dialog .group { padding: 0.8rem 0.9rem; border-radius: 12px; background: rgb(var(--grey) / 0.07); }
   dialog .group + .group { margin-top: 0.6rem; }
   dialog .group h3 { margin: 0 0 0.4rem; }
   #panel-general .field { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
@@ -181,7 +220,7 @@
   #panel-advanced .field.limit > span { width: auto; }
   .limit-control {
     display: flex; align-items: center;
-    background: rgb(var(--text) / 0.06); border: 1px solid var(--line); border-radius: 10px;
+    background: rgb(var(--grey) / 0.12); border: 1px solid var(--line); border-radius: 10px;
     padding-right: 0.6rem;
   }
   .limit-control input {
@@ -218,12 +257,14 @@
     .top { padding: 0.6rem 0.8rem; gap: 0.5rem; }
     .top h1 { white-space: nowrap; font-size: 0.95rem; }
     .status > span:not(.warn) { display: none; }  /* the dot says it; a loss of sound is still told */
-    body { padding: 0.6rem; gap: 0.6rem; }
+    body { padding: 0.5rem; }
+    .frame { padding: 0.6rem; gap: 0.6rem; border-radius: 16px; --lift: 0 1.5rem 5rem 1rem rgb(0 0 0 / 0.5); }
   }
 </style>
 </head>
 <body>
 
+<div class="frame">
 <header class="top">
   <h1>Vibe AudioModem</h1>
   <span class="status"><i class="dot" id="dot"></i><span id="listening">Not listening</span></span>
@@ -257,6 +298,7 @@
     </form>
   </section>
 </main>
+</div>
 
 <dialog id="settings" aria-labelledby="settings-title">
   <h2 id="settings-title">Settings</h2>
@@ -321,7 +363,8 @@ const triple = (name, fallback) => {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim().split(/[\s,]+/).map(Number);
   return value.length === 3 && value.every((n) => n >= 0 && n <= 255) ? value : fallback;  // not "r g b"? then ours
 };
-const BG = triple("--bg", [14, 17, 22]), TEXT = triple("--text", [232, 234, 237]), ACCENT = triple("--accent", [255, 154, 31]);
+const BG = triple("--bg", [21, 20, 25]), GREY = triple("--grey", [135, 135, 135]),
+  TEXT = triple("--text", [251, 251, 251]), ACCENT = triple("--accent", [245, 110, 15]);
 const rgb = (c, alpha = 1) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
 const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
 
@@ -491,8 +534,8 @@ const MAX_ROWS = 120, MARKER_SECONDS = 60;
 let lowHz = 300, highHz = 2700;  // the band of a row, told by the application with the rows
 const FLOOR_DB = -100, CEILING_DB = -20;  // a fixed range: the same level is the same colour
 let spectrumNext = 0, history = [], markers = [], signalWidthHz = 175;
-// The waterfall, from the quietest to the loudest: background, a dim orange, orange, white.
-const RAMP = [[0, BG], [0.5, mix(BG, ACCENT, 0.25)], [0.85, ACCENT], [1, TEXT]];
+// The waterfall, from the quietest to the loudest: dark lava, dusty grey, liquid lava, snow.
+const RAMP = [[0, BG], [0.34, mix(BG, GREY, 0.4)], [0.7, ACCENT], [1, TEXT]];
 function colour(t) {
   t = Number.isFinite(t) ? Math.max(0, Math.min(1, t)) : 0;
   const next = RAMP.findIndex(([at]) => at > t);  // the first stop above this level
