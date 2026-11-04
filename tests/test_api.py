@@ -325,23 +325,68 @@ def test_a_frequency_out_of_range_is_rejected_with_the_range(client, audio):
     assert audio.played == []
 
 
-def test_the_page_is_the_html_file_next_to_the_module(client):
+def test_the_page_and_its_assets_are_files_in_the_assets_folder(client):
     from pathlib import Path
 
     import vibemodem.app
 
-    html = (Path(vibemodem.app.__file__).parent / "page.html").read_text(encoding="utf-8")
-    assert client.get("/").text == html and html.startswith("<!doctype html>")
+    folder = Path(vibemodem.app.__file__).parent / "assets"
+    index = client.get("/")
+    assert index.text == (folder / "index.html").read_text(encoding="utf-8")
+    assert index.text.startswith("<!doctype html>")
+    assert index.headers["content-type"].startswith("text/html")
+    for name, kind in (("style.css", "text/css"), ("script.js", "javascript")):
+        response = client.get(f"/assets/{name}")
+        assert response.status_code == 200 and kind in response.headers["content-type"]
+        assert response.text == (folder / name).read_text(encoding="utf-8")
+    assert 'href="/assets/style.css"' in index.text and 'src="/assets/script.js"' in index.text
 
 
-def test_the_page_file_is_shipped_with_the_package_and_the_packaged_application():
+def test_the_colours_stay_at_the_very_top_of_the_style_sheet(client):
+    css = client.get("/assets/style.css").text
+    assert css.startswith("/* ====") and css.index("--accent:") < 1500 < len(css)
+    assert css.index("THE COLOURS") < css.index(":root") < css.index("* { box-sizing")
+
+
+def test_an_unknown_asset_is_refused(client):
+    assert client.get("/assets/a%00b").status_code == 404
+    assert client.get("/assets/nothing.css").status_code == 404
+    assert client.get("/assets/").status_code == 404
+
+
+def test_an_asset_outside_the_folder_is_refused(client, tmp_path, monkeypatch):
+    import vibemodem.app.api as api
+
+    folder = tmp_path / "assets"
+    folder.mkdir()
+    (folder / "style.css").write_text("a { color: red }")
+    (folder / "index.html").write_text("<!doctype html>")
+    (tmp_path / "secret.txt").write_text("secret")
+    (folder / "inside").mkdir()
+    monkeypatch.setattr(api, "ASSETS_DIR", folder)
+    assert client.get("/assets/style.css").status_code == 200
+    for path in (
+        "/assets/../secret.txt",
+        "/assets/%2e%2e/secret.txt",
+        "/assets/..%2fsecret.txt",
+        "/assets/%2e%2e%2fsecret.txt",
+        "/assets/inside",
+        "/assets//etc/passwd",
+    ):
+        response = client.get(path)
+        assert response.status_code in (404, 400) and "secret" not in response.text, path
+
+
+def test_the_assets_are_shipped_with_the_package_and_the_packaged_application():
     import tomllib
     from pathlib import Path
 
     root = Path(__file__).resolve().parent.parent
     package_data = tomllib.loads((root / "pyproject.toml").read_text())["tool"]["setuptools"]
-    assert "page.html" in package_data["package-data"]["vibemodem.app"]
-    assert "page.html" in (root / "packaging" / "vibemodem.spec").read_text()
+    assert "assets/*" in package_data["package-data"]["vibemodem.app"]
+    spec = (root / "packaging" / "vibemodem.spec").read_text()
+    assert '"assets"' in spec and "vibemodem/app/assets" in spec
+    assert "page.html" not in spec
 
 
 def test_the_received_messages_come_with_how_they_were_received(made):
@@ -444,14 +489,18 @@ def test_without_a_store_the_storage_is_reported_unavailable(client):
     assert client.get("/api/storage").json() == {"available": False, "keep": False}
 
 
-def test_a_change_to_the_page_file_shows_on_the_next_load_without_restarting(
+def test_a_change_to_an_asset_file_shows_on_the_next_load_without_restarting(
     client, monkeypatch, tmp_path
 ):
     import vibemodem.app.api as api
 
-    page = tmp_path / "page.html"
-    page.write_text("<!doctype html><title>first</title>")
-    monkeypatch.setattr(api, "PAGE_FILE", page)
-    assert "first" in client.get("/").text
-    page.write_text("<!doctype html><title>second</title>")
-    assert "second" in client.get("/").text
+    for name in ("index.html", "style.css", "script.js"):
+        (tmp_path / name).write_text(f"first {name}")
+    monkeypatch.setattr(api, "ASSETS_DIR", tmp_path)
+    urls = {"/": "index.html", "/assets/style.css": "style.css", "/assets/script.js": "script.js"}
+    for url, name in urls.items():
+        assert client.get(url).text == f"first {name}"
+        (tmp_path / name).write_text(f"second {name} longer")
+        response = client.get(url)
+        assert response.text == f"second {name} longer"
+        assert "no-cache" in response.headers["cache-control"]

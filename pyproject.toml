@@ -40,7 +40,7 @@ where = ["src"]
 include = ["vibemodem*"]
 
 [tool.setuptools.package-data]
-"vibemodem.app" = ["page.html"]
+"vibemodem.app" = ["assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

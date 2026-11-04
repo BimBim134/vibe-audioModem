@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from vibemodem.app.service import BusyError, Cancelled, ModemService, SettingsError
@@ -16,9 +16,11 @@ from vibemodem.core.transmission import MAX_COPIES, MessageTooLong
 from vibemodem.io.audio import AudioError, AudioLibraryUnavailableError
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
-# Next to this module, also in the packaged application (see packaging/vibemodem.spec). It is read
-# at each request, so that a change to the page (its colours, for instance) shows on reload.
-PAGE_FILE = Path(__file__).with_name("page.html")
+# The page (index.html, style.css, script.js) is a folder next to this module, also in the packaged
+# application (see packaging/vibemodem.spec). Its files are read at each request, so that a change
+# (the colours, for instance) shows on reload.
+ASSETS_DIR = Path(__file__).with_name("assets")
+NO_CACHE = {"Cache-Control": "no-cache"}
 
 
 class EstimateRequest(BaseModel):
@@ -83,8 +85,21 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
         return JSONResponse({"detail": f"audio problem: {error}"}, status_code=503)
 
     @app.get("/", response_class=HTMLResponse)
-    def index() -> str:
-        return PAGE_FILE.read_text(encoding="utf-8")
+    def index() -> HTMLResponse:
+        page = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
+        return HTMLResponse(page, headers=NO_CACHE)
+
+    @app.get("/assets/{name}")
+    def asset(name: str) -> FileResponse:
+        # A file directly in the assets folder and nothing else: no sub-folder, no `..`.
+        folder = ASSETS_DIR.resolve()
+        try:
+            path = (folder / name).resolve()
+        except (ValueError, OSError):  # a name the file system cannot even look at
+            path = folder
+        if path.parent != folder or not path.is_file():
+            raise HTTPException(status_code=404, detail="no such file")
+        return FileResponse(path, headers=NO_CACHE)
 
     @app.get("/api/health")
     def health() -> dict:
