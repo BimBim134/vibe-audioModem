@@ -133,6 +133,11 @@ def measured_threshold(rows: list[LevelRow]) -> float | None:
     return threshold
 
 
+def device_argument(text: str | None) -> int | str | None:
+    """A device given as digits is a device number, anything else a part of a name."""
+    return int(text) if text is not None and text.isdigit() else text
+
+
 def _levels(text: str) -> list[float]:
     try:
         levels = sorted({float(part) for part in text.split(",")})
@@ -162,7 +167,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "send":
         run_send(
             SoundCard(),
-            output=args.output,
+            output=device_argument(args.output),
             preset=args.preset,
             levels=levels,
             per_level=args.per_level,

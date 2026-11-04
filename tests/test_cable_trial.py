@@ -6,6 +6,7 @@ import pytest
 from bench.cable_trial import (
     SIMULATED_THRESHOLD_DB,
     default_levels,
+    device_argument,
     label,
     main,
     render,
@@ -76,3 +77,8 @@ def test_the_command_prints_a_row_per_level_and_the_gap_to_the_simulator(kept, c
 def test_the_send_command_refuses_a_level_list_that_is_not_numbers(capsys):
     with pytest.raises(SystemExit):
         main(["report", ".", "--preset", PRESET, "--snr", "loud"])
+
+
+def test_a_device_given_as_digits_is_a_number_and_anything_else_is_a_name():
+    assert device_argument("10") == 10 and device_argument("Scarlett") == "Scarlett"
+    assert device_argument(None) is None
