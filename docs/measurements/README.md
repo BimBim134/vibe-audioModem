@@ -296,6 +296,6 @@ Two computers, an audio cable from the output of the sender to the input of the 
 
 1. Receiver: Advanced settings, clear the stored receptions, switch "Keep" on, choose the Preset, listen.
 2. Sender: `python -m bench.cable_trial send --preset fast --output "<part of the device name>" --per-level 20`
-   (`--snr=-16,-14,...` to choose the levels; the default is from 2 dB under the simulator's threshold to 8 dB over it). Times for the default 6 levels of 20 Messages: fast about 15 min, standard about 30 min; for max-range use `--per-level 10` (about 55 min).
+   (`--snr=-16,-14,...` to choose the levels; the default is from 2 dB under the simulator's threshold to 8 dB over it). Times for the default 6 levels of 20 Messages: fast about 20 min, standard about 35 min; for max-range use `--per-level 10` (about 60 min).
 3. Receiver, at the end: `python -m bench.cable_trial report ~/.local/share/vibemodem/receptions --preset fast --per-level 20` (same `--snr` and `--per-level` as the sender).
 4. Clear the stored receptions, change the Preset on both sides, repeat. Keep the folder of receptions of each Preset (copy it aside) for replay with `bench.replay`.
