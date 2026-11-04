@@ -289,3 +289,13 @@ The application listens to a sliding window, which sees the same noise again and
 3. Back on the receiver, after the last Message: `python -m bench.field_check
    ~/.local/share/vibemodem/receptions sent.txt --preset standard`, then again with `--redecode`.
 4. Repeat for each Preset, clearing the stored receptions between them.
+
+## Cable trial (ticket #21)
+
+Two computers, an audio cable from the output of the sender to the input of the receiver (use the line-in or a mic input with a low level; a headphone output into a microphone input needs an attenuator).
+
+1. Receiver: Advanced settings, clear the stored receptions, switch "Keep" on, choose the Preset, listen.
+2. Sender: `python -m bench.cable_trial send --preset fast --output "<part of the device name>" --per-level 20`
+   (`--snr=-16,-14,...` to choose the levels; the default is from 2 dB under the simulator's threshold to 8 dB over it). Times for the default 6 levels of 20 Messages: fast about 15 min, standard about 30 min; for max-range use `--per-level 10` (about 55 min).
+3. Receiver, at the end: `python -m bench.cable_trial report ~/.local/share/vibemodem/receptions --preset fast --per-level 20` (same `--snr` and `--per-level` as the sender).
+4. Clear the stored receptions, change the Preset on both sides, repeat. Keep the folder of receptions of each Preset (copy it aside) for replay with `bench.replay`.
