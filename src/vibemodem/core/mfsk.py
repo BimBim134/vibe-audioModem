@@ -27,6 +27,7 @@ PREAMBLE_SYMBOLS = 32
 # it follows the tones sent, so at 1e-6 it was found as a preamble where there was none. 1e-3 is
 # far below any noise a weak signal sits in (30 dB under the strongest tone).
 NOISE_FLOOR_RATIO = 1e-3
+SYMBOL_MATCH_CAP = 16.0  # most one symbol adds to a match: a click is one loud symbol, not 32
 
 SUPPORTED_TONES = (2, 4, 8, 16)
 # The noise level of a frequency is read from a low share of the recording's windows, below the
@@ -197,9 +198,11 @@ class Waveform:
         """Places where the known preamble matches, over every start time and audio frequency.
 
         The match adds up the energy at the expected tone of each preamble symbol, relative to
-        the noise level of that frequency. In noise alone each term averages 1, so the sum
-        averages the number of symbols with a spread of its square root; the score counts those
-        spreads.
+        the noise level of that frequency, minus the average of the other tones at that moment:
+        a Preamble has its energy on one tone, a click or a burst of noise on all of them. In
+        noise alone each term averages 0, so the sum has a spread of the square root of the
+        number of symbols (and of the extra variance of the average taken off); the score counts
+        those spreads. A symbol adds at most `SYMBOL_MATCH_CAP`.
 
         At most `max_candidates` places are returned, best first, so a recording that holds more
         Signals than that loses the weakest ones.
@@ -212,16 +215,26 @@ class Waveform:
         # The q-quantile of an exponential variable is its mean * -ln(1 - q).
         noise = np.quantile(power, quantile, axis=0) / -np.log(1 - quantile)
         noise = np.maximum(noise, NOISE_FLOOR_RATIO * power.max() + 1e-300)
-        relative = power / noise
+        relative = np.minimum(power / noise, SYMBOL_MATCH_CAP)
 
         rows = relative.shape[0] - _HOPS_PER_SYMBOL * (PREAMBLE_SYMBOLS - 1)
         columns = relative.shape[1] - _BINS_PER_TONE * (self.tones - 1)
+        # Per start and frequency, the sum over the tones of the energy at one moment: the
+        # energy of a tone minus the average of the others is tones/(tones-1) times the energy
+        # of the tone minus the sum over its tones, divided by tones - 1.
+        every_tone = sum(
+            relative[:, _BINS_PER_TONE * tone : _BINS_PER_TONE * tone + columns]
+            for tone in range(self.tones)
+        )
         match = np.zeros((rows, columns))
         for symbol, tone in enumerate(self.preamble_tones):
             row = _HOPS_PER_SYMBOL * symbol
             column = _BINS_PER_TONE * tone
-            match += relative[row : row + rows, column : column + columns]
-        scores = (match - PREAMBLE_SYMBOLS) / math.sqrt(PREAMBLE_SYMBOLS)
+            match += self.tones * relative[row : row + rows, column : column + columns]
+            match -= every_tone[row : row + rows]
+        match /= self.tones - 1
+        spread = math.sqrt(PREAMBLE_SYMBOLS * (1 + 1 / (self.tones - 1)))
+        scores = match / spread
 
         found = []
         for _ in range(max_candidates):
