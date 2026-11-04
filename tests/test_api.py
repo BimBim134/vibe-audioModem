@@ -338,7 +338,7 @@ def test_the_page_and_its_assets_are_files_in_the_assets_folder(client):
     for name, kind in (("style.css", "text/css"), ("script.js", "javascript")):
         response = client.get(f"/assets/{name}")
         assert response.status_code == 200 and kind in response.headers["content-type"]
-        assert response.text == (folder / name).read_text(encoding="utf-8")
+        assert response.content == (folder / name).read_bytes()
     assert 'href="/assets/style.css"' in index.text and 'src="/assets/script.js"' in index.text
 
 
