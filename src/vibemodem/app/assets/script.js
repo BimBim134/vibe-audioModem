@@ -38,11 +38,19 @@ async function act(promise, then, where = "error") {
   refresh();
 }
 // A click that cannot be undone asks for a second one (the browser's own dialogs ignore our colours).
-function confirmed(button, label, action) {
+// `warn`, when given, tells what the click will cost, while it waits for the second one.
+function confirmed(button, label, action, warn) {
+  const disarm = (warning) => {
+    delete button.dataset.sure; button.textContent = label; button.classList.remove("sure");
+    if (warning && $("settings-warning").textContent === warning) say("settings-warning", "");
+  };
   button.onclick = () => {
-    if (button.dataset.sure) { clearTimeout(Number(button.dataset.sure)); delete button.dataset.sure; button.textContent = label; button.classList.remove("sure"); action(); return; }
+    if (button.dataset.sure) { clearTimeout(Number(button.dataset.sure)); disarm(button.dataset.warning); action(); return; }
+    const warning = warn ? warn() : "";
+    button.dataset.warning = warning;
+    if (warning) say("settings-warning", warning);  // its own line: refresh() writes to the note every second
     button.textContent = "Click again to confirm"; button.classList.add("sure");
-    button.dataset.sure = setTimeout(() => { delete button.dataset.sure; button.textContent = label; button.classList.remove("sure"); }, 4000);
+    button.dataset.sure = setTimeout(() => disarm(warning), 4000);
   };
 }
 
@@ -148,7 +156,8 @@ function bubble(item) {
 // one arrives with a movement.
 const shown = new Map();
 let firstFill = true;
-function showConversation(items) {
+const everShown = new Set();  // a bubble that comes back after a filter does not arrive again
+function showConversation(items, hidden = 0) {
   const box = $("conversation");
   const atBottom = firstFill || box.scrollHeight - box.scrollTop - box.clientHeight < 60;
   const keep = new Set(items.map((item) => item.id));
@@ -157,20 +166,60 @@ function showConversation(items) {
     const signature = JSON.stringify(item), entry = shown.get(item.id);
     if (entry && entry.signature === signature) return entry.node;
     const node = bubble(item);
-    if (!entry && !firstFill) {
+    if (!entry && !firstFill && !everShown.has(item.id)) {
       node.classList.add("fresh");
       node.addEventListener("animationend", () => node.classList.remove("fresh"), { once: true });  // a move later must not replay it
     }
     if (entry) entry.node.replaceWith(node);
     shown.set(item.id, { signature, node });
+    everShown.add(item.id);
     return node;
   });
   box.querySelector(".empty")?.remove();
   nodes.forEach((node, i) => { if (box.children[i] !== node) box.insertBefore(node, box.children[i] || null); });
-  if (!items.length) box.appendChild(element("div", "empty", "No messages yet. Press Listen to receive, or write one below."));
+  if (!items.length) {
+    const none = hidden ? "Nothing matches the filters." : "No messages yet. Press Listen to receive, or write one below.";
+    box.appendChild(element("div", "empty", none));
+  }
   if (atBottom) box.scrollTop = box.scrollHeight;
   firstFill = false;
 }
+
+// The filters of the conversation: what you sent is always shown; what was heard can be kept to a
+// band (by the lowest tone of the Signal) and the Signals that were not decoded can be hidden.
+let conversationNow = [];
+const bound = (id) => { const text = $(id).value.trim(), value = Number(text); return text === "" || !Number.isFinite(value) ? null : value; };
+const filtering = () => bound("filter_from") !== null || bound("filter_to") !== null || !$("filter_lost").checked;
+function passes(item) {
+  if (item.kind === "sent") return true;
+  if (item.kind === "lost" && !$("filter_lost").checked) return false;
+  if (item.frequency_hz === null) return true;  // no frequency known: nothing to filter on
+  const from = bound("filter_from"), to = bound("filter_to");
+  return (from === null || item.frequency_hz >= from) && (to === null || item.frequency_hz <= to);
+}
+function showFiltered() {
+  const items = conversationNow.filter(passes), hidden = conversationNow.length - items.length;
+  $("filter_reset").hidden = !filtering();
+  $("filter_reset").textContent = hidden ? "Reset filters · " + hidden + " hidden" : "Reset filters";
+  showConversation(items, hidden);
+}
+const FILTER_KEY = "vibemodem.filter.";
+for (const id of ["filter_from", "filter_to", "filter_lost"]) {
+  const box = $(id), checkbox = box.type === "checkbox";
+  try {
+    const saved = localStorage.getItem(FILTER_KEY + id);
+    if (saved !== null) { if (checkbox) box.checked = saved === "1"; else box.value = saved; }
+  } catch (error) { /* no storage: the page still works */ }
+  box.addEventListener("input", () => {
+    try { localStorage.setItem(FILTER_KEY + id, checkbox ? (box.checked ? "1" : "0") : box.value); } catch (error) { /* idem */ }
+    showFiltered();
+  });
+}
+$("filter_reset").onclick = () => {
+  $("filter_from").focus();  // the button hides itself: the focus must not be lost with it
+  $("filter_from").value = ""; $("filter_to").value = ""; $("filter_lost").checked = true;
+  for (const id of ["filter_from", "filter_to", "filter_lost"]) $(id).dispatchEvent(new Event("input"));
+};
 
 // The spectrum and the waterfall ----------------------------------------------------------------
 const MAX_ROWS = 120, MARKER_SECONDS = 60;
@@ -339,10 +388,17 @@ confirmed($("clear"), "Delete all stored receptions", () =>
   act(call("/api/storage/clear", "POST"), (done) => { say("usage", done.deleted + " deleted."); refreshStorage(); }, "settings-error"));
 $("open-settings").onclick = () => $("settings").showModal();
 $("close-settings").onclick = () => $("settings").close();
+let quitting = false;
 confirmed($("quit"), "Quit the application", async () => {
+  quitting = true;  // the tab may be closed now without the browser asking
   await call("/api/quit", "POST").catch(() => {});
   $("settings").close();
   document.body.replaceChildren(element("p", "empty", "Stopped. You can close this tab."));
+}, () => state.listening ? "It is still listening: quitting stops the listening, and nothing is received until the application is started again." : "");
+// Closing the tab while listening: the browser asks first (it chooses the words itself). The listening
+// goes on in the application, which only the Quit button stops.
+window.addEventListener("beforeunload", (event) => {
+  if (state.listening && !quitting) { event.preventDefault(); event.returnValue = ""; }
 });
 
 // Sending, listening ----------------------------------------------------------------------------
@@ -407,7 +463,8 @@ async function refresh() {
     $("send").disabled = !canSend();
     if (state.last_error) showError(state.last_error);
     refreshStorage();
-    showConversation(conversation);
+    conversationNow = conversation;
+    showFiltered();
     const now = Date.now() / 1000;
     markers = conversation
       .filter((m) => m.kind === "received" && m.frequency_hz !== null && now - m.at < MARKER_SECONDS)

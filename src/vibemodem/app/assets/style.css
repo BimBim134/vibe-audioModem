@@ -178,6 +178,10 @@ canvas { display: block; width: 100%; border-radius: 10px; }
 #text { flex: 1; resize: none; border-radius: 16px; min-height: 2.6rem; max-height: 8rem; }
 .send-at { display: flex; align-items: center; gap: 0.5rem; margin: 0 0.2rem 0.5rem; font-size: 0.85rem; color: var(--soft); }
 .send-at input { padding: 0.2rem 0.5rem; }
+.filters { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin: 0 0.2rem 0.6rem; font-size: 0.82rem; color: var(--soft); }
+.filters label { display: flex; align-items: center; gap: 0.35rem; }
+.filters input[type="number"] { padding: 0.15rem 0.45rem; }
+.filters button { padding: 0.15rem 0.7rem; font-size: 0.8rem; margin-left: auto; }
 canvas { cursor: crosshair; }  /* a click on a chart places the Signal */
 .problem { margin: 0 0 0.4rem; font-size: 0.85rem; color: rgb(var(--accent)); }
 .problem:empty { display: none; }

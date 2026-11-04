@@ -26,6 +26,12 @@
   </section>
 
   <section class="chat" aria-label="Messages">
+    <div id="filters" class="filters" role="group" aria-label="Filter the messages">
+      <label>Signals from <input id="filter_from" aria-label="Lowest frequency shown, in Hz" class="wide" type="number" min="0" step="any" placeholder="any"></label>
+      <label>to <input id="filter_to" aria-label="Highest frequency shown, in Hz" class="wide" type="number" min="0" step="any" placeholder="any"> Hz</label>
+      <label class="check"><input id="filter_lost" type="checkbox" checked> Not decoded</label>
+      <button id="filter_reset" type="button" hidden>Reset filters</button>
+    </div>
     <div id="conversation" role="log" aria-live="polite"></div>
     <form id="composer" autocomplete="off">
       <p id="error" class="problem" role="alert"></p>
@@ -93,6 +99,7 @@
     <div class="messages">
       <p id="settings-error" class="problem" role="alert"></p>
       <p id="settings-note" aria-live="polite"></p>
+      <p id="settings-warning" aria-live="assertive"></p>
     </div>
     <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
   </div>
