@@ -43,6 +43,8 @@ def main(executable, require_audio_library):
         status, page = get("/")
         assert status == 200 and "Vibe AudioModem" in page, "page not served"
         assert 'id="send"' in page and 'id="listen"' in page, "page has no send or listen"
+        for asset in ("style.css", "script.js"):
+            assert get(f"/assets/{asset}")[0] == 200, f"{asset} not served"
         # The modem against itself without noise: NumPy, SciPy and the whole core are bundled.
         assert json.loads(get("/api/selftest")[1])["roundtrip_ok"], "modem self-test failed"
         assert json.loads(get("/api/status")[1])["listening"] is False
