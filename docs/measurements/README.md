@@ -278,3 +278,14 @@ Noise only ever scores between 7 and 7.7, a Signal at the Success threshold neve
 
 The application listens to a sliding window, which sees the same noise again and again, and it lists a Signal once (the same time and frequency, to two symbols and a tone spacing, count as one); so what an operator sees is at most these rates. No Message was ever read from noise (CRC-32), in any of the 80 hours. The first row of numbers was measured before the threshold of 10 existed; the second after it.
 
+
+## Field trial protocol
+
+1. On the receiving computer: Settings, Advanced settings, switch "Keep" on (clear the stored
+   receptions first), choose the Preset, start listening.
+2. On the sending computer: choose the same Preset and send about ten Messages of various sizes
+   (a few characters, 17, 40, 200 bytes), at 1 and at 3 copies. Write them, one per line, in
+   `sent.txt` (the page's conversation can be copied).
+3. Back on the receiver, after the last Message: `python -m bench.field_check
+   ~/.local/share/vibemodem/receptions sent.txt --preset standard`, then again with `--redecode`.
+4. Repeat for each Preset, clearing the stored receptions between them.
