@@ -311,3 +311,7 @@ Sender: Windows laptop (Realtek output, 48 kHz), white noise added digitally at 
 | max-range | -18 dB | -22 dB | 4 dB (10/10 at -18, 4/10 at -20, 0/10 at -22) |
 
 Findings: nothing lost above the threshold in any Preset (no `blocks_lost`, no send errors). Fast and standard match the simulator to the 2 dB step of the trial. Max-range loses about 4 dB; its Transmissions take 54 s, so a drift between the two sound-card clocks is the first suspect, but this was not isolated. The Messages missed at the lowest levels left no kept reception at all (Signal not even detected), so detection rather than decoding fails there. The 2 dB step is coarse next to the steep curve, so a finer run (1 dB) around each threshold would pin the numbers down.
+
+### Max-range at 1 dB steps, and the clock drift
+
+Second run, -23 to -17 dB every 1 dB, 10 Messages per level (`cable-trial/max-range-1db.txt`): 0/10 at -23, -22 and -21 dB, 4/10 at -20, 10/10 from -19 up. The threshold is -19 dB, 3 dB short of the simulator's -22, and the 40 % at -20 dB came out the same as in the first run (a different noise seed). The two sound cards' clocks differ by 17 ppm (tone of 120 s), about 1 ms over a 54 s Transmission, so clock drift is ruled out. The receiving card's own noise (-103 dBFS) is far under the signal and does not limit it either. The cause of the 3 dB is still open; Messages missed at -21 dB and below left no kept reception, which points at the Preamble search rather than the decoding.
