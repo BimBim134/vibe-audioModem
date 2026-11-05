@@ -105,3 +105,4 @@ One-way broadcast for radio amateurs (no ACK/ARQ). Robustness over speed (KPI = 
 
 - Essai au câble (2026-11-05, #21) : fast -13 dB et standard -16 dB = simulateur (0 dB de perte) ; max-range -18 dB vs -22 (perte 4 dB, suspect : dérive d'horloge sur 54 s, non isolé). Détails dans docs/measurements/README.md. À toi de clore #21.
 - Max-range au câble à 1 dB (2026-11-05) : seuil -19 dB (perte 3 dB), dérive d'horloge 17 ppm écartée ; cause ouverte, plutôt détection du Preamble (rien de gardé sous -21 dB).
+- Max-range câble : détecteur et chemin live écartés (audio identique rejoué en numérique = 10/10 dès -22). Perte de 3 dB dans la chaîne réelle ; prochain test : enregistrer le câble en continu et décoder hors ligne.
