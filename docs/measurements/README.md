@@ -299,3 +299,15 @@ Two computers, an audio cable from the output of the sender to the input of the 
    (`--snr=-16,-14,...` to choose the levels; the default is from 2 dB under the simulator's threshold to 8 dB over it). Times for the default 6 levels of 20 Messages: fast about 20 min, standard about 35 min; for max-range use `--per-level 10` (about 60 min).
 3. Receiver, at the end: `python -m bench.cable_trial report ~/.local/share/vibemodem/receptions --preset fast --per-level 20` (same `--snr` and `--per-level` as the sender).
 4. Clear the stored receptions, change the Preset on both sides, repeat. Keep the folder of receptions of each Preset (copy it aside) for replay with `bench.replay`.
+
+## Cable trial results (ticket #21, 2026-11-05)
+
+Sender: Windows laptop (Realtek output, 48 kHz), white noise added digitally at an exact SNR; cable into a Scarlett 2i2 on the Linux tower (via PipeWire). 20 Messages per level (10 for max-range), run unattended by `bench.cable_trial`. Raw reports: `docs/measurements/cable-trial/`.
+
+| Preset | Measured 95 % threshold | Simulator | Loss |
+|---|---|---|---|
+| fast | -13 dB | -13 dB | 0.0 dB (20/20 at -13, 0/20 at -15) |
+| standard | -16 dB | -16 dB | 0.0 dB (20/20 at -16, 0/20 at -18) |
+| max-range | -18 dB | -22 dB | 4 dB (10/10 at -18, 4/10 at -20, 0/10 at -22) |
+
+Findings: nothing lost above the threshold in any Preset (no `blocks_lost`, no send errors). Fast and standard match the simulator to the 2 dB step of the trial. Max-range loses about 4 dB; its Transmissions take 54 s, so a drift between the two sound-card clocks is the first suspect, but this was not isolated. The Messages missed at the lowest levels left no kept reception at all (Signal not even detected), so detection rather than decoding fails there. The 2 dB step is coarse next to the steep curve, so a finer run (1 dB) around each threshold would pin the numbers down.
