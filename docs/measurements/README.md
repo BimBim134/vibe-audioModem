@@ -300,22 +300,25 @@ Two computers, an audio cable from the output of the sender to the input of the 
 3. Receiver, at the end: `python -m bench.cable_trial report ~/.local/share/vibemodem/receptions --preset fast --per-level 20` (same `--snr` and `--per-level` as the sender).
 4. Clear the stored receptions, change the Preset on both sides, repeat. Keep the folder of receptions of each Preset (copy it aside) for replay with `bench.replay`.
 
-## Cable trial results (ticket #21, 2026-11-05)
+## Real-world trials (tickets #21 and #28)
 
-Sender: Windows laptop (Realtek output, 48 kHz), white noise added digitally at an exact SNR; cable into a Scarlett 2i2 on the Linux tower (via PipeWire). 20 Messages per level (10 for max-range), run unattended by `bench.cable_trial`. Raw reports: `docs/measurements/cable-trial/`.
+The whole story, with charts, is in two reports built from the stored results:
 
-| Preset | Measured 95 % threshold | Simulator | Loss |
-|---|---|---|---|
-| fast | -13 dB | -13 dB | 0.0 dB (20/20 at -13, 0/20 at -15) |
-| standard | -16 dB | -16 dB | 0.0 dB (20/20 at -16, 0/20 at -18) |
-| max-range | -18 dB | -22 dB | 4 dB (10/10 at -18, 4/10 at -20, 0/10 at -22) |
+- `docs/measurements/project-report.html` (French): the project from the goal to the trials, for a talk.
+- `docs/measurements/cable-trial/report.html` (English): the cable trial alone. Data: `cable-trial/results.json`
+  and the raw reports `cable-trial/*.txt`. Regenerate with `python -m bench.project_report` and
+  `python -m bench.cable_report`.
 
-Findings: nothing lost above the threshold in any Preset (no `blocks_lost`, no send errors). Fast and standard match the simulator to the 2 dB step of the trial. Max-range loses about 4 dB; its Transmissions take 54 s, so a drift between the two sound-card clocks is the first suspect, but this was not isolated. The Messages missed at the lowest levels left no kept reception at all (Signal not even detected), so detection rather than decoding fails there. The 2 dB step is coarse next to the steep curve, so a finer run (1 dB) around each threshold would pin the numbers down.
+Summary (95 % of Messages received, white noise added digitally at a known SNR, laptop to Scarlett 2i2 by cable):
 
-### Max-range at 1 dB steps, and the clock drift
+| Preset | Simulator | Cable |
+| :-- | :-- | :-- |
+| fast | -13 dB | -13 dB |
+| standard | -16 dB | -16 dB |
+| max-range | -22 dB | -18 dB (run 1), -19 dB (run 2); -21 dB live and -22 dB offline in run 4 |
 
-Second run, -23 to -17 dB every 1 dB, 10 Messages per level (`cable-trial/max-range-1db.txt`): 0/10 at -23, -22 and -21 dB, 4/10 at -20, 10/10 from -19 up. The threshold is -19 dB, 3 dB short of the simulator's -22, and the 40 % at -20 dB came out the same as in the first run (a different noise seed). The two sound cards' clocks differ by 17 ppm (tone of 120 s), about 1 ms over a 54 s Transmission, so clock drift is ruled out. The receiving card's own noise (-103 dBFS) is far under the signal and does not limit it either. The cause of the 3 dB is still open; Messages missed at -21 dB and below left no kept reception, which points at the Preamble search rather than the decoding.
-
-### Is it the detector? No (max-range, 2026-11-05)
-
-The exact audio sent in the 1 dB sweep (same texts, same noise seeds, gaps included) was decoded again digitally, with no sound card: every Message is read at -22, -21 and -20 dB (10/10 each), 4/10 only at -23 dB. The application's live receiver path, fed the same audio, does the same (10/10 kept and decoded from -22 up). On the cable, the SNR estimated for the frames that did arrive matches the nominal one to 0.2 dB and their sync scores match the simulation's, so what arrives is as expected: the loss is in Messages that never arrive at all (nothing kept below -21 dB, 6 of 10 missing at -20). The detector and the live receiver are therefore not the cause; the 3 dB is lost somewhere in the real chain (sound cards, Windows or PipeWire audio processing, cable). Untested next step: record the cable continuously and decode that recording offline, to tell a live-capture problem (gaps, overruns) from a loss in the chain.
+Fast and standard match the simulator. Max-range lost 3 to 4 dB in the first two runs and not in the later ones. Ruled
+out: the detector and the live receiver on clean digital audio (the same audio decodes 10 of 10 from -22 dB), the clock
+drift between the cards (17 ppm, about 1 ms over a Transmission) and the receiving card's noise (-103 dBFS). Open
+(#28): what changes in the chain from run to run, and why the live receiver read 5 of 10 Messages at -22 dB that an
+offline decoding of the same continuous recording read 10 of 10.
