@@ -52,7 +52,7 @@ Concise map of the repository as it is now. The roadmap is the GitHub tickets, t
 | `packaging/` | `vibemodem.spec` (PyInstaller, windowed), `entry.py`, `smoke_test.py` (run against the built executable in CI). |
 | `tests/` | `test_layers.py` (layers importable, core stays pure), `test_channel.py`, `test_service.py`, `test_api.py`, `test_audio.py`, `test_wav.py`, `test_levels.py`, `test_audio_check.py`, `test_toy_modem.py`, `test_threshold.py` (threshold logic, toy modem vs theory), `test_threshold_command.py`, `test_report.py`, `test_report_command.py`, `test_mfsk_modems.py` (both modems: round trip, unknown start and frequency, never-delivered cases), `test_codes.py` (the contract of every Code), `test_ldpc.py`, `test_turbo.py`, `test_long_convolutional.py`, `test_speed.py`, `test_code_curves.py`; `fake_modems.py` holds stand-in candidates. |
 | `.github/workflows/` | `ci.yml` (ruff + pytest on Linux/Windows for every push, plus macOS on pull requests), `package.yml` (build, smoke-test and upload Windows/macOS artifacts). |
-| `docs/` | `adr/` (decisions), `packaging/` (spike findings, manual check procedure), `agents/` (this folder). |
+| `docs/` | `adr/` (decisions), `packaging/` (spike findings, manual check procedure), `agents/` (this folder), `for-humans/` (the long developer's guide: `developer-guide.md`). |
 
 ## Commands
 

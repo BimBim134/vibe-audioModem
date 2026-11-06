@@ -2,6 +2,8 @@
 
 A one-way, weak-signal data modem for radio amateurs. It sends short messages through an audio channel (typically the audio passband of an SSB radio) and aims to decode them as close to the noise floor as possible, in a narrow band, with no return channel.
 
+> **New here?** Read [`docs/for-humans/developer-guide.md`](docs/for-humans/developer-guide.md).
+>
 > **Status:** rewrite in progress. See [`GLOSSARY.md`](GLOSSARY.md) for the vocabulary and [`docs/adr/`](docs/adr/) for the design decisions. The first prototype (GMSK on GNU Radio) is frozen under the git tag `legacy-v0`, where its documentation can still be read (`git show legacy-v0:docs/doc.md`).
 
 ## Set up (Linux, macOS, Windows)
@@ -67,6 +69,7 @@ How to read the result:
 | `bench/` | Measurement bench: channel simulator, Success threshold command, and a toy modem that validates the bench. |
 | `packaging/` | PyInstaller build and smoke test for the Windows and macOS artifacts. |
 | `tests/` | Automated tests. |
+| `docs/for-humans/` | The developer's guide: a long walkthrough of the whole repository for new contributors. |
 | `docs/adr/` | Architecture decision records. |
 | `docs/packaging/` | Packaging spike findings and the clean-machine check procedure. |
 | `docs/references/` | Papers and other background reading. |

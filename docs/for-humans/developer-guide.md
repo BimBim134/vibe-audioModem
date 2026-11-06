@@ -77,7 +77,7 @@ uv run ruff format --check .
 uv run pytest
 ```
 
-The whole test suite is a bit over a thousand tests and takes about three and a half minutes on a desktop computer. For daily work run only the file you are changing, for example `uv run pytest tests/test_turbo.py -q`. Before you push, run everything.
+The whole test suite is about 1,090 tests and takes about three and a half minutes on a desktop computer. For daily work run only the file you are changing, for example `uv run pytest tests/test_turbo.py -q`. Before you push, run everything.
 
 `ruff` is the only linter and formatter (line length 100; rules E, F, I, UP, B). `uv run ruff format .` fixes formatting.
 
@@ -209,7 +209,7 @@ Runtime: `numpy`, `scipy`, `sounddevice`, `fastapi`, `uvicorn`. Development: `py
 
 ### Size
 
-About 3,600 lines of source in `core`, `io` and `app` (plus the page), 3,300 in `bench`, 8,000 in `tests`. The code base is small enough to read in full.
+About 4,100 lines of Python in `core` (2,000), `io` (500) and `app` (1,650), plus 870 lines of page; 2,800 lines in `bench`; 6,700 lines of tests. The code base is small enough to read in full.
 
 ---
 
@@ -312,7 +312,7 @@ Constants worth knowing: `SAMPLE_RATE = 48_000`, `FIRST_TONE_HZ = 1450`, `SEARCH
 | Module | Code | Notes |
 | :-- | :-- | :-- |
 | `turbo.py` | **Turbo** (the default) | Two recursive 8-state encoders (4G polynomials), spread interleaver (gap 8 for 200 bits, built deterministically), half the parity kept, tails sent: 412 coded bits. Max-log-MAP, extrinsic scaling 0.75, at most 8 iterations. Never returns `None`. A test pins a digest of its parameters: changing the interleaver changes the protocol. |
-| `ldpc.py` | Repeat-accumulate LDPC | 200 info bits, 400 coded, rules placed by PEG (deterministic), normalised min-sum 0.8, at most 50 iterations. Returns `None` when its rules are not satisfied. Faster than turbo (about 203× real time vs 113×). |
+| `ldpc.py` | Repeat-accumulate LDPC | 200 info bits, 400 coded, rules placed by PEG (deterministic), normalised min-sum 0.8, at most 50 iterations. Returns `None` when it has nothing to decode or its rules are not satisfied (see `decode`). Faster than turbo (about 203× real time vs 113×). |
 | `convolutional.py` | Rate 1/2, constraint length 7 | Soft Viterbi. The baseline. |
 | `long_convolutional.py` | The WSPR code (constraint length 32, rate 1/2) | Fano sequential decoder in pure Python, gives up after 1,000 steps per bit. 462 coded bits (a Transmission 9 % longer). |
 
@@ -524,3 +524,323 @@ uv run ruff check . && uv run ruff format --check .      # what CI also checks
 ```
 
 ---
+
+## 11. Continuous integration, packaging, releases
+
+### 11.1 CI (`.github/workflows/`)
+
+- **`ci.yml`**: on every push and pull request, `uv sync --locked --all-extras`, then `ruff check`, `ruff format --check` and `pytest` on **Ubuntu and Windows**; macOS only on pull requests (its runners queue for a long time).
+- **`package.yml`**: when `src/`, `packaging/`, `pyproject.toml`, `uv.lock` or the workflow changes (or on demand), on Windows **and** macOS: install with the `package` group, build with PyInstaller (`packaging/vibemodem.spec`), run the **smoke test** against the built executable, zip, and upload the artifact (`vibemodem-windows`, `vibemodem-macos`; artifacts need a GitHub login and expire after GitHub's retention period, 90 days by default).
+
+### 11.2 The packaged application
+
+`packaging/entry.py` is a plain script (PyInstaller needs one) calling `app.main.main`. `vibemodem.spec` builds a windowed (no console) one-folder application `VibeModem`, ships the `assets/` folder as data and collects all of `uvicorn`'s submodules; on macOS it makes `VibeModem.app` with a microphone usage description.
+
+`packaging/smoke_test.py <executable>` starts the packaged app on port 8765 and checks that it serves the page (with its Send and Listen controls), that `style.css` and `script.js` are served, that `/api/selftest` reports a successful round trip of the modem (this proves the DSP libraries are inside the bundle), that it is not listening at start, and (on Windows and macOS) that the audio library loads. **CI has no sound card**, so what only a human can check is: double-click, page opens without a terminal, a real microphone listens, a Message is sent and heard. The procedure for that is `docs/packaging/procedure-packaging-check.md` (its first lines say which steps are historical).
+
+The Windows zip was checked on a clean machine on 2026-11-06: it starts without a terminal and without a SmartScreen warning, listens, shows the spectrum and sends. The macOS build has never been run by hand.
+
+To get the latest Windows build: GitHub → Actions → Package → the latest green run → artifact `vibemodem-windows`, or `gh run download <run id> -n vibemodem-windows`.
+
+### 11.3 Branches, tags and releases
+
+- `main` is the default branch; `dev` and `AI_deep_refactoing` carry the rewrite (the three were brought together for v1.0). The git tag `legacy-v0` freezes the old GMSK prototype.
+- A **GitHub release** is a tag plus notes plus files, with a stable public URL and no login needed to download. Today nothing publishes releases automatically. The usual way: tag (`git tag v1.0 && git push --tags`), then `gh release create v1.0 vibemodem-windows.zip --title ... --notes ...`; a workflow step on `v*` tags could do it. Do not attach the macOS build to a release before it is checked.
+- There is no code signing: Windows may show "unknown publisher" for a build downloaded from elsewhere, and macOS requires "Open Anyway".
+
+---
+
+## 12. What was measured and decided
+
+The written record is `docs/measurements/README.md` (one section per measurement); the decisions are the ADRs. Read them: they answer most "why" questions before you ask them. The summary below is for orientation; numbers are the lowest SNR in 2,500 Hz at which 95 % of Messages arrive.
+
+### 12.1 The ADRs
+
+| ADR | Decision |
+| :-- | :-- |
+| 0001 | Rewrite from scratch; the old GMSK/GNU Radio code is kept only as the tag `legacy-v0`. |
+| 0002 | The DSP core is pure NumPy/SciPy; audio devices are a thin separate layer; no GNU Radio. |
+| 0003 | The turbo code is the v1 default; LDPC, the baseline convolutional code and the long convolutional code stay as measurable candidates. Turbo has no wrong-word guard of its own: the Frame CRC is the barrier. |
+| 0004 | Three Presets, all 8-FSK with interleaved turbo-coded bits, differing only by symbol duration. |
+| 0005 | One Fragment per Frame, each Frame with its own Preamble (19 % of airtime, robustness against fades and clock drift); optional copies. |
+| 0006 | Kept receptions: a WAV and a JSON per Frame, in a folder the page cannot choose. |
+
+### 12.2 Codes (docs/measurements/README.md, "Four codes compared")
+
+Same modem, same channel, four codes on white noise: baseline −15 dB, LDPC −15.5, long convolutional −15.5, **turbo −16**. On radio-like channels turbo is ahead: on SSB-filtered noise it ties with the long code at −16; under hf-fading it is about 1.5 dB ahead of LDPC and 4 to 6 dB ahead of the long code at 90 %. Under fading *no* code reaches 95 % reliably; the plateau comes from the Preamble not being found after deep fades, not from the code. Speed: turbo decodes about 113× faster than real time on a desktop CPU, LDPC about 203×.
+
+### 12.3 Waveform, Presets and false alarms
+
+- **M-FSK sweep** (tones × symbol duration): at equal energy, 8 tones are as good as 16 and better than 4 or 2. A longer symbol only helps through its energy: +3 dB per doubling. A 160 ms symbol would give −19 dB in 64 Hz; 320 ms gives −22 dB in 31 Hz.
+- **Under fading**, 8 tones with symbols of 160 ms or more remove the plateau (95 % reached at −14 dB instead of −4). **Interleaving** the coded bits gains about 1 dB but does not change the plateau; repeating the Frame twice gives nothing at equal energy.
+- **GFSK** was at least 2.5 dB behind M-FSK and was removed (the measurements are kept).
+- **Presets** (ADR 0004): max-range −22 dB (29 Hz, 54 s a Frame), standard −16 (107 Hz, 13.6 s), fast −13 (212 Hz, 6.8 s).
+- **False alarms and clicks**: in pure noise, no Message was ever read in 80 hours, and no false alert appeared in 3 hours of white noise per Preset. A real room, though, produced 50 false "Signals lost" in 56 from clicks (a mouse, a loudspeaker pop). The score was a sum of energy relative to noise, and in a quiet room one click weighs as much as 32 symbols. The fix: cap the energy of a symbol (`SYMBOL_MATCH_CAP`) and subtract the average of the other tones at that moment. False alerts went from 40 to 7, no Message was lost, and the thresholds did not move. `tests/test_clicks.py` keeps it fixed.
+
+### 12.4 Real-world trials
+
+- **Loudspeaker and microphone, one room** (the owner, 117 receptions kept): every Message of one Fragment arrived; a longer Message (10 Fragments) in `fast` needed about 7 dB more SNR than the simulator, probably reverberation (not demonstrated). The recordings are not in the repository.
+- **Cable trial** (ticket #21, `bench/cable_trial.py`): a laptop plays Messages at exact digital SNRs into the tower's sound card through a cable. `fast` (−13 dB) and `standard` (−16 dB) **equal the simulator**: 20 of 20 at the threshold, 0 of 20 two dB lower. The clock drift between the two sound cards was measured at 17 ppm (about 1 ms over a Transmission), the receiver's own noise floor at −103 dBFS, and the received SNR estimates were within 0.2 to 0.3 dB of the nominal values.
+- **`max-range` over the cable** (ticket #28) first looked 3 to 4 dB worse than the simulator, then inconsistent from run to run. The cause was not the receiver: the application deleted the oldest receptions at its 200 MB storage limit, which were the lowest SNRs ([15.1](#151-the-storage-limit-silently-deletes-the-oldest-receptions)). Replaying the continuous recording of one run through the live receiver gave the same counts as decoding it offline. A confirmation run with the limit raised was in progress when this guide was written; the current figure is in `docs/measurements/README.md`.
+
+Two HTML reports show all of it with charts: `docs/measurements/cable-trial/report.html` (English, the cable trial) and `docs/measurements/project-report.html` (French, the whole project, written for a conference).
+
+---
+
+## 13. How we work
+
+- **Tickets** are GitHub issues in `BimBim134/vibe-audioModem`, under the specification issue #1. Labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` (`docs/agents/triage-labels.md`). Use `gh issue ...` (`docs/agents/issue-tracker.md` has the recipes). The project owner closes tickets.
+- **Language.** Use the glossary's words in code, tests, commits and tickets, and avoid the words it lists to avoid.
+- **Decisions** that are hard to reverse, surprising without context, and the result of a real trade-off go in an ADR (`docs/adr/NNNN-title.md`: the decision, why, consequences). Terms go in `GLOSSARY.md` the moment they are settled; the glossary is a dictionary, not a place for implementation notes.
+- **Measure before claiming.** A change to the receiver comes with the Success threshold before and after, the false-alarm check and `bench.replay` on real recordings. Report what was *not* verified as plainly as what was.
+- **Tests first** for new behaviour (see [10.2](#102-how-they-are-written)); `ruff` clean; the full suite green before pushing.
+- **Commits** are one logical change with an imperative English subject and a body that says why (`Add the Listening band: ...`, `Rule out the detector as the cause of ...`). Measurement results are committed with the command that produced them.
+- **Memory.** `docs/agents/memory.md` is the project's logbook (in French); add an entry when you learn something a later reader would otherwise rediscover. `docs/agents/project-map.md` is a table of files; keep its row for a file you add.
+- **No shortcuts on the core's purity**: `tests/test_layers.py` will stop you, and it is right.
+
+---
+
+## 14. Recipes
+
+### 14.1 Understand why a Message was not received
+
+1. In **Settings → Advanced**, switch on **Keep the audio and the figures of what is received**, and raise the limit if the session is long (see 15.1). Run the session.
+2. Look at the folder (`--receptions-dir`, or the default shown under the switch). Each WAV has a JSON of the same name: Preset, frequency, SNR, sync score, `decoded` true or false, the body in hex.
+3. Check against what was sent: `uv run python -m bench.field_check FOLDER sent.txt --preset standard` (one Message per line in `sent.txt`) lists received, missing, incomplete, heard but not listed, and Signals lost; add `--redecode` to decode the audio again with today's code.
+4. Replay all of them: `uv run python -m bench.replay FOLDER`.
+5. Dig into one: 
+
+```python
+from vibemodem.io.wav import read_wav
+from vibemodem.core.turbo_modem import TurboModem
+report = TurboModem(preset="standard").demodulate_report(read_wav("one.wav"))
+print(report.receptions, report.undecoded, report.arriving)
+```
+
+A lost Signal with a score near 10 is barely a Signal; one near 20 or more was heard and the code could not read it (too weak, a fade, interference).
+
+### 14.2 Add a Preset
+
+1. Choose tones (2/4/8/16) and a symbol duration that is a whole number of samples and a multiple of 32 samples (`Waveform` validates), and add a `PhyProfile` to `presets.PRESETS`.
+2. Measure: `bench.bandwidth --preset`, `bench.threshold` on `white` and `hf-fading` with the Presets' usual recipe (100 trials, 1 dB steps, `--max-lead-in-s 10 --tail-s 1 --freq-offset-from -1100 --freq-offset-to 1100`), `bench.false_alarms`, `bench.speed`.
+3. Add a row to `tests/test_presets.py`, the page's Preset `<select>` in `index.html`, the thresholds in `bench/cable_trial.py` (`SIMULATED_THRESHOLD_DB`), a measurements section and an ADR amendment.
+4. Remember that a Preset's Frame length decides the longest Message in 30 minutes and the window the receiver keeps.
+
+### 14.3 Add a Code
+
+Implement `Code` (`info_bits` must be 200, the Frame size), make `tests/test_codes.py` pass for it (it runs the same contract on every code), add a one-line modem class (`class MyModem(CodedMfskModem)` as `turbo_modem.py` does), then compare it with turbo on all four scenarios with `bench.threshold` and `bench.code_curves`. A code that wins on white noise and loses under fading is not a win. Document in an ADR; if it changes the protocol, pin its digest in a test.
+
+### 14.4 Add a setting or an endpoint (the Listening band is the worked example)
+
+The commit that added it (`Add the Listening band ... (#27)`) touches, in this order: a test at the core (`tests/test_search_band.py`), the core (`mfsk.find_signals`, `CodedModem.search_band_hz`, `presets.minimum_band_hz`), tests at the service and the API (`test_service.py`, `test_api.py`, `test_keeping.py`), `Receiver.set_search_band`, `ModemService.set_search_band` (validation raising `SettingsError` with a message that tells the person what to do), `api.py` (a request model with `extra="forbid"` and the endpoint), the page (HTML fields, `script.js`), then `GLOSSARY.md`, `docs/agents/project-map.md` and `memory.md`. Copy that order.
+
+### 14.5 Run a controlled trial over a cable
+
+1. Wire the sending computer's output to the receiving computer's input through an attenuator or a volume you leave alone (the level of a Transmission of white noise at −20 dB is dominated by the noise: keep it below clipping).
+2. On the receiver, start the application with `--receptions-dir` pointing to an empty folder, choose the Preset and the input, switch **Keep** on, and **raise the storage limit** (`POST /api/storage {"keep": true, "limit_mb": 3000}`), then Listen.
+3. On the sender: `uv run python -m bench.cable_trial send --preset max-range --output <device> --per-level 10 --snr=-24,-23,-22,-21,-20,-19` (an equals sign for a list that starts with a minus; the same list on both sides).
+4. When it ends, stop listening and run `uv run python -m bench.cable_trial report FOLDER --preset max-range --snr=... --per-level 10`.
+5. Record the result in `docs/measurements/cable-trial/results.json` and rebuild the report (`python -m bench.cable_report`).
+
+On Linux, if the sound card is "busy" because PipeWire holds it, use the input device name `pulse` instead of the hardware name.
+
+### 14.6 Reproduce a published threshold
+
+Open the JSON in `docs/measurements/`: it records the modem and its settings, the scenario, the seed, the number of trials and the SNR grid. Run `bench.threshold` with the same ones; the file must be identical.
+
+### 14.7 Ship a build to someone
+
+Find the latest green run of the *Package* workflow, download the Windows artifact, unzip, run `VibeModem.exe`. For a public link, create a GitHub release with that zip attached ([11.3](#113-branches-tags-and-releases)).
+
+---
+
+## 15. Traps and lessons
+
+Each of these cost real time. They are the project's institutional memory.
+
+### 15.1 The storage limit silently deletes the oldest receptions
+
+`ReceptionStore` keeps at most 200 MB (default) of kept receptions and deletes **the oldest first**, without a message. In a trial that sends the weakest Messages first, the weakest levels vanish, and the report shows "0 of 10" there. A 3-to-4 dB "loss" of the `max-range` Preset on a real chain, a "live receiver weaker than offline" and an "unstable chain" were all this. The tell: the first number in the kept file names (`...-0015.json`) is not `0000`, because the counter starts at 0 with each run. `bench.cable_trial report` now prints a warning with the number deleted. For any trial: raise the limit first.
+
+### 15.2 A measurement on white noise says nothing about clicks
+
+The decoder passed 60 hours of white noise with no false alarm and then, in a quiet room, reported 50 false Signals in a few minutes. Measure on the channel you will use, and keep a test for each real-world surprise.
+
+### 15.3 `sd.stop()` from another thread kills the application
+
+PortAudio is not safe for that. `SoundCard.stop()` sets a flag the playback callback reads.
+
+### 15.4 A recording is at most 600 seconds
+
+`demodulate_report` raises on a longer one. Decode long recordings in overlapping chunks, with an overlap longer than one Frame (54 s at max-range) so no Frame is cut in every chunk, and de-duplicate by Message.
+
+### 15.5 A decode that "always answers" is dangerous
+
+Turbo never returns `None`. If you weaken or bypass the CRC-32 (the `Frame` check), wrong Messages will appear. After any change to the Frame, the code, or the soft values, run a false-alarm measurement and a threshold measurement and count `false_receptions`.
+
+### 15.6 Changing a code's interleaver or polynomials changes the protocol
+
+Two builds with different ones cannot talk to each other. The tests pin a digest so that it cannot happen by accident.
+
+### 15.7 Side peaks look like Signals
+
+A Preamble matches partly at nearby frequencies and times. `CodedModem._without_side_peaks` and the receiver's `alike()` tolerance exist for this. Anything that changes how many candidates the search returns needs `tests/test_detections.py` and a look at the false-alarm counts.
+
+### 15.8 A Frame cut by the start of the window is not judged
+
+The receiver's window slides; a Frame whose Preamble is partly outside it would look lost. The receiver skips judging such a Frame because an earlier pass saw it whole.
+
+### 15.9 `bench` modules must be run from the repository root
+
+`python -m bench.threshold` needs the root on the path. `uv run` from the root does it; `pytest` has `pythonpath = ["."]`. Outside that, set `PYTHONPATH=.`. Likewise use `uv run python` (or `.venv/bin/python`), not a bare `python`, which may not exist.
+
+### 15.10 Times in file names are UTC
+
+Kept receptions are named by UTC time; your clock is probably not UTC. A file stamped 22:44 is 23:44 in a France winter... and 00:44 in summer. Use the counter at the end when you need order.
+
+### 15.11 One scope in `script.js`
+
+A duplicate top-level name is a `SyntaxError` that stops the whole page. Open the browser console after editing it.
+
+### 15.12 An SNR is always in 2,500 Hz
+
+Do not compare an SNR quoted in the signal's own band with the project's. The bench's `apply_channel(..., snr_db=x)` already uses 2,500 Hz. When you add noise yourself to a trial, add it **all around** the Transmission too (the receiver measures the noise it hears over its whole recording): a quiet gap next to a noisy Transmission makes the trial easier than the simulator.
+
+### 15.13 The receiver must know the Preset
+
+There is no automatic detection of the Preset. The listener chooses the same one as the sender; each Preset has its own modem and its own search.
+
+### 15.14 Floating-point equality in tests
+
+Digests and counts are pinned; waveform values are not compared exactly. Use `pytest.approx`.
+
+---
+
+## 16. Where the project stands and what is next
+
+**Done (v1.0 scope).** The modem (three Presets), the Message protocol with Fragments and copies, the local application (send, listen, spectrum, waterfall, conversation, kept receptions, replay, Listening band), the bench and its measurements, a Windows build checked on a clean machine, and two measurement reports.
+
+**Open tickets at the time of writing** (check `gh issue list` for the truth):
+
+- **#23, field campaign** with loudspeaker and microphone, then with radios. The owner intends to propose it at a conference to people who will run life-size studies. It needs a working prototype and a clear procedure: `bench.field_check` and the kept receptions are the tools. It is the measurement that is still missing: everything above is simulator or cable.
+- **#28, `max-range` on a real chain**: the storage-limit artefact is understood; the confirmation run and the corrected reports were still to be finished.
+- **#29, make the page reachable from the whole network** with a QR code: a nice to have, not a priority; it must come with authentication and HTTPS.
+- **#1, the specification**, stays open until the others are done.
+
+**Natural next steps** (ideas, not decisions):
+
+- Reading several Signals at once; when the core can do it, the Listening band disappears.
+- A measurement of the Listening band on real radio noise (low-frequency "brown" noise under 400 Hz), in the field rather than by another simulation.
+- Automatic detection of the Preset.
+- A manual check of the macOS build, release automation on tags, code signing if the project gets users who cannot click through a warning.
+
+---
+
+## Appendix A. Every Python file in one line
+
+(Generated from each module's docstring.)
+
+| File | What it is |
+| :-- | :-- |
+| `bench/__init__.py` | Measurement bench: channel simulator and Success threshold tools. |
+| `bench/audio_check.py` | Try the sound card by hand: list devices, check an input's level, or send a Message through. |
+| `bench/bandwidth.py` | How much bandwidth a modem's output occupies. |
+| `bench/cable_report.py` | Build the single report of the real-world trials: docs/measurements/cable-trial/report.html. |
+| `bench/cable_trial.py` | A trial over a real sound chain at known SNRs: send Messages at each SNR, count what arrives. |
+| `bench/channel.py` | Channel simulator: what a weak-signal SSB audio channel does to a Transmission. |
+| `bench/code_curves.py` | How often a code loses a frame on white noise, against Eb/N0. |
+| `bench/false_alarms.py` | How often a receiver reports a Signal in noise alone. |
+| `bench/field_check.py` | Check a field trial: what was sent against what a receiver kept. |
+| `bench/project_report.py` | Build the report of the whole project, for a talk: docs/measurements/project-report.html. |
+| `bench/replay.py` | Replay stored receptions through the decoder, to check they give what they gave live. |
+| `bench/report.py` | A human-readable HTML report of bench results. |
+| `bench/scenarios.py` | Named channels for comparing modems and codes on something closer to a radio link. |
+| `bench/settings.py` | Settings given on a command line as name=value. |
+| `bench/speed.py` | How fast a candidate receives, against real time. |
+| `bench/sweep.py` | Sweep the settings of a modem: tones and symbol duration of M-FSK, or any grid you give. |
+| `bench/threshold.py` | Success threshold: the lowest SNR at which a modem receives enough Messages correctly. |
+| `bench/toy.py` | A deliberately simple modem that validates the bench: coherent BPSK, no synchronisation. |
+| `packaging/entry.py` | Entry point of the packaged application (PyInstaller needs a plain script). |
+| `packaging/smoke_test.py` | Start a packaged build, check it serves its page and runs DSP, then stop it. |
+| `src/vibemodem/__init__.py` | One-way weak-signal data modem for radio amateurs. |
+| `src/vibemodem/app/__init__.py` | Local application: loopback web server and user interface. |
+| `src/vibemodem/app/__main__.py` | (no description) |
+| `src/vibemodem/app/api.py` | The local HTTP API and its page: a thin layer over `ModemService`. |
+| `src/vibemodem/app/conversation.py` | The conversation: what was sent and what was heard, in one line of time, for the page. |
+| `src/vibemodem/app/heard.py` | What the application tells about what it heard: Messages, their quality, lost Signals. |
+| `src/vibemodem/app/keeper.py` | Keeping receptions: each Frame read and each Signal lost, once, with sound around it. |
+| `src/vibemodem/app/main.py` | Start the local application: a web page on the loopback interface, served by one process. |
+| `src/vibemodem/app/receiver.py` | Listening: what is heard is decoded, kept, and drawn. No HTTP and no sending here. |
+| `src/vibemodem/app/service.py` | The application's service: settings, sending and cancelling, and listening. No HTTP here. |
+| `src/vibemodem/app/store.py` | Receptions kept on disk: the raw audio and the indicators of each, within a bound. |
+| `src/vibemodem/core/__init__.py` | DSP core: Messages to audio samples and back. No devices, files or network. |
+| `src/vibemodem/core/baseline.py` | The baseline modem: the reference every later candidate is measured against. |
+| `src/vibemodem/core/code.py` | The interface of an error-correcting code, so a modem can use any of them. |
+| `src/vibemodem/core/coded_mfsk.py` | An M-FSK modem that works with any error-correcting code. |
+| `src/vibemodem/core/coded_modem.py` | What every modem built on a Code shares: the Frame, the order the bits are sent in, and the loop that turns a recording into Messages. |
+| `src/vibemodem/core/convolutional.py` | Rate-1/2 convolutional code (constraint length 7) with a soft-decision Viterbi decoder. |
+| `src/vibemodem/core/frame.py` | The fixed-size Frame: length byte, padded Message and CRC-32, whitened. |
+| `src/vibemodem/core/ldpc.py` | A low-density parity-check (LDPC) code, decoded by normalised min-sum. |
+| `src/vibemodem/core/ldpc_modem.py` | The baseline modem with its convolutional code replaced by an LDPC code of the same rate. |
+| `src/vibemodem/core/long_convolutional.py` | A long-constraint convolutional code, decoded sequentially by the Fano algorithm. |
+| `src/vibemodem/core/long_convolutional_modem.py` | The baseline modem with its code replaced by the long-constraint convolutional code. |
+| `src/vibemodem/core/message.py` | The Message protocol: a Message split into Fragments, one Fragment per Frame. |
+| `src/vibemodem/core/mfsk.py` | M-FSK: building the audio, measuring tone energies and finding a Signal. |
+| `src/vibemodem/core/modem.py` | The interface every modem candidate implements, so the bench can measure any of them. |
+| `src/vibemodem/core/presets.py` | The three Presets and the PHY profile each one names. |
+| `src/vibemodem/core/spectrum.py` | One row of the spectrum of a block of sound: the audio band in bins of 5 Hz, in dB. |
+| `src/vibemodem/core/transmission.py` | A Message as a Transmission of Frames, and the Messages in a recording. |
+| `src/vibemodem/core/turbo.py` | A turbo code: two recursive convolutional codes in parallel, decoded by trading opinions. |
+| `src/vibemodem/core/turbo_modem.py` | The baseline modem with its convolutional code replaced by a turbo code of the same rate. |
+| `src/vibemodem/io/__init__.py` | Audio layer: sound cards and WAV files. Carries no DSP. |
+| `src/vibemodem/io/_samples.py` | The one check every way of playing or storing audio shares. |
+| `src/vibemodem/io/audio.py` | Sound cards: list, play, record and listen at the modem's sample rate, mono. No DSP. |
+| `src/vibemodem/io/levels.py` | Is the input level fit for the receiver? Peak and RMS level, and warnings. |
+| `src/vibemodem/io/wav.py` | WAV files: 16-bit mono at 48 kHz written; the usual formats read, at 48 kHz only. |
+
+---
+
+## Appendix B. Command cheat sheet
+
+```bash
+# Setup and checks
+uv sync --locked --all-extras
+uv run ruff check . && uv run ruff format --check . && uv run pytest
+
+# The application
+uv run python -m vibemodem.app [--port N] [--no-browser] [--receptions-dir PATH]
+
+# Measure
+uv run python -m bench.threshold --modem pkg.mod:Class --preset P --scenario white|ssb|hf-fading|dirty \
+    --snr-from A --snr-to B --snr-step S --trials N --seed 1 --out x.json [--html x.html] [--set k=v]
+uv run python -m bench.report a.json b.json --out compare.html
+uv run python -m bench.sweep ...            # tones x symbol duration
+uv run python -m bench.bandwidth --preset P  # occupied band at -20 dB
+uv run python -m bench.code_curves --code pkg.mod:Class
+uv run python -m bench.speed --modem pkg.mod:Class
+uv run python -m bench.false_alarms --preset P --hours 3 [--ssb]
+
+# Real recordings and trials
+uv run python -m bench.audio_check --list
+uv run python -m bench.replay FOLDER
+uv run python -m bench.field_check FOLDER sent.txt [--preset P] [--redecode]
+uv run python -m bench.cable_trial send   --preset P --output DEV --per-level N --snr=-24,-22,...
+uv run python -m bench.cable_trial report FOLDER --preset P --per-level N --snr=-24,-22,...
+
+# Reports
+uv run python -m bench.cable_report      # docs/measurements/cable-trial/report.html
+uv run python -m bench.project_report    # docs/measurements/project-report.html
+
+# Tickets
+gh issue list; gh issue view N; gh issue comment N -b "..."
+gh run list --workflow Package; gh run download RUN_ID -n vibemodem-windows
+```
+
+## Appendix C. Reading list, in order
+
+1. `README.md`, `GLOSSARY.md`.
+2. `docs/adr/0001` to `0006` (about ten minutes).
+3. `docs/measurements/README.md` (the evidence), then the two HTML reports.
+4. The code in the order of [section 2](#where-to-start-reading-the-code), each module with its test file.
+5. `docs/agents/memory.md` (French) for the story of every ticket, including the dead ends.
+6. `docs/packaging/` if you touch the build.
