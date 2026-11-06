@@ -52,6 +52,8 @@ You will need [uv](https://docs.astral.sh/uv/), which installs the right Python 
 ```bash
 git clone https://github.com/BimBim134/vibe-audioModem.git
 cd vibe-audioModem
+git clone https://github.com/BimBim134/vibe-audioModem.git
+cd vibe-audioModem
 uv sync --locked --all-extras
 uv run python -m vibemodem.app
 ```
@@ -102,6 +104,28 @@ New here? Start with the [developer's guide](docs/for-humans/developer-guide.md)
 ### Measure a modem
 
 The bench sends random Messages through the channel simulator at a range of SNRs and reports the **Success threshold**: the lowest SNR (in a 2,500 Hz noise bandwidth) at which at least 95 % of Messages arrive correctly. A candidate is a class with `modulate` and `demodulate` methods (see `src/vibemodem/core/modem.py`), named as `package.module:ClassName`.
+New here? Start with the [developer's guide](docs/for-humans/developer-guide.md), a long walkthrough of the whole repository. The vocabulary is in [`GLOSSARY.md`](GLOSSARY.md) and the design decisions are in [`docs/adr/`](docs/adr/).
+
+### Layout
+
+| Path                  | Role                                                                                                                        |
+| :-------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| `src/vibemodem/core/` | DSP core: Messages to audio samples and back, and the `Modem` interface candidates implement. No devices, files or network. |
+| `src/vibemodem/io/`   | Audio layer: sound cards and WAV files. No DSP.                                                                             |
+| `src/vibemodem/app/`  | Local application: loopback web server and interface.                                                                       |
+| `bench/`              | Measurement bench: channel simulator, Success threshold command, cable trial, and a toy modem that validates the bench.     |
+| `packaging/`          | PyInstaller build and smoke test for the Windows and macOS artifacts.                                                       |
+| `tests/`              | Automated tests (about 1,090).                                                                                              |
+| `docs/for-humans/`    | The developer's guide.                                                                                                      |
+| `docs/measurements/`  | Kept results: thresholds, code comparison, cable trial.                                                                     |
+| `docs/adr/`           | Architecture decision records.                                                                                              |
+| `docs/packaging/`     | Packaging findings and the clean-machine check procedure.                                                                   |
+| `docs/references/`    | Papers and other background reading.                                                                                        |
+| `docs/agents/`        | Project memory and map for coding agents.                                                                                   |
+
+### Measure a modem
+
+The bench sends random Messages through the channel simulator at a range of SNRs and reports the **Success threshold**: the lowest SNR (in a 2,500 Hz noise bandwidth) at which at least 95 % of Messages arrive correctly. A candidate is a class with `modulate` and `demodulate` methods (see `src/vibemodem/core/modem.py`), named as `package.module:ClassName`.
 
 ```bash
 uv run python -m bench.threshold --modem bench.toy:ToyModem --snr-from -14 --snr-to -4 --trials 300 --seed 1 --out result.json
@@ -116,18 +140,23 @@ uv run python -m bench.threshold --modem vibemodem.core.baseline:BaselineModem -
 ```
 
 It prints the curve and the threshold and writes everything to `result.json`. The same seed gives the same file. Add `--html report.html` for a readable report (success-rate curve with 95 % confidence bars). To compare several candidates on one chart:
+It prints the curve and the threshold and writes everything to `result.json`. The same seed gives the same file. Add `--html report.html` for a readable report (success-rate curve with 95 % confidence bars). To compare several candidates on one chart:
 
 ```bash
 uv run python -m bench.report toy.json other.json --out compare.html
 ```
 
 The report is a single offline HTML file, so it can be opened anywhere and kept as a CI artifact. It flags results measured on different terms (message length, channel, Preset) as not directly comparable.
+The report is a single offline HTML file, so it can be opened anywhere and kept as a CI artifact. It flags results measured on different terms (message length, channel, Preset) as not directly comparable.
 
+Two companion commands: `python -m bench.speed --modem pkg.mod:Class` times how fast a candidate receives against real time, and `python -m bench.code_curves --code pkg.mod:Class` measures how often an error-correcting code alone loses a frame on white noise. To test a real sound chain with a cable, see `bench/cable_trial.py`.
 Two companion commands: `python -m bench.speed --modem pkg.mod:Class` times how fast a candidate receives against real time, and `python -m bench.code_curves --code pkg.mod:Class` measures how often an error-correcting code alone loses a frame on white noise. To test a real sound chain with a cable, see `bench/cable_trial.py`.
 
 How to read the result:
 
 - A trial counts as received only if the candidate returns exactly the Message that was sent. A wrong Message handed over, even next to the right one, makes the trial fail and is counted in `false_receptions`.
+- The threshold is the lowest tested SNR that reaches 95 % *and* is not followed by a higher tested SNR that falls short. Its resolution is the `--snr-step` (1 dB by default).
+- Near 95 % the measured rate is only known to about 1/sqrt(trials), roughly 2 % with 100 trials. Use 300 trials or more, and a finer step around the threshold, before comparing two candidates.
 - The threshold is the lowest tested SNR that reaches 95 % *and* is not followed by a higher tested SNR that falls short. Its resolution is the `--snr-step` (1 dB by default).
 - Near 95 % the measured rate is only known to about 1/sqrt(trials), roughly 2 % with 100 trials. Use 300 trials or more, and a finer step around the threshold, before comparing two candidates.
 - The toy modem (`bench.toy:ToyModem`, coherent BPSK) validates the bench: its measured success rate must follow the textbook formula within 0.05 (see `tests/test_threshold.py`).
@@ -140,4 +169,5 @@ The software is a working prototype (release `v1.0`), still evolving. The first 
 
 ### License
 
+GPL-3.0 (`GPL-3.0-only`). See [`LICENSE`](LICENSE).
 GPL-3.0 (`GPL-3.0-only`). See [`LICENSE`](LICENSE).
