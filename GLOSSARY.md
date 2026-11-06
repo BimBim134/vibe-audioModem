@@ -40,6 +40,10 @@ _Avoid_: carrier, first tone, centre frequency
 The sound of one Frame, with 3 seconds around it, and the figures of how it was received (frequency, SNR, synchronisation score, Message identifier, read or lost), saved on the computer when the operator asks for it, so that it can be played again through the decoder.
 _Avoid_: recording, log, capture
 
+**Listening band**:
+The band of audio, chosen by the operator, inside which the receiver looks for Signals; a Signal not entirely inside it is ignored. A temporary choice, for as long as the receiver reads one Signal at a time.
+_Avoid_: filter, passband
+
 **Undecoded Signal**:
 A Signal the receiver found whole in the audio, by its Preamble, whose Frame could not be read (the checksum or the code refused it). It is reported to the operator with its frequency and how sure the detection was, so that a Transmission heard but lost is not mistaken for silence.
 _Avoid_: failed packet, error frame

@@ -49,6 +49,7 @@ class Candidate:
     start_sample: int
     first_tone_hz: float
     score: float  # how far the preamble match stands out from noise, in standard deviations
+    inside_band: bool = True  # False: outside the band searched, kept for its side peaks only
 
 
 @dataclass(frozen=True)
@@ -192,8 +193,17 @@ class Waveform:
             power[low : low + _SPECTROGRAM_BATCH] = spectrum.real**2 + spectrum.imag**2
         return power
 
+    @cached_property
+    def occupied_hz(self) -> float:
+        """From the lowest tone to the highest."""
+        return (self.tones - 1) * self.spacing_hz
+
     def find_signals(
-        self, samples: np.ndarray, max_candidates: int = 3, min_score: float = 7.0
+        self,
+        samples: np.ndarray,
+        max_candidates: int = 3,
+        min_score: float = 7.0,
+        band_hz: tuple[float, float] | None = None,
     ) -> list[Candidate]:
         """Places where the known preamble matches, over every start time and audio frequency.
 
@@ -205,7 +215,10 @@ class Waveform:
         those spreads. A symbol adds at most `SYMBOL_MATCH_CAP`.
 
         At most `max_candidates` places are returned, best first, so a recording that holds more
-        Signals than that loses the weakest ones.
+        Signals than that loses the weakest ones. With `band_hz`, the Signals whose tones are not
+        all inside that band of audio are marked `inside_band=False` and do not count in the
+        maximum; they are returned so that their side peaks are not taken for Signals. The noise
+        is measured everywhere.
         """
         size = self.samples_per_symbol
         if samples.size < PREAMBLE_SYMBOLS * size:
@@ -237,17 +250,21 @@ class Waveform:
         scores = match / spread
 
         found = []
-        for _ in range(max_candidates):
+        wanted = 0  # Signals inside the band; those outside are found too, without counting
+        for _ in range(max_candidates * (1 if band_hz is None else 2)):
             row, column = np.unravel_index(np.argmax(scores), scores.shape)
             if scores[row, column] < min_score:
                 break
-            found.append(
-                Candidate(
-                    start_sample=int(row * self._hop),
-                    first_tone_hz=float((self._first_bin + column) * self._bin_hz),
-                    score=float(scores[row, column]),
-                )
+            first_tone_hz = float((self._first_bin + column) * self._bin_hz)
+            inside = band_hz is None or (
+                band_hz[0] <= first_tone_hz and first_tone_hz + self.occupied_hz <= band_hz[1]
             )
+            found.append(
+                Candidate(int(row * self._hop), first_tone_hz, float(scores[row, column]), inside)
+            )
+            wanted += inside
+            if wanted == max_candidates:
+                break
             scores[
                 max(0, row - _HOPS_PER_SYMBOL) : row + _HOPS_PER_SYMBOL + 1,
                 max(0, column - 2 * _BINS_PER_TONE) : column + 2 * _BINS_PER_TONE + 1,
@@ -276,7 +293,7 @@ class Waveform:
                 total = float(energy[np.arange(PREAMBLE_SYMBOLS), self.preamble_tones].sum())
                 if total > best_energy:
                     best_energy = total
-                    best = Candidate(start, first_tone_hz, candidate.score)
+                    best = Candidate(start, first_tone_hz, candidate.score, candidate.inside_band)
         return best
 
 

@@ -218,3 +218,13 @@ def test_a_new_listening_forgets_what_it_kept_so_the_same_time_is_kept_again(tmp
     keeper._kept.append((100.0, 1450.0))
     keeper.start()
     assert not keeper._kept
+
+
+def test_a_signal_outside_the_band_listened_in_is_not_heard_and_inside_it_is(made):
+    receiver, _ = made
+    receiver.set_search_band((300.0, 1400.0))  # the Signals are at 1450 Hz and up
+    listen(receiver, recording())
+    assert receiver.counts == (0, 0)
+    receiver.set_search_band((1000.0, 2000.0))
+    listen(receiver, recording())
+    assert receiver.counts[0] > 0

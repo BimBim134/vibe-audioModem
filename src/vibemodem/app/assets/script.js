@@ -226,6 +226,7 @@ const MAX_ROWS = 120, MARKER_SECONDS = 60;
 let lowHz = 300, highHz = 2700;  // the band of a row, told by the application with the rows
 const FLOOR_DB = -100, CEILING_DB = -20;  // a fixed range: the same level is the same colour
 let spectrumNext = 0, history = [], markers = [], signalWidthHz = 175;
+let listenBand = null;  // [low, high] Hz the receiver listens in, or null: all of it
 // The waterfall, from the quietest to the loudest: dark lava, dusty grey, liquid lava, snow.
 const RAMP = [[0, BG], [0.34, mix(BG, GREY, 0.4)], [0.7, ACCENT], [1, TEXT]];
 function colour(t) {
@@ -301,6 +302,14 @@ function drawScope() {
       const x0 = (band[0] - lowHz) / span * canvas.width, x1 = (band[1] - lowHz) / span * canvas.width;
       ctx.fillStyle = rgb(ACCENT, 0.28); ctx.fillRect(x0, 0, Math.max(x1 - x0, 2 * line), canvas.height);
       ctx.fillStyle = rgb(ACCENT); ctx.fillRect(x0 - line / 2, 0, line, canvas.height);
+    }
+  }
+  if (listenBand) {  // what the receiver does not listen to is dimmed
+    for (const [canvas, ctx] of [[curve, cctx], [water, wctx]]) {
+      const x0 = (listenBand[0] - lowHz) / span * canvas.width, x1 = (listenBand[1] - lowHz) / span * canvas.width;
+      ctx.fillStyle = rgb(BG, 0.7);
+      ctx.fillRect(0, 0, Math.max(0, x0), canvas.height);
+      ctx.fillRect(Math.min(canvas.width, x1), 0, canvas.width, canvas.height);
     }
   }
   const now = Date.now() / 1000;
@@ -382,6 +391,8 @@ function showApplied() {
 $("apply").onclick = () => act(call("/api/settings", "POST", {
   preset: $("preset").value, input_device: deviceValue("input_device"), output_device: deviceValue("output_device"),
 }), showApplied, "settings-error");
+const bandHz = (id) => ($(id).value === "" ? null : Number($(id).value));
+$("band-set").onclick = () => act(call("/api/band", "POST", { low_hz: bandHz("band-low"), high_hz: bandHz("band-high") }), null, "settings-error");
 $("keep").onchange = () => act(call("/api/storage", "POST", { keep: $("keep").checked }), refreshStorage, "settings-error");
 $("limit").onchange = () => act(call("/api/storage", "POST", { limit_mb: Number($("limit").value) }), refreshStorage, "settings-error");
 confirmed($("clear"), "Delete all stored receptions", () =>
@@ -440,6 +451,10 @@ async function refresh() {
     const conversation = (await call("/api/conversation")).items;
     if (mine !== refreshes) return;
     state = status;
+    listenBand = status.search_band;
+    for (const [id, value] of [["band-low", listenBand && listenBand[0]], ["band-high", listenBand && listenBand[1]]]) {
+      if (document.activeElement !== $(id)) $(id).value = value === null ? "" : value;  // what the application holds
+    }
     $("dot").className = "dot" + (state.listening ? " on" : "");
     const lost = state.blocks_lost ? " · " + state.blocks_lost + " blocks of sound lost" : "";
     $("listening").className = state.blocks_lost ? "warn" : "";

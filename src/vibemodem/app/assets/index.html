@@ -80,6 +80,13 @@
 
   <section id="panel-advanced" role="tabpanel" aria-labelledby="tab-advanced" hidden>
     <div class="group">
+      <h3>Listening band</h3>
+      <p>Only the Signals entirely inside this band of audio are read. Use it to leave out the low-frequency noise of a radio, or to pick the part of the audio where the conversation takes place. It applies to the next pass, also while listening. Leave both empty to listen to everything.</p>
+      <label class="field limit"><span>From</span><span class="limit-control"><input id="band-low" type="number" min="300" max="2700" step="10" placeholder="300"><span>Hz</span></span></label>
+      <label class="field limit"><span>To</span><span class="limit-control"><input id="band-high" type="number" min="300" max="2700" step="10" placeholder="2700"><span>Hz</span></span></label>
+      <div class="actions"><button id="band-set">Set the band</button></div>
+    </div>
+    <div class="group">
       <h3>Stored receptions</h3>
       <p>For debug purpose only, each message reception can be stored with 3 s around each Signal. The oldest are deleted first when the limit is reached.</p>
       <label class="field">

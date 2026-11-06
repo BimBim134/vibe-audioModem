@@ -900,3 +900,53 @@ def test_a_side_peak_shifted_by_some_tones_inside_a_frame_that_was_read_is_not_a
     assert receiver.undecoded() == []
     receiver._note_lost(104.0, 1450.0 + 400.0, 20.0, TOLERANCE)  # another station, farther away
     assert len(receiver.undecoded()) == 1
+
+
+# The audio band listened in -------------------------------------------------------------------
+
+
+def test_the_band_listened_in_is_whole_audio_until_set_and_can_be_reset(services):
+    service = services()
+    assert service.search_band() is None
+    assert service.set_search_band(1000.0, 2000.0) == (1000.0, 2000.0)
+    assert service.status()["search_band"] == [1000.0, 2000.0]
+    assert service.set_search_band(None, None) is None
+    assert service.status()["search_band"] is None
+
+
+def test_a_band_can_be_changed_while_listening(services):
+    service = services(FakeAudio(devices=DEVICES, loopback=True))
+    service.start_listening()
+    assert service.set_search_band(1000.0, 2000.0) == (1000.0, 2000.0)
+
+
+@pytest.mark.parametrize(
+    "low, high, said",
+    [
+        (1000.0, 1100.0, "175"),  # the fast Preset needs 175 Hz from its lowest tone to its highest
+        (2000.0, 1000.0, "below"),
+        (100.0, 2000.0, "300 to 2700"),
+        (1000.0, 3000.0, "300 to 2700"),
+        (1000.0, None, "both"),
+        ("low", 2000.0, "numbers"),
+        (True, 2000.0, "numbers"),
+    ],
+)
+def test_a_band_that_cannot_hold_a_signal_or_makes_no_sense_is_refused_and_nothing_changes(
+    services, low, high, said
+):
+    service = services()
+    service.apply_settings(preset="fast")
+    service.set_search_band(1000.0, 2000.0)
+    with pytest.raises(SettingsError, match=said):
+        service.set_search_band(low, high)
+    assert service.search_band() == (1000.0, 2000.0)
+
+
+def test_a_preset_that_does_not_fit_the_band_is_refused(services):
+    service = services()
+    service.apply_settings(preset="standard")
+    service.set_search_band(1000.0, 1100.0)  # 100 Hz: standard needs 87.5, fast 175
+    with pytest.raises(SettingsError, match="band"):
+        service.apply_settings(preset="fast")
+    assert service.settings.preset == "standard"

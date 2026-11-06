@@ -69,6 +69,7 @@ class Receiver:
         self._window_seconds = window_seconds  # None: what one Frame needs, see `_listen`
         self._decode_every_seconds = decode_every_seconds
         self._decode_every = round(decode_every_seconds * SAMPLE_RATE)
+        self._search_band: tuple[float, float] | None = None
         self._lock = threading.RLock()
         self._blocks: InputBlocks | None = None
         self._thread: threading.Thread | None = None
@@ -111,6 +112,15 @@ class Receiver:
     def set_keeping(self, keeping: bool) -> None:
         """Keep, or stop keeping, the audio and the indicators of what is read or lost."""
         self._keeper.set_enabled(keeping)
+
+    @property
+    def search_band(self) -> tuple[float, float] | None:
+        return self._search_band
+
+    def set_search_band(self, band: tuple[float, float] | None) -> None:
+        """Hear only the Signals inside a band of audio (Hz); None: all of it. The next pass
+        uses it, while listening too."""
+        self._search_band = band
 
     def _fail(self, message: str) -> None:
         with self._lock:
@@ -206,6 +216,7 @@ class Receiver:
         if not window:
             return
         samples = np.concatenate(list(window)).astype(np.float64)
+        modem.search_band_hz = self._search_band
         try:
             report = modem.demodulate_report(samples)
         except Exception as error:  # a bad stretch of audio must not end the listening

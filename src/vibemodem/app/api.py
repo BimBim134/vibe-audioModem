@@ -40,11 +40,28 @@ class StorageRequest(BaseModel):
     limit_mb: int | None = None
 
 
+class BandRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    low_hz: float | None = None
+    high_hz: float | None = None
+
+
 class SettingsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     preset: str | None = None
     input_device: int | str | None = None
     output_device: int | str | None = None
+
+
+def _band(band: tuple[float, float] | None) -> dict:
+    return (
+        {"low_hz": None, "high_hz": None}
+        if band is None
+        else {
+            "low_hz": band[0],
+            "high_hz": band[1],
+        }
+    )
 
 
 def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: None) -> FastAPI:
@@ -144,6 +161,14 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     @app.post("/api/estimate")
     def estimate(request: EstimateRequest) -> dict:
         return asdict(service.estimate(request.text, request.copies, request.frequency_hz))
+
+    @app.get("/api/band")
+    def get_band() -> dict:
+        return _band(service.search_band())
+
+    @app.post("/api/band")
+    def set_band(request: BandRequest) -> dict:
+        return _band(service.set_search_band(request.low_hz, request.high_hz))
 
     @app.get("/api/storage")
     def get_storage() -> dict:

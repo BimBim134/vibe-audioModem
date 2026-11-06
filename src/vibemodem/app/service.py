@@ -102,6 +102,7 @@ class ModemService:
         )
         self._lock = threading.RLock()
         self._settings = Settings()
+        self._search_band: tuple[float, float] | None = None
         # For sending only (listening has its own): the last few, each a heavy object.
         self._sending_modems: OrderedDict[tuple, object] = OrderedDict()
         self._frame_samples: dict[str, int] = {}  # of one Frame, for each Preset
@@ -153,8 +154,55 @@ class ModemService:
             raise SettingsError("; ".join(problems))
         with self._lock:
             self._check_idle()  # it may have changed while the devices were looked at
+            if "preset" in changes:
+                self._check_band_fits(changes["preset"], self._search_band)
             self._settings = replace(self._settings, **changes)
             return self._settings
+
+    # The audio band listened in -------------------------------------------------------------
+
+    def search_band(self) -> tuple[float, float] | None:
+        return self._search_band
+
+    @staticmethod
+    def _check_band_fits(preset: str, band: tuple[float, float] | None) -> None:
+        if band is None:
+            return
+        needed = presets.minimum_band_hz(preset)
+        if band[1] - band[0] < needed:
+            raise SettingsError(
+                f"the band {band[0]:g} to {band[1]:g} Hz is too narrow for the {preset!r} Preset, "
+                f"which needs at least {needed:g} Hz from its lowest tone to its highest: "
+                "widen the band first"
+            )
+
+    def set_search_band(
+        self, low_hz: float | None, high_hz: float | None
+    ) -> tuple[float, float] | None:
+        """Hear only the Signals entirely inside a band of audio; (None, None): all of it.
+        It applies at the next decoding pass, also while listening."""
+        if low_hz is None and high_hz is None:
+            band = None
+        else:
+            if low_hz is None or high_hz is None:
+                raise SettingsError("give both frequencies of the band, or neither")
+            for value in (low_hz, high_hz):
+                if isinstance(value, bool) or not isinstance(value, int | float):
+                    raise SettingsError(
+                        f"the frequencies of the band are numbers of Hz, got {value!r}"
+                    )
+            low, high = mfsk.SEARCH_BAND_HZ
+            if not low <= low_hz <= high or not low <= high_hz <= high:
+                raise SettingsError(f"the band must lie in {low:g} to {high:g} Hz")
+            if low_hz >= high_hz:
+                raise SettingsError("the low frequency must be below the high one")
+            band = (float(low_hz), float(high_hz))
+        with self._lock:
+            self._not_closed()
+            self._check_band_fits(self._settings.preset, band)
+            self._search_band = band
+            self._receiver.set_search_band(band)
+            return band
 
     def devices(self) -> list[DeviceInfo]:
         """The audio devices; raises `AudioLibraryUnavailableError` when PortAudio is missing."""
@@ -228,6 +276,7 @@ class ModemService:
                     "input_device": self._settings.input_device,
                     "output_device": self._settings.output_device,
                 },
+                "search_band": None if self._search_band is None else list(self._search_band),
                 "received": self._receiver.counts[0],
                 "incomplete": self._receiver.counts[1],
                 "blocks_lost": self._receiver.blocks_lost,

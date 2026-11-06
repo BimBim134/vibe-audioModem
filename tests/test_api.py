@@ -504,3 +504,23 @@ def test_a_change_to_an_asset_file_shows_on_the_next_load_without_restarting(
         response = client.get(url)
         assert response.text == f"second {name} longer"
         assert "no-cache" in response.headers["cache-control"]
+
+
+def test_the_band_listened_in_is_set_read_and_reset_through_the_api(made):
+    _, client = made()
+    assert client.get("/api/band").json() == {"low_hz": None, "high_hz": None}
+    body = client.post("/api/band", json={"low_hz": 800, "high_hz": 2200}).json()
+    assert body == {"low_hz": 800.0, "high_hz": 2200.0}
+    assert client.get("/api/status").json()["search_band"] == [800.0, 2200.0]
+    assert client.post("/api/band", json={"low_hz": None, "high_hz": None}).json() == {
+        "low_hz": None,
+        "high_hz": None,
+    }
+
+
+def test_a_band_too_narrow_for_the_preset_is_refused_with_the_width_it_needs(made):
+    _, client = made()
+    client.post("/api/settings", json={"preset": "fast"})
+    refused = client.post("/api/band", json={"low_hz": 1000, "high_hz": 1100})
+    assert refused.status_code == 422 and "175" in refused.json()["detail"]
+    assert client.get("/api/band").json() == {"low_hz": None, "high_hz": None}

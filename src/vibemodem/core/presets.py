@@ -33,6 +33,13 @@ def frequency_range_hz(preset: str) -> tuple[float, float]:
     return mfsk.Waveform(chosen.tones, chosen.symbol_ms / 1000).first_tone_range_hz
 
 
+def minimum_band_hz(preset: str) -> float:
+    """The narrowest band of audio that holds a Signal of the Preset, from its lowest tone to
+    its highest."""
+    chosen = profile(preset)
+    return mfsk.Waveform(chosen.tones, chosen.symbol_ms / 1000).occupied_hz
+
+
 def profile(preset: str) -> PhyProfile:
     """The PHY profile of a Preset, or a ValueError that lists the Presets there are."""
     try:

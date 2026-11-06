@@ -88,9 +88,14 @@ class CodedMfskModem(CodedModem):
         # A Transmission is a Frame after another, each with its own Preamble: look for as many
         # Signals as Frames that would fill the recording, and a couple more.
         found = self.waveform.find_signals(
-            samples, max_candidates=max(MIN_SIGNALS, samples.size // self.frame_samples() + 2)
+            samples,
+            max_candidates=max(MIN_SIGNALS, samples.size // self.frame_samples() + 2),
+            band_hz=self.search_band_hz,
         )
         return [self.waveform.refine(samples, candidate) for candidate in found]
+
+    def _listened_to(self, signal: mfsk.Candidate) -> bool:
+        return signal.inside_band
 
     def frame_samples(self) -> int:
         return (mfsk.PREAMBLE_SYMBOLS + self._data_symbols) * self.waveform.samples_per_symbol

@@ -61,6 +61,8 @@ class CodedModem:
             raise ValueError("interleave must be true or false")
         self.code = code
         self.preset = preset
+        # (low, high) Hz of audio: only Signals entirely inside are looked for. None: all of it.
+        self.search_band_hz: tuple[float, float] | None = None
         self._interleave = interleave
         self._repetitions = repetitions
         self._sent_bits = repetitions * code.coded_bits
@@ -92,6 +94,10 @@ class CodedModem:
     def _find(self, samples: np.ndarray) -> list:
         """Places where a Signal may be, best first, pinned down as finely as the search can."""
         raise NotImplementedError
+
+    def _listened_to(self, signal) -> bool:
+        """Whether a Signal found is inside the band searched (the others only tell side peaks)."""
+        return True
 
     def _decode(self, samples: np.ndarray, signal) -> Reception | None:
         raise NotImplementedError
@@ -138,6 +144,8 @@ class CodedModem:
         lost, read_at, arriving = [], [], []
         signals = self._find(samples)
         for signal in signals:
+            if not self._listened_to(signal):
+                continue
             reception = self._decode(samples, signal)
             if reception is None:
                 if signal.score >= UNDECODED_MIN_SCORE:
