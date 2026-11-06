@@ -1,8 +1,8 @@
 # Project map — Vibe AudioModem
 
-Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabulary `GLOSSARY.md`, the decisions `docs/adr/` and `docs/agents/memory.md`.
+Concise map of the repository as it is now. The roadmap is the GitHub tickets, the vocabulary `GLOSSARY.md`, the decisions `docs/adr/` and `docs/agents/memory.md`.
 
-**What it is:** a one-way, weak-signal data modem for radio amateurs, being rewritten from scratch. Python 3.12, NumPy/SciPy core, `uv` for dependencies, no GNU Radio. The first prototype is frozen under the git tag `legacy-v0`; see `docs/legacy/` for its documentation, and read its files with `git show legacy-v0:<path>`.
+**What it is:** a one-way, weak-signal data modem for radio amateurs, being rewritten from scratch. Python 3.12, NumPy/SciPy core, `uv` for dependencies, no GNU Radio. The first prototype is frozen under the git tag `legacy-v0`; read its files and documentation with `git show legacy-v0:<path>`.
 
 ## Layout
 
@@ -52,7 +52,7 @@ Concise map of the repository as it is now. The roadmap is `TODO.md`, the vocabu
 | `packaging/` | `vibemodem.spec` (PyInstaller, windowed), `entry.py`, `smoke_test.py` (run against the built executable in CI). |
 | `tests/` | `test_layers.py` (layers importable, core stays pure), `test_channel.py`, `test_service.py`, `test_api.py`, `test_audio.py`, `test_wav.py`, `test_levels.py`, `test_audio_check.py`, `test_toy_modem.py`, `test_threshold.py` (threshold logic, toy modem vs theory), `test_threshold_command.py`, `test_report.py`, `test_report_command.py`, `test_mfsk_modems.py` (both modems: round trip, unknown start and frequency, never-delivered cases), `test_codes.py` (the contract of every Code), `test_ldpc.py`, `test_turbo.py`, `test_long_convolutional.py`, `test_speed.py`, `test_code_curves.py`; `fake_modems.py` holds stand-in candidates. |
 | `.github/workflows/` | `ci.yml` (ruff + pytest on Linux/Windows for every push, plus macOS on pull requests), `package.yml` (build, smoke-test and upload Windows/macOS artifacts). |
-| `docs/` | `adr/` (decisions), `packaging/` (spike findings, manual check procedure), `legacy/` (prototype docs), `references/` (papers), `agents/` (this folder). |
+| `docs/` | `adr/` (decisions), `packaging/` (spike findings, manual check procedure), `agents/` (this folder). |
 
 ## Commands
 

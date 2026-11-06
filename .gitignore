@@ -17,3 +17,6 @@ dist/
 .env
 *.log
 *.wav
+
+# output of the example threshold command in the README
+result.json
