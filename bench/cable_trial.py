@@ -13,6 +13,11 @@ cable and the receiver's own filtering, with no room in between.
     # stored receptions cleared, listening to the same Preset; then, when it is all sent:
     python -m bench.cable_trial report ~/.local/share/vibemodem/receptions --preset fast
 
+The application deletes the oldest kept receptions beyond its storage limit (200 MB by default),
+and the lowest SNRs are sent first: raise the limit (`limit_mb` of `/api/storage`, or the
+Advanced settings) to hold the whole trial, or those levels read as lost when they were not.
+The report counts what was deleted and says so.
+
 Both sides must be given the same `--snr=-16,-14` list (with an equals sign: a list starting
 with a minus is not read otherwise) and `--per-level` number (or both leave the
 defaults). Each Message is a short text that names its own SNR and number, so the report does
@@ -123,6 +128,17 @@ def report(directory: Path, preset: str, levels: list[float], per_level: int) ->
     return [LevelRow(snr, counts[snr], per_level) for snr in sorted(levels)]
 
 
+def deleted_receptions(directory: Path) -> int:
+    """How many receptions the storage limit deleted from a folder that was empty at the start:
+    the numbering of the kept ones begins at the oldest that is left."""
+    numbers = [
+        int(path.stem.rsplit("-", 1)[1])
+        for path in directory.glob("*.json")
+        if path.stem.rsplit("-", 1)[-1].isdigit()
+    ]
+    return min(numbers) if numbers else 0
+
+
 def measured_threshold(rows: list[LevelRow]) -> float | None:
     """The lowest SNR from which up to the loudest level 95 % of the Messages arrived."""
     threshold = None
@@ -177,6 +193,12 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
     rows = report(args.directory, args.preset, levels, args.per_level)
+    deleted = deleted_receptions(args.directory)
+    if deleted:
+        print(
+            f"WARNING: {deleted} of the oldest receptions were deleted by the storage limit: "
+            "the levels sent first are incomplete, not lost"
+        )
     for row in rows:
         print(f"{row.snr_db:6g} dB  {row.received:3d} of {row.sent}  {row.rate:4.0%}")
     simulated = SIMULATED_THRESHOLD_DB[args.preset]

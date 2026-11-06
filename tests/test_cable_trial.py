@@ -6,6 +6,7 @@ import pytest
 from bench.cable_trial import (
     SIMULATED_THRESHOLD_DB,
     default_levels,
+    deleted_receptions,
     device_argument,
     label,
     main,
@@ -82,3 +83,12 @@ def test_the_send_command_refuses_a_level_list_that_is_not_numbers(capsys):
 def test_a_device_given_as_digits_is_a_number_and_anything_else_is_a_name():
     assert device_argument("10") == 10 and device_argument("Scarlett") == "Scarlett"
     assert device_argument(None) is None
+
+
+def test_receptions_the_storage_limit_deleted_are_counted_and_the_report_says_so(kept, capsys):
+    assert deleted_receptions(kept) == 0
+    for oldest in kept.glob("*-0000.*"):
+        oldest.unlink()
+    assert deleted_receptions(kept) == 1
+    main(["report", str(kept), "--preset", PRESET, "--snr=-30,10", "--per-level", "3"])
+    assert "1 of the oldest receptions were deleted" in capsys.readouterr().out
