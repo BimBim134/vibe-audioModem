@@ -15,7 +15,14 @@ MEASUREMENTS = Path(__file__).resolve().parent.parent / "docs" / "measurements"
 OUTPUT = MEASUREMENTS / "cable-trial" / "report.html"
 PRESETS = ["fast", "standard", "max-range"]
 REQUIRED = 0.95
-SERIES_COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"]  # one per cable run of a Preset, in order
+SERIES_COLORS = [
+    "--s1",
+    "--s2",
+    "--s3",
+    "--s4",
+    "--s5",
+    "--s6",
+]  # one per cable run of a Preset, in order
 
 WIDTH, HEIGHT = 640, 300
 LEFT, RIGHT, TOP, BOTTOM = 52, 16, 14, 44
@@ -49,18 +56,32 @@ def chart(preset: str, runs: list[dict], curve: list[tuple[float, float]]) -> st
     low, high = min(snrs) - 1, max(snrs) + 1
     x = lambda snr: LEFT + (snr - low) / (high - low) * (WIDTH - LEFT - RIGHT)  # noqa: E731
     y = lambda rate: TOP + (1 - rate) * (HEIGHT - TOP - BOTTOM)  # noqa: E731
-    out = [f'<svg viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-label="Success rate against SNR, {preset}">']
+    out = [
+        f'<svg viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-label="Success rate against SNR, {preset}">'
+    ]
     for tick in (0, 0.25, 0.5, 0.75, 1):
-        out.append(f'<line class="grid" x1="{LEFT}" x2="{WIDTH - RIGHT}" y1="{y(tick):.1f}" y2="{y(tick):.1f}"/>')
-        out.append(f'<text x="{LEFT - 8}" y="{y(tick) + 4:.1f}" text-anchor="end">{tick:.0%}</text>')
+        out.append(
+            f'<line class="grid" x1="{LEFT}" x2="{WIDTH - RIGHT}" y1="{y(tick):.1f}" y2="{y(tick):.1f}"/>'
+        )
+        out.append(
+            f'<text x="{LEFT - 8}" y="{y(tick) + 4:.1f}" text-anchor="end">{tick:.0%}</text>'
+        )
     step = 2 if high - low > 12 else 1
     for snr in range(int(low) + (int(low) % step), int(high) + 1, step):
-        out.append(f'<text x="{x(snr):.1f}" y="{HEIGHT - BOTTOM + 18}" text-anchor="middle">{snr}</text>')
-    out.append(f'<text x="{(LEFT + WIDTH - RIGHT) / 2}" y="{HEIGHT - 6}" text-anchor="middle">SNR in 2,500 Hz (dB)</text>')
-    out.append(f'<line class="target" x1="{LEFT}" x2="{WIDTH - RIGHT}" y1="{y(REQUIRED):.1f}" y2="{y(REQUIRED):.1f}"/>')
+        out.append(
+            f'<text x="{x(snr):.1f}" y="{HEIGHT - BOTTOM + 18}" text-anchor="middle">{snr}</text>'
+        )
+    out.append(
+        f'<text x="{(LEFT + WIDTH - RIGHT) / 2}" y="{HEIGHT - 6}" text-anchor="middle">SNR in 2,500 Hz (dB)</text>'
+    )
+    out.append(
+        f'<line class="target" x1="{LEFT}" x2="{WIDTH - RIGHT}" y1="{y(REQUIRED):.1f}" y2="{y(REQUIRED):.1f}"/>'
+    )
     line = " ".join(f"{x(snr):.1f},{y(rate):.1f}" for snr, rate in curve)
     if curve:
-        out.append(f'<polyline class="sim" points="{line}"><title>Simulator, white noise, 100 trials per level</title></polyline>')
+        out.append(
+            f'<polyline class="sim" points="{line}"><title>Simulator, white noise, 100 trials per level</title></polyline>'
+        )
     for index, run in enumerate(runs):
         color = SERIES_COLORS[index % len(SERIES_COLORS)]
         rows = sorted(run["levels"])
@@ -70,7 +91,7 @@ def chart(preset: str, runs: list[dict], curve: list[tuple[float, float]]) -> st
             + '"/>'
         )
         for snr, received, sent in rows:
-            tip = f'{run["label"]}: {snr:g} dB, {received} of {sent} received'
+            tip = f"{run['label']}: {snr:g} dB, {received} of {sent} received"
             out.append(
                 f'<circle cx="{x(snr):.1f}" cy="{y(received / sent):.1f}" r="5" style="fill:var({color})">'
                 f"<title>{html.escape(tip)}</title></circle>"
@@ -83,7 +104,9 @@ def legend(runs: list[dict], simulator: str | None = "Simulator (white noise)") 
     items = [f'<span class="key"><i class="sw sim"></i>{simulator}</span>'] if simulator else []
     for index, run in enumerate(runs):
         color = SERIES_COLORS[index % len(SERIES_COLORS)]
-        items.append(f'<span class="key"><i class="sw" style="background:var({color})"></i>{html.escape(run["label"])}</span>')
+        items.append(
+            f'<span class="key"><i class="sw" style="background:var({color})"></i>{html.escape(run["label"])}</span>'
+        )
     return '<p class="legend">' + "".join(items) + "</p>"
 
 
