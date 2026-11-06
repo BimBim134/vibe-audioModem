@@ -9,7 +9,6 @@ from the result files of `docs/measurements/`; the explanations are written belo
 
 import html
 import json
-from pathlib import Path
 
 from bench import cable_report as cable
 from bench.cable_report import MEASUREMENTS, PRESETS
@@ -37,7 +36,11 @@ def code_runs() -> list[dict]:
     runs = []
     for name, label in CODES:
         saved = json.loads((MEASUREMENTS / name).read_text())
-        levels = [[p["snr_db"], p["successes"], p["trials"]] for p in saved["curve"] if -18 <= p["snr_db"] <= -14]
+        levels = [
+            [p["snr_db"], p["successes"], p["trials"]]
+            for p in saved["curve"]
+            if -18 <= p["snr_db"] <= -14
+        ]
         runs.append({"label": label, "levels": levels})
     return runs
 
@@ -64,24 +67,44 @@ def pipeline() -> str:
         ("Message", "ou incomplet", 0, 1),
     ]
     w, h, gx, gy = 128, 56, 12, 86
-    out = [f'<svg viewBox="0 0 {6 * (w + gx)} {2 * gy + 8}" role="img" aria-label="Chaîne d\'émission et de réception">']
-    out.append('<defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">'
-               '<path d="M0,0 L6,3 L0,6" fill="none" stroke="var(--muted)"/></marker></defs>')
+    out = [
+        f'<svg viewBox="0 0 {6 * (w + gx)} {2 * gy + 8}" role="img" aria-label="Chaîne d\'émission et de réception">'
+    ]
+    out.append(
+        '<defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">'
+        '<path d="M0,0 L6,3 L0,6" fill="none" stroke="var(--muted)"/></marker></defs>'
+    )
     for index, (title, sub, col, row) in enumerate(boxes):
         x, y = col * (w + gx) + 2, row * gy + 14
         # sender runs left to right, receiver right to left
-        out.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" class="box{" rx" if row else ""}"/>')
-        out.append(f'<text x="{x + w / 2}" y="{y + 24}" text-anchor="middle" class="bt">{html.escape(title)}</text>')
-        out.append(f'<text x="{x + w / 2}" y="{y + 40}" text-anchor="middle" class="bs">{html.escape(sub)}</text>')
+        out.append(
+            f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" class="box{" rx" if row else ""}"/>'
+        )
+        out.append(
+            f'<text x="{x + w / 2}" y="{y + 24}" text-anchor="middle" class="bt">{html.escape(title)}</text>'
+        )
+        out.append(
+            f'<text x="{x + w / 2}" y="{y + 40}" text-anchor="middle" class="bs">{html.escape(sub)}</text>'
+        )
         if index < 5:
-            out.append(f'<line x1="{x + w}" y1="{y + h / 2}" x2="{x + w + gx - 2}" y2="{y + h / 2}" class="ar"/>')
+            out.append(
+                f'<line x1="{x + w}" y1="{y + h / 2}" x2="{x + w + gx - 2}" y2="{y + h / 2}" class="ar"/>'
+            )
         elif index == 5:
-            out.append(f'<line x1="{x + w / 2}" y1="{y + h}" x2="{x + w / 2}" y2="{y + gy - 2}" class="ar"/>')
+            out.append(
+                f'<line x1="{x + w / 2}" y1="{y + h}" x2="{x + w / 2}" y2="{y + gy - 2}" class="ar"/>'
+            )
         elif index > 6:
-            out.append(f'<line x1="{x + w + gx - 2}" y1="{y + h / 2}" x2="{x + w}" y2="{y + h / 2}" class="ar"/>')
+            out.append(
+                f'<line x1="{x + w + gx - 2}" y1="{y + h / 2}" x2="{x + w}" y2="{y + h / 2}" class="ar"/>'
+            )
         elif index == 6:
-            out.append(f'<line x1="{x}" y1="{y + h / 2}" x2="{x - gx + 2}" y2="{y + h / 2}" class="ar"/>')
-    out.append(f'<text x="4" y="10" class="bs">ÉMISSION</text><text x="4" y="{gy + 10}" class="bs">RÉCEPTION</text>')
+            out.append(
+                f'<line x1="{x}" y1="{y + h / 2}" x2="{x - gx + 2}" y2="{y + h / 2}" class="ar"/>'
+            )
+    out.append(
+        f'<text x="4" y="10" class="bs">ÉMISSION</text><text x="4" y="{gy + 10}" class="bs">RÉCEPTION</text>'
+    )
     out.append("</svg>")
     return "".join(out)
 
@@ -94,7 +117,11 @@ def presets_table() -> str:
         "fast": ("40 ms", "212 Hz", "6,8 s", "4 335 octets", "−13 dB", "90 % à 0 dB seulement"),
     }
     for name in ("max-range", "standard", "fast"):
-        rows.append(f"<tr><td class='name'><strong>{name}</strong></td>" + "".join(f"<td>{v}</td>" for v in facts[name]) + "</tr>")
+        rows.append(
+            f"<tr><td class='name'><strong>{name}</strong></td>"
+            + "".join(f"<td>{v}</td>" for v in facts[name])
+            + "</tr>"
+        )
     return (
         "<div class='scroll'><table><tr><th class='name'>Preset</th><th>Symbole</th><th>Bande à −20 dB</th>"
         "<th>Durée d'une Frame</th><th>Plus gros Message (1 copie)</th><th>Seuil, bruit blanc</th>"
@@ -103,28 +130,104 @@ def presets_table() -> str:
 
 
 TIMELINE = [
-    ("#2", "Fondations", "Squelette du dépôt, outillage (uv, Python 3.12), intégration continue sur Linux, Windows et macOS."),
-    ("#3", "Paquetage", "Un « hello » installable par un non-développeur sous Windows et macOS : on a vérifié la faisabilité avant de construire."),
-    ("#4", "Simulateur de canal", "Bruit blanc à un SNR exact, décalage de fréquence, dérive d'horloge, écrêtage, impulsions, fading de Rayleigh, filtre SSB. Tout est reproductible par graine."),
-    ("#5", "Mesure du seuil", "L'interface commune des modems candidats et la commande qui calcule le Success threshold. Un modem jouet (BPSK) a servi à vérifier que le banc retrouve la courbe théorique."),
-    ("#6", "Modem de référence", "8-FSK, code convolutif de contrainte 7, décodage de Viterbi à valeurs souples, CRC-32 : seuil <strong>−15 dB</strong>."),
-    ("#7–#9", "Trois autres codes", "Interface « Code » à valeurs souples, puis LDPC (−15,5 dB), turbo (−16 dB) et convolutif long du WSPR décodé par Fano (−15,5 dB)."),
-    ("#10", "Choix du code", "Le turbo gagne : meilleur sur bruit blanc et nettement devant sous fading (ADR 0003). Les trois autres restent dans le dépôt."),
-    ("#11", "Largeur de bande et balayage M-FSK", "16 combinaisons de tons et de durées de symbole, entrelaceur, répétition. 8 tons est le meilleur compromis."),
-    ("#12", "Candidat GFSK", "Le GFSK à faible débit, pour la comparaison : au moins 2,5 dB derrière le M-FSK à énergie et bande égales. Son code a été retiré (historique git)."),
-    ("#13", "Les trois Presets", "max-range, standard, fast : seule la durée du symbole change (ADR 0004)."),
-    ("#14", "Protocole de Message", "Fragments, CRC, déduplication, réassemblage, Messages incomplets (ADR 0005)."),
-    ("#15", "Durée et taille", "Estimation exacte de la durée d'émission et plafond de 30 minutes, avec un refus expliqué."),
+    (
+        "#2",
+        "Fondations",
+        "Squelette du dépôt, outillage (uv, Python 3.12), intégration continue sur Linux, Windows et macOS.",
+    ),
+    (
+        "#3",
+        "Paquetage",
+        "Un « hello » installable par un non-développeur sous Windows et macOS : on a vérifié la faisabilité avant de construire.",
+    ),
+    (
+        "#4",
+        "Simulateur de canal",
+        "Bruit blanc à un SNR exact, décalage de fréquence, dérive d'horloge, écrêtage, impulsions, fading de Rayleigh, filtre SSB. Tout est reproductible par graine.",
+    ),
+    (
+        "#5",
+        "Mesure du seuil",
+        "L'interface commune des modems candidats et la commande qui calcule le Success threshold. Un modem jouet (BPSK) a servi à vérifier que le banc retrouve la courbe théorique.",
+    ),
+    (
+        "#6",
+        "Modem de référence",
+        "8-FSK, code convolutif de contrainte 7, décodage de Viterbi à valeurs souples, CRC-32 : seuil <strong>−15 dB</strong>.",
+    ),
+    (
+        "#7–#9",
+        "Trois autres codes",
+        "Interface « Code » à valeurs souples, puis LDPC (−15,5 dB), turbo (−16 dB) et convolutif long du WSPR décodé par Fano (−15,5 dB).",
+    ),
+    (
+        "#10",
+        "Choix du code",
+        "Le turbo gagne : meilleur sur bruit blanc et nettement devant sous fading (ADR 0003). Les trois autres restent dans le dépôt.",
+    ),
+    (
+        "#11",
+        "Largeur de bande et balayage M-FSK",
+        "16 combinaisons de tons et de durées de symbole, entrelaceur, répétition. 8 tons est le meilleur compromis.",
+    ),
+    (
+        "#12",
+        "Candidat GFSK",
+        "Le GFSK à faible débit, pour la comparaison : au moins 2,5 dB derrière le M-FSK à énergie et bande égales. Son code a été retiré (historique git).",
+    ),
+    (
+        "#13",
+        "Les trois Presets",
+        "max-range, standard, fast : seule la durée du symbole change (ADR 0004).",
+    ),
+    (
+        "#14",
+        "Protocole de Message",
+        "Fragments, CRC, déduplication, réassemblage, Messages incomplets (ADR 0005).",
+    ),
+    (
+        "#15",
+        "Durée et taille",
+        "Estimation exacte de la durée d'émission et plafond de 30 minutes, avec un refus expliqué.",
+    ),
     ("#16", "Couche audio", "Cartes son, fichiers WAV, liste des périphériques."),
     ("#17", "Application locale", "Page web servie localement : écrire, envoyer, écouter, lire."),
-    ("#18", "Spectre et qualité", "Spectre et cascade, SNR et décalage estimés, Signaux trouvés mais non lus, taux de fausses alarmes mesuré."),
+    (
+        "#18",
+        "Spectre et qualité",
+        "Spectre et cascade, SNR et décalage estimés, Signaux trouvés mais non lus, taux de fausses alarmes mesuré.",
+    ),
     ("#19", "Presets dans l'interface", "Choix du Preset et durée affichée avant l'envoi."),
-    ("#20", "Réceptions gardées", "L'audio de chaque Frame est conservé avec ses indicateurs, et rejoué à l'identique sur le banc (ADR 0006)."),
-    ("#21", "Validation sur câble", "Les trois Presets sur une vraie chaîne audio, à des SNR connus : voir plus bas."),
-    ("#24–#26", "Page et conversation", "Page découpée en fichiers, filtres de la conversation, avertissement quand on quitte en écoutant."),
-    ("#22", "Paquet Windows", "Un zip construit par la CI et vérifié sur une machine Windows propre : lancement sans terminal, écoute et envoi."),
-    ("#27", "Bande d'écoute", "Le récepteur ne cherche que les Signaux entièrement dans une bande d'audio choisie (bruit de radio basse fréquence) ; réglage temporaire, tant que le cœur ne lit qu'un Signal à la fois."),
-    ("#28", "Écart de max-range", "Une perte apparente de 3 à 4 dB sur câble : un défaut de l'essai (l'application supprimait ses plus anciennes réceptions, les SNR les plus bas), pas de la chaîne. Remesuré : max-range égale le simulateur."),
+    (
+        "#20",
+        "Réceptions gardées",
+        "L'audio de chaque Frame est conservé avec ses indicateurs, et rejoué à l'identique sur le banc (ADR 0006).",
+    ),
+    (
+        "#21",
+        "Validation sur câble",
+        "Les trois Presets sur une vraie chaîne audio, à des SNR connus : voir plus bas.",
+    ),
+    (
+        "#24–#26",
+        "Page et conversation",
+        "Page découpée en fichiers, filtres de la conversation, avertissement quand on quitte en écoutant.",
+    ),
+    (
+        "#22",
+        "Paquet Windows",
+        "Un zip construit par la CI et vérifié sur une machine Windows propre : lancement sans terminal, écoute et envoi.",
+    ),
+    (
+        "#27",
+        "Bande d'écoute",
+        "Le récepteur ne cherche que les Signaux entièrement dans une bande d'audio choisie (bruit de radio basse fréquence) ; réglage temporaire, tant que le cœur ne lit qu'un Signal à la fois.",
+    ),
+    (
+        "#28",
+        "Écart de max-range",
+        "Une perte apparente de 3 à 4 dB sur câble : un défaut de l'essai (l'application supprimait ses plus anciennes réceptions, les SNR les plus bas), pas de la chaîne. Remesuré : max-range égale le simulateur.",
+    ),
 ]
 
 OPEN = [
@@ -165,7 +268,10 @@ def build() -> str:
         '<a href="#application">Application</a><a href="#parcours">Parcours</a><a href="#mesures">Mesures</a>'
         '<a href="#terrain">Essais réels</a><a href="#suite">Suite</a><a href="#lexique">Lexique</a></nav>'
     )
-    page.append(part("1. Le but", """
+    page.append(
+        part(
+            "1. Le but",
+            """
 <p>Les radioamateurs qui veulent échanger de courts messages sur des liaisons HF ou VHF faibles n'ont pas
 d'outil simple qui travaille près du plancher de bruit, dans une bande étroite, à sens unique, et qu'un
 opérateur non technicien puisse installer. Le prototype de départ (GMSK à 200 bauds, bâti sur GNU Radio, six
@@ -185,8 +291,14 @@ d'essai sont reçus corrects. Plus il est bas (−16 dB, −22 dB…), plus le m
 −16 dB, le signal est 40 fois moins puissant que le bruit de la bande de référence. Tout le projet est mené
 à la mesure : chaque choix (modulation, code, durée du symbole) est tranché par un chiffre, et le chiffre est
 consigné avec la décision.</p>
-""", "but"))
-    page.append(part("2. Comment ça marche", f"""
+""",
+            "but",
+        )
+    )
+    page.append(
+        part(
+            "2. Comment ça marche",
+            f"""
 <h3>La chaîne complète</h3>
 {pipeline()}
 <h3>À l'émission</h3>
@@ -248,13 +360,26 @@ Frame.</li>
 du symbole change. Doubler le symbole gagne 3 dB, double la durée d'émission, et laisse l'énergie émise
 inchangée (environ −4,7 dB). Les Presets sont un choix de <em>temps passé à l'antenne</em>, pas de rendement.</li>
 </ul>
-""", "fonctionnement"))
-    page.append(part("3. Les trois Presets", presets_table() + """
+""",
+            "fonctionnement",
+        )
+    )
+    page.append(
+        part(
+            "3. Les trois Presets",
+            presets_table()
+            + """
 <p>Les seuils sont mesurés avec des Messages de 12 octets. Fast ne tient pas le
 fading HF à 95 % : 6,8 s sont trop courtes pour traverser les évanouissements, il est fait pour les bons
 canaux. Un modem est construit pour un seul Preset ; le récepteur doit savoir lequel écouter.</p>
-""", "presets"))
-    page.append(part("4. L'application", """
+""",
+            "presets",
+        )
+    )
+    page.append(
+        part(
+            "4. L'application",
+            """
 <p>Trois couches strictement séparées : un <strong>cœur</strong> de traitement du signal qui n'a accès à rien
 (ni carte son, ni fichier, ni horloge, ni réseau, donc testable sur de simples tableaux), une couche
 <strong>io</strong> pour les cartes son et les fichiers WAV, et une couche <strong>app</strong> qui sert une page
@@ -276,9 +401,18 @@ réceptions (ADR 0006).</li>
 <li><strong>Sécurité de la page :</strong> uniquement locale, les réglages sont acceptés en entier ou refusés,
 l'arrêt est propre, et fermer l'application en écoutant affiche un avertissement orange.</li>
 </ul>
-""", "application"))
-    rows = "".join(f"<tr><td>{t}</td><td class='name'><strong>{html.escape(a)}</strong></td><td>{b}</td></tr>" for t, a, b in TIMELINE)
-    page.append(part("5. Le parcours, ticket par ticket", f"""
+""",
+            "application",
+        )
+    )
+    rows = "".join(
+        f"<tr><td>{t}</td><td class='name'><strong>{html.escape(a)}</strong></td><td>{b}</td></tr>"
+        for t, a, b in TIMELINE
+    )
+    page.append(
+        part(
+            "5. Le parcours, ticket par ticket",
+            f"""
 <p>Le travail a suivi un ordre précis : <em>d'abord le banc de mesure, ensuite les candidats, enfin
 l'application, enfin la réalité</em>. On n'a rien décidé sans chiffre, et chaque décision durable a son
 <em>Architecture Decision Record</em> (ADR). Les tickets sont des « tranches verticales » : chacune traverse
@@ -287,8 +421,14 @@ toutes les couches et se démontre seule.</p>
 <p class="note">Environ 4 000 lignes de code d'application, 2 300 de banc et 6 600 de tests ; les décisions
 sont dans <code>docs/adr/</code>, le vocabulaire dans <code>GLOSSARY.md</code>, les mesures dans
 <code>docs/measurements/</code>.</p>
-""", "parcours"))
-    page.append(part("6. Les mesures", f"""
+""",
+            "parcours",
+        )
+    )
+    page.append(
+        part(
+            "6. Les mesures",
+            f"""
 <h3>Quatre codes correcteurs, sur le même modem</h3>
 <p>Même modem, mêmes Messages, mêmes graines, 300 Messages par niveau de bruit blanc. Seul le code change.
 Seuils à 95 % : <strong>−15 dB</strong> (référence), <strong>−15,5 dB</strong> (LDPC),
@@ -327,14 +467,20 @@ code a été retiré du dépôt (il reste dans l'historique git) ; les mesures r
 <p>En 80 heures de bruit seul, <strong>aucun Message</strong> n'a été lu (le CRC tient). Les Signaux « trouvés mais
 non lus » sont rapportés à partir d'un score de 10 : le bruit seul ne dépasse jamais 7,7, un Signal au seuil de
 réussite ne descend jamais sous 15. Résultat : 0 fausse alarme en 20 heures par Preset à partir de 10.</p>
-""", "mesures"))
+""",
+            "mesures",
+        )
+    )
     summary = cable.summary_table(runs)
     sections = "".join(
         f"<h3>{preset.capitalize()}</h3>{cable.chart(preset, runs[preset], cable.load_simulator(preset))}"
         f"{cable.legend(runs[preset], 'Simulateur (bruit blanc)')}{cable.table(runs[preset])}"
         for preset in PRESETS
     )
-    page.append(part("7. Les essais réels", f"""
+    page.append(
+        part(
+            "7. Les essais réels",
+            f"""
 <h3>Dans une pièce, avec des haut-parleurs et un micro</h3>
 <p>Un PC portable émet par ses haut-parleurs vers le micro intégré d'une tour, avec un peu de bruit ambiant. Les
 trois Presets fonctionnent, et les Messages courts arrivent tous. Un Message de dix Fragments en fast n'a
@@ -365,9 +511,18 @@ Ticket #28.</li>
 <li><strong>La pièce coûte, pas la carte son :</strong> les 7 dB perdus dans la pièce en fast sont acoustiques
 (haut-parleur, micro, réverbération), pas ceux du modem.</li>
 </ul>
-""", "terrain"))
-    open_rows = "".join(f"<tr><td>{t}</td><td class='name'>{html.escape(a)}</td><td>{b}</td></tr>" for t, a, b in OPEN)
-    page.append(part("8. Ce qui reste", f"""
+""",
+            "terrain",
+        )
+    )
+    open_rows = "".join(
+        f"<tr><td>{t}</td><td class='name'>{html.escape(a)}</td><td>{b}</td></tr>"
+        for t, a, b in OPEN
+    )
+    page.append(
+        part(
+            "8. Ce qui reste",
+            f"""
 <div class="scroll"><table class="tl"><tr><th>Ticket</th><th>Sujet</th><th>État</th></tr>{open_rows}</table></div>
 <ul>
 <li>Le <strong>niveau de sortie</strong> du portable n'a pas été testé (100 %, 25 %, 6 %) : on ne règle pas le
@@ -378,8 +533,14 @@ décision à prendre plus tard (ADR 0004).</li>
 <li>Pistes d'optimisation notées : Preamble plus court après la première Frame, Frames plus longues,
 retransmission des seules Frames manquantes.</li>
 </ul>
-""", "suite"))
-    page.append(part("9. Lexique", """
+""",
+            "suite",
+        )
+    )
+    page.append(
+        part(
+            "9. Lexique",
+            """
 <div class="scroll"><table class="tl">
 <tr><td>Message</td><td>Le texte ou les octets que l'utilisateur veut envoyer.</td></tr>
 <tr><td>Fragment</td><td>La tranche d'un Message portée par une Frame (17 octets au plus).</td></tr>
@@ -397,7 +558,10 @@ retransmission des seules Frames manquantes.</li>
 </table></div>
 <p class="note">Régénérer cette page : <code>python -m bench.project_report</code>. Annexe technique en
 anglais : <code>docs/measurements/cable-trial/report.html</code>.</p>
-""", "lexique"))
+""",
+            "lexique",
+        )
+    )
     head = (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
