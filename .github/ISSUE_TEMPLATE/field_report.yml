@@ -1,0 +1,22 @@
+name: Field report
+description: Share what you heard or sent over the air or through a real sound chain
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Radios, mode and band, antenna, sound cards, Preset, listening band if you set one.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: What you measured
+      description: Messages sent and received, rough signal strength, distance, time of day.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything surprising
