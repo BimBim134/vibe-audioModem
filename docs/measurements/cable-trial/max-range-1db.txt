@@ -1,0 +1,8 @@
+   -23 dB    0 of 10    0%
+   -22 dB    0 of 10    0%
+   -21 dB    0 of 10    0%
+   -20 dB    4 of 10   40%
+   -19 dB   10 of 10  100%
+   -18 dB   10 of 10  100%
+   -17 dB   10 of 10  100%
+measured threshold -19 dB, simulator -22 dB: the real chain loses +3.0 dB

@@ -1,0 +1,259 @@
+/* ============ THE COLOURS: the only place they are chosen =====================
+   Four colours, each as three numbers (red green blue, 0 to 255) separated by spaces,
+   not as #hex. Everything else on the page, and the charts (the script reads these same
+   four), is made of them: a tint is the same colour at another opacity.
+   Change a line here, save, and reload the page: no restart needed. */
+:root {
+  --bg: 21 20 25;        /* #151419 dark lava: the page, the dialogs, the darkest of the waterfall */
+  --grey: 135 135 135;   /* #878787 dusty grey: lines, muted text, the quiet surfaces */
+  --text: 251 251 251;   /* #FBFBFB snow: text, received bubbles, the loudest of the waterfall */
+  --accent: 245 110 15;  /* #F56E0F liquid lava: what is yours (sent, the transmit band), the spectrum */
+}
+/* =============================================================================== */
+
+:root {
+  color-scheme: dark;
+  --line: rgb(var(--grey) / 0.3);
+  --soft: rgb(var(--grey));
+  scrollbar-color: rgb(var(--grey) / 0.5) transparent;  /* the browser's own greys: ours instead */
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; padding: clamp(1rem, 3vw, 2.5rem); display: flex; flex-direction: column;
+  background: rgb(var(--bg)); color: rgb(var(--text));
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+::placeholder { color: var(--soft); opacity: 1; }
+option { background: rgb(var(--bg)); color: rgb(var(--text)); }
+select { accent-color: rgb(var(--accent)); }
+@supports (appearance: base-select) {
+  select, ::picker(select) { appearance: base-select; }
+  select::picker(select) {
+    background: rgb(var(--bg)); border: 1px solid var(--line); border-radius: 12px;
+    padding: 0.3rem; margin-top: 0.25rem;
+  }
+  select option { padding: 0.35rem 0.5rem; border-radius: 8px; }
+  select option:hover, select option:focus { background: rgb(var(--accent) / 0.25); }
+  select option:checked { background: rgb(var(--accent)); color: rgb(var(--bg)); }
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+button {
+  background: rgb(var(--grey) / 0.16); border: 0px solid transparent; border-radius: 999px;
+  padding: 0.4rem 1rem; cursor: pointer;
+  --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+  box-shadow:
+    inset 1px 1px 1px rgb(var(--text) / 0.1),   /* a small specular edge, light from above */
+    inset -1px -1px 1px rgb(0 0 0 / 0.03),        /* a faint lower edge, for volume */
+    var(--small_lift);
+}
+button:hover:not(:disabled) { background: rgb(var(--grey) / 0.28); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.primary { background: rgb(var(--accent)); color: rgb(var(--bg)); font-weight: 600; }
+button.primary:hover:not(:disabled) { background: rgb(var(--accent) / 0.85); }
+button.sure { background: transparent; border-color: rgb(var(--accent)); color: rgb(var(--accent)); }
+:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+input, select, textarea {
+  background: rgb(var(--grey) / 0.12); border: 1px solid var(--line); border-radius: 10px;
+  padding: 0.4rem 0.6rem;
+}
+input[type="checkbox"] { accent-color: rgb(var(--accent)); width: 1rem; height: 1rem; padding: 0; }
+#keep {
+  appearance: none; position: relative; flex: none; margin-left: auto;
+  width: 2.4rem; height: 1.35rem; padding: 0; border: 0; border-radius: 999px;
+  background: rgb(var(--grey) / 0.35); cursor: pointer;
+  transition: background 0.15s ease;
+}
+#keep::before {
+  content: ""; position: absolute; top: 0.18rem; left: 0.18rem;
+  width: 0.99rem; height: 0.99rem; border-radius: 50%;
+  background: rgb(var(--text));
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+#keep:checked { background: rgb(var(--accent)); }
+#keep:checked::before { transform: translateX(1.05rem); background: rgb(var(--bg)); }
+#keep:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+#keep:disabled { opacity: 0.4; cursor: default; }
+
+/* Never wider than this, however large the window: a page this wide reads badly */
+:root { --page-width: 1100px; }
+/* Everything sits in one framed area, lifted off the page by a deep black shadow. */
+.frame {
+  flex: 1; min-height: 0;
+  width: min(100%, var(--page-width)); margin-inline: auto;
+  display: flex; flex-direction: column; gap: 0.9rem;
+  padding: 0.9rem; border-radius: 22px;
+  background: rgb(var(--bg));
+  --lift: 0 3rem 10rem 3rem rgb(0 0 0 / 0.25);
+  box-shadow:
+    inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+    var(--lift);
+}
+.top, main { width: 100%; }
+
+/* The top bar */
+.top {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem;
+  border-radius: 16px; background: rgb(var(--grey) / 0.07);
+  --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+  box-shadow:
+    inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+    var(--small_lift);
+}
+.top h1 { font-size: 1rem; font-weight: 600; margin: 0 auto 0 0; letter-spacing: 0.02em; }
+.status { display: flex; align-items: center; gap: 0.45rem; color: var(--soft); font-size: 0.85rem; }
+.status .warn { color: rgb(var(--accent)); }
+.dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: rgb(var(--grey) / 0.5); }
+.dot.on { background: rgb(var(--accent)); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+/* Two columns: the charts, and the conversation */
+main {
+  flex: 1; min-height: 0; display: grid; gap: 0.9rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.charts {
+  display: flex; flex-direction: column; gap: 0.5rem; min-height: 0;
+  border-radius: 16px; padding: 0.9rem; background: rgb(var(--grey) / 0.05);
+  --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+  box-shadow:
+    inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+    var(--small_lift);
+}
+.chart { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+canvas { display: block; width: 100%; border-radius: 10px; }
+#spectrum { flex: 0 0 28%; min-height: 0; background: rgb(var(--grey) / 0.1); }
+#waterfall { flex: 1; min-height: 0; background: rgb(var(--bg)); }
+#axis { position: relative; height: 1.3rem; margin: 0.55rem 0; font-size: 0.75rem; color: var(--soft); }
+#axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+#axis span:first-child { transform: none; }
+#axis span:last-child { transform: translateX(-100%); }
+
+.chat {
+  display: flex; flex-direction: column; min-height: 0;
+  border-radius: 16px; padding: 0.9rem; background: rgb(var(--grey) / 0.05);
+  --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+  box-shadow:
+    inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+    var(--small_lift);
+}
+#conversation { flex: 1; min-height: 12rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.2rem 0.2rem 0.8rem; }
+.empty { margin: auto; color: var(--soft); text-align: center; max-width: 18rem; }
+
+/* Bubbles */
+.row { display: flex; }
+.row.fresh { animation: arrive 0.25s ease-out; }  /* only a bubble that has just come */
+.row.out { justify-content: flex-end; }
+@keyframes arrive { from { opacity: 0; transform: translateY(6px); } }
+.bubble { max-width: 82%; padding: 0.5rem 0.8rem; border-radius: 16px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.bubble.in { background: rgb(var(--grey) / 0.22); border-bottom-left-radius: 4px; }
+.bubble.out { background: rgb(var(--accent)); color: rgb(var(--bg)); border-bottom-right-radius: 4px; }
+.bubble.part { background: transparent; border: 1px dashed rgb(var(--grey) / 0.65); border-bottom-left-radius: 4px; }
+.bubble.failed { background: transparent; border: 1px solid rgb(var(--accent)); color: rgb(var(--text)); }
+.meta { display: block; margin-top: 0.15rem; font-size: 0.75rem; opacity: 0.75; white-space: normal; }
+.head { display: block; font-size: 0.78rem; opacity: 0.8; margin-bottom: 0.15rem; }
+.bubble.coming { background: transparent; border: 1px solid rgb(var(--accent) / 0.6); border-bottom-left-radius: 4px; }
+.dots i { display: inline-block; width: 0.32rem; height: 0.32rem; margin-left: 0.22rem; border-radius: 50%; background: rgb(var(--accent)); animation: blink 1.2s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: 0.2s; }
+.dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+.note { align-self: center; font-size: 0.78rem; color: var(--soft); border: 1px dashed var(--line); border-radius: 999px; padding: 0.15rem 0.8rem; }
+
+/* The composer */
+#composer {
+  border-radius: 16px; padding: 0.75rem; background: rgb(var(--grey) / 0.07);
+    --small_lift: 5px 5px 10px rgb(0 0 0 / 0.1);
+  box-shadow:
+    inset 0.5px 1px 0 rgb(var(--text) / 0.09),   /* a small specular edge, light from above */
+    inset 0 -1px 0 rgb(0 0 0 / 0.35),        /* a faint lower edge, for volume */
+    var(--small_lift);
+}
+#composer .line { display: flex; gap: 0.5rem; align-items: flex-end; }
+#text { flex: 1; resize: none; border-radius: 16px; min-height: 2.6rem; max-height: 8rem; }
+.send-at { display: flex; align-items: center; gap: 0.5rem; margin: 0 0.2rem 0.5rem; font-size: 0.85rem; color: var(--soft); }
+.send-at input { padding: 0.2rem 0.5rem; }
+.filters { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin: 0 0.2rem 0.6rem; font-size: 0.82rem; color: var(--soft); }
+.filters label { display: flex; align-items: center; gap: 0.35rem; }
+.filters input[type="number"] { padding: 0.15rem 0.45rem; }
+.filters button { padding: 0.15rem 0.7rem; font-size: 0.8rem; margin-left: auto; }
+canvas { cursor: crosshair; }  /* a click on a chart places the Signal */
+.problem { margin: 0 0 0.4rem; font-size: 0.85rem; color: rgb(var(--accent)); }
+.problem:empty { display: none; }
+#estimate { margin: 0.4rem 0.2rem 0; font-size: 0.8rem; color: var(--soft); min-height: 1.1em; }
+#estimate.refused { color: rgb(var(--accent)); }
+.wide { width: 6rem; }
+.narrow { width: 4rem; }
+
+/* The settings */
+dialog { background: rgb(var(--bg)); color: rgb(var(--text)); border: 1px solid var(--line); border-radius: 18px; padding: 1.3rem; width: min(34rem, 94vw); }
+dialog::backdrop { background: rgb(var(--bg) / 0.75); }
+dialog h2 { margin: 0 0 0.8rem; font-size: 1.05rem; }
+dialog h3 { margin: 0 0 0.6rem; font-size: 0.9rem; }
+dialog .tabs {
+  display: flex; gap: 0.35rem; margin: 0.2rem 0 1rem; padding: 0.25rem;
+  border-radius: 12px; background: rgb(var(--grey) / 0.08);
+}
+dialog .tab {
+  flex: 1; border: 0; border-radius: 9px; padding: 0.45rem 0.8rem;
+  background: transparent; color: var(--soft);
+}
+dialog .tab:hover:not(:disabled) { background: rgb(var(--grey) / 0.16); }
+dialog .tab[aria-selected="true"] { background: rgb(var(--accent) / 0.14); color: rgb(var(--accent)); }
+dialog .tab[aria-selected="true"]:hover:not(:disabled) { background: rgb(var(--accent) / 0.2); }
+dialog .group { padding: 0.8rem 0.9rem; border-radius: 12px; background: rgb(var(--grey) / 0.07); }
+dialog .group + .group { margin-top: 0.6rem; }
+dialog .group h3 { margin: 0 0 0.4rem; }
+#panel-general .field { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+#panel-general .field > span { width: auto; }
+#panel-general .field > select,
+#panel-general .field > input { width: 100%; }
+#panel-advanced .field.limit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+#panel-advanced .field.limit > span { width: auto; }
+.limit-control {
+  display: flex; align-items: center;
+  background: rgb(var(--grey) / 0.12); border: 1px solid var(--line); border-radius: 10px;
+  padding-right: 0.6rem;
+}
+.limit-control input {
+  flex: 1; min-width: 0; background: transparent; border: 0; border-radius: 0;
+  padding: 0.4rem 0.6rem;
+}
+.limit-control > span { color: var(--soft); }
+.limit-control:has(input:focus-visible) { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+.limit-control input:focus-visible { outline: none; }
+dialog .field { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0; }
+dialog .field > span { width: 5rem; color: var(--soft); }
+dialog .field > span.plain { width: auto; }
+dialog select { flex: 1; min-width: 0; }
+dialog p { margin: 0.4rem 0; font-size: 0.82rem; color: var(--soft); }
+dialog p.problem { color: rgb(var(--accent)); }
+dialog .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+dialog .footer { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 1rem; }
+dialog .footer .messages { flex: 1; min-width: 0; }
+dialog .footer p { margin: 0; }
+dialog .footer p + p { margin-top: 0.15rem; }
+dialog .footer .actions { margin-top: 0; flex: none; }
+#apply, #clear { width: 100%; }
+
+@media (max-width: 860px) {
+  body { height: auto; }
+  main { grid-template-columns: 1fr; grid-template-rows: auto; }
+  .chat { order: -1; }  /* the conversation first, as in a messenger */
+  .chart { flex: none; }
+  #spectrum { flex: none; height: 5.5rem; }
+  #waterfall { flex: none; height: 11rem; }
+  #conversation { min-height: 14rem; max-height: 55vh; }
+}
+@media (max-width: 560px) {
+  .top { padding: 0.6rem 0.8rem; gap: 0.5rem; }
+  .top h1 { white-space: nowrap; font-size: 0.95rem; }
+  .status > span:not(.warn) { display: none; }  /* the dot says it; a loss of sound is still told */
+  body { padding: 0.5rem; }
+  .frame { padding: 0.6rem; gap: 0.6rem; border-radius: 16px; --lift: 0 1.5rem 5rem 1rem rgb(0 0 0 / 0.5); }
+}

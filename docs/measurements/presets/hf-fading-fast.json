@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.turbo_modem:TurboModem",
+  "scenario": "hf-fading",
+  "code": {
+    "info_bits": 200,
+    "coded_bits": 412,
+    "kind": "turbo",
+    "memory": 3,
+    "polynomials_octal": [
+      "13",
+      "15"
+    ],
+    "interleaver_spread": 8,
+    "interleaver_digest": "9a2173e633b96e5d",
+    "scaling": 0.75,
+    "iterations": 8
+  },
+  "preset": "fast",
+  "seed": 1,
+  "trials": 100,
+  "message_bytes": 12,
+  "max_lead_in_s": 10.0,
+  "tail_s": 1.0,
+  "freq_offset_range_hz": [
+    -1100.0,
+    1100.0
+  ],
+  "reference_bandwidth_hz": 2500,
+  "required_success_rate": 0.95,
+  "channel": {
+    "sample_rate": 48000,
+    "fading_doppler_hz": 1.0,
+    "clock_drift_ppm": 0.0,
+    "freq_offset_hz": 0.0,
+    "impulse_rate_hz": 0.0,
+    "impulse_duration_s": 0.001,
+    "impulse_amplitude": 1.0,
+    "band_filter": true,
+    "clip_level": null,
+    "impulse_over_noise_db": null,
+    "clip_rms_multiple": null
+  },
+  "curve": [
+    {
+      "snr_db": -14.0,
+      "trials": 100,
+      "successes": 2,
+      "false_receptions": 0,
+      "success_rate": 0.02
+    },
+    {
+      "snr_db": -12.0,
+      "trials": 100,
+      "successes": 33,
+      "false_receptions": 0,
+      "success_rate": 0.33
+    },
+    {
+      "snr_db": -10.0,
+      "trials": 100,
+      "successes": 72,
+      "false_receptions": 0,
+      "success_rate": 0.72
+    },
+    {
+      "snr_db": -8.0,
+      "trials": 100,
+      "successes": 82,
+      "false_receptions": 0,
+      "success_rate": 0.82
+    },
+    {
+      "snr_db": -6.0,
+      "trials": 100,
+      "successes": 85,
+      "false_receptions": 0,
+      "success_rate": 0.85
+    },
+    {
+      "snr_db": -4.0,
+      "trials": 100,
+      "successes": 94,
+      "false_receptions": 0,
+      "success_rate": 0.94
+    },
+    {
+      "snr_db": -2.0,
+      "trials": 100,
+      "successes": 89,
+      "false_receptions": 0,
+      "success_rate": 0.89
+    },
+    {
+      "snr_db": 0.0,
+      "trials": 100,
+      "successes": 91,
+      "false_receptions": 0,
+      "success_rate": 0.91
+    }
+  ],
+  "threshold_db": null
+}

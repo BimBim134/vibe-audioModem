@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.ldpc_modem:LdpcModem",
+  "scenario": "hf-fading",
+  "code": {
+    "info_bits": 200,
+    "coded_bits": 400,
+    "kind": "ldpc",
+    "rule_count": 200,
+    "info_degree": 4,
+    "rules_digest": "ee8e8452dfbac9e2",
+    "normalisation": 0.8,
+    "max_iterations": 50
+  },
+  "preset": "standard",
+  "seed": 1,
+  "trials": 200,
+  "message_bytes": 12,
+  "max_lead_in_s": 10.0,
+  "tail_s": 1.0,
+  "freq_offset_range_hz": [
+    -1100.0,
+    1100.0
+  ],
+  "reference_bandwidth_hz": 2500,
+  "required_success_rate": 0.95,
+  "channel": {
+    "sample_rate": 48000,
+    "fading_doppler_hz": 1.0,
+    "clock_drift_ppm": 0.0,
+    "freq_offset_hz": 0.0,
+    "impulse_rate_hz": 0.0,
+    "impulse_duration_s": 0.001,
+    "impulse_amplitude": 1.0,
+    "band_filter": true,
+    "clip_level": null,
+    "impulse_over_noise_db": null,
+    "clip_rms_multiple": null
+  },
+  "curve": [
+    {
+      "snr_db": -16.0,
+      "trials": 200,
+      "successes": 6,
+      "false_receptions": 0,
+      "success_rate": 0.03
+    },
+    {
+      "snr_db": -15.0,
+      "trials": 200,
+      "successes": 32,
+      "false_receptions": 0,
+      "success_rate": 0.16
+    },
+    {
+      "snr_db": -14.0,
+      "trials": 200,
+      "successes": 70,
+      "false_receptions": 0,
+      "success_rate": 0.35
+    },
+    {
+      "snr_db": -13.0,
+      "trials": 200,
+      "successes": 116,
+      "false_receptions": 0,
+      "success_rate": 0.58
+    },
+    {
+      "snr_db": -12.0,
+      "trials": 200,
+      "successes": 148,
+      "false_receptions": 0,
+      "success_rate": 0.74
+    },
+    {
+      "snr_db": -11.0,
+      "trials": 200,
+      "successes": 168,
+      "false_receptions": 0,
+      "success_rate": 0.84
+    },
+    {
+      "snr_db": -10.0,
+      "trials": 200,
+      "successes": 180,
+      "false_receptions": 0,
+      "success_rate": 0.9
+    },
+    {
+      "snr_db": -9.0,
+      "trials": 200,
+      "successes": 191,
+      "false_receptions": 0,
+      "success_rate": 0.955
+    },
+    {
+      "snr_db": -8.0,
+      "trials": 200,
+      "successes": 190,
+      "false_receptions": 0,
+      "success_rate": 0.95
+    },
+    {
+      "snr_db": -7.0,
+      "trials": 200,
+      "successes": 186,
+      "false_receptions": 0,
+      "success_rate": 0.93
+    },
+    {
+      "snr_db": -6.0,
+      "trials": 200,
+      "successes": 190,
+      "false_receptions": 0,
+      "success_rate": 0.95
+    },
+    {
+      "snr_db": -5.0,
+      "trials": 200,
+      "successes": 193,
+      "false_receptions": 0,
+      "success_rate": 0.965
+    },
+    {
+      "snr_db": -4.0,
+      "trials": 200,
+      "successes": 192,
+      "false_receptions": 0,
+      "success_rate": 0.96
+    },
+    {
+      "snr_db": -3.0,
+      "trials": 200,
+      "successes": 188,
+      "false_receptions": 0,
+      "success_rate": 0.94
+    },
+    {
+      "snr_db": -2.0,
+      "trials": 200,
+      "successes": 192,
+      "false_receptions": 0,
+      "success_rate": 0.96
+    }
+  ],
+  "threshold_db": -2.0
+}

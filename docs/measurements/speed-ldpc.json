@@ -1,0 +1,18 @@
+{
+  "modem": "vibemodem.core.ldpc_modem:LdpcModem",
+  "preset": "standard",
+  "machine": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "cpu_count": 12,
+    "numpy": "2.5.4"
+  },
+  "recording_seconds": 24.28,
+  "receive_seconds": 0.11948757699792623,
+  "real_time_factor": 203.20104072761802,
+  "repeats": 7,
+  "code_decode_seconds": {
+    "clean": 1.723000059428159e-05,
+    "failing": 0.003392010001334711
+  }
+}

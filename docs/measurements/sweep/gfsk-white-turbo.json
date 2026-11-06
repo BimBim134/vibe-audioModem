@@ -1,0 +1,2377 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.gfsk_modem:GfskModem",
+  "modem_options": {},
+  "scenario": "white",
+  "seed": 1,
+  "trials": 100,
+  "message_bytes": 12,
+  "max_lead_in_s": 10.0,
+  "tail_s": 1.0,
+  "freq_offset_range_hz": [
+    -1100.0,
+    1100.0
+  ],
+  "reference_bandwidth_hz": 2500,
+  "drop_db": 20.0,
+  "configurations": [
+    {
+      "baud": 25,
+      "h": 0.5,
+      "bt": 0.3,
+      "modem_parameters": {
+        "baud": 25,
+        "h": 0.5,
+        "bt": 0.3,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 26.3671875,
+      "transmission_seconds": 19.04,
+      "thresholds_db": {
+        "0.95": -9.0,
+        "0.9": -9.0,
+        "0.8": -9.0
+      },
+      "energy_db": {
+        "0.95": 3.796669440484557,
+        "0.9": 3.796669440484557,
+        "0.8": 3.796669440484557
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 14,
+          "false_receptions": 0,
+          "success_rate": 0.14
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 58,
+          "false_receptions": 0,
+          "success_rate": 0.58
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 95,
+          "false_receptions": 0,
+          "success_rate": 0.95
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 98,
+          "false_receptions": 0,
+          "success_rate": 0.98
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 25,
+      "h": 0.5,
+      "bt": 0.5,
+      "modem_parameters": {
+        "baud": 25,
+        "h": 0.5,
+        "bt": 0.5,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 29.296875,
+      "transmission_seconds": 19.04,
+      "thresholds_db": {
+        "0.95": -10.0,
+        "0.9": -11.0,
+        "0.8": -11.0
+      },
+      "energy_db": {
+        "0.95": 2.796669440484557,
+        "0.9": 1.796669440484557,
+        "0.8": 1.796669440484557
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 8,
+          "false_receptions": 0,
+          "success_rate": 0.08
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 67,
+          "false_receptions": 0,
+          "success_rate": 0.67
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 94,
+          "false_receptions": 0,
+          "success_rate": 0.94
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 25,
+      "h": 0.5,
+      "bt": null,
+      "modem_parameters": {
+        "baud": 25,
+        "h": 0.5,
+        "bt": null,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 31.494140625,
+      "transmission_seconds": 19.04,
+      "thresholds_db": {
+        "0.95": -12.0,
+        "0.9": -12.0,
+        "0.8": -12.0
+      },
+      "energy_db": {
+        "0.95": 0.7966694404845569,
+        "0.9": 0.7966694404845569,
+        "0.8": 0.7966694404845569
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 12,
+          "false_receptions": 0,
+          "success_rate": 0.12
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 71,
+          "false_receptions": 0,
+          "success_rate": 0.71
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 98,
+          "false_receptions": 0,
+          "success_rate": 0.98
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 25,
+      "h": 1.0,
+      "bt": 0.3,
+      "modem_parameters": {
+        "baud": 25,
+        "h": 1.0,
+        "bt": 0.3,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 36.62109375,
+      "transmission_seconds": 19.04,
+      "thresholds_db": {
+        "0.95": -13.0,
+        "0.9": -13.0,
+        "0.8": -13.0
+      },
+      "energy_db": {
+        "0.95": -0.2033305595154431,
+        "0.9": -0.2033305595154431,
+        "0.8": -0.2033305595154431
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 3,
+          "false_receptions": 0,
+          "success_rate": 0.03
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 78,
+          "false_receptions": 0,
+          "success_rate": 0.78
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 98,
+          "false_receptions": 0,
+          "success_rate": 0.98
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 99,
+          "false_receptions": 0,
+          "success_rate": 0.99
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 25,
+      "h": 1.0,
+      "bt": 0.5,
+      "modem_parameters": {
+        "baud": 25,
+        "h": 1.0,
+        "bt": 0.5,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 40.283203125,
+      "transmission_seconds": 19.04,
+      "thresholds_db": {
+        "0.95": -14.0,
+        "0.9": -14.0,
+        "0.8": -15.0
+      },
+      "energy_db": {
+        "0.95": -1.203330559515443,
+        "0.9": -1.203330559515443,
+        "0.8": -2.203330559515443
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 10,
+          "false_receptions": 0,
+          "success_rate": 0.1
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 85,
+          "false_receptions": 0,
+          "success_rate": 0.85
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 25,
+      "h": 1.0,
+      "bt": null,
+      "modem_parameters": {
+        "baud": 25,
+        "h": 1.0,
+        "bt": null,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 45.41015625,
+      "transmission_seconds": 19.04,
+      "thresholds_db": {
+        "0.95": -15.0,
+        "0.9": -15.0,
+        "0.8": -15.0
+      },
+      "energy_db": {
+        "0.95": -2.203330559515443,
+        "0.9": -2.203330559515443,
+        "0.8": -2.203330559515443
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 24,
+          "false_receptions": 0,
+          "success_rate": 0.24
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 99,
+          "false_receptions": 0,
+          "success_rate": 0.99
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 50,
+      "h": 0.5,
+      "bt": 0.3,
+      "modem_parameters": {
+        "baud": 50,
+        "h": 0.5,
+        "bt": 0.3,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 51.26953125,
+      "transmission_seconds": 10.8,
+      "thresholds_db": {
+        "0.95": null,
+        "0.9": -6.0,
+        "0.8": -6.0
+      },
+      "energy_db": {
+        "0.95": null,
+        "0.9": 4.334237554869496,
+        "0.8": 4.334237554869496
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 1,
+          "false_receptions": 0,
+          "success_rate": 0.01
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 17,
+          "false_receptions": 0,
+          "success_rate": 0.17
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 58,
+          "false_receptions": 0,
+          "success_rate": 0.58
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 92,
+          "false_receptions": 0,
+          "success_rate": 0.92
+        }
+      ]
+    },
+    {
+      "baud": 50,
+      "h": 0.5,
+      "bt": 0.5,
+      "modem_parameters": {
+        "baud": 50,
+        "h": 0.5,
+        "bt": 0.5,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 58.59375,
+      "transmission_seconds": 10.8,
+      "thresholds_db": {
+        "0.95": -8.0,
+        "0.9": -8.0,
+        "0.8": -9.0
+      },
+      "energy_db": {
+        "0.95": 2.334237554869496,
+        "0.9": 2.334237554869496,
+        "0.8": 1.334237554869496
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 10,
+          "false_receptions": 0,
+          "success_rate": 0.1
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 80,
+          "false_receptions": 0,
+          "success_rate": 0.8
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 98,
+          "false_receptions": 0,
+          "success_rate": 0.98
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 50,
+      "h": 0.5,
+      "bt": null,
+      "modem_parameters": {
+        "baud": 50,
+        "h": 0.5,
+        "bt": null,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 63.720703125,
+      "transmission_seconds": 10.8,
+      "thresholds_db": {
+        "0.95": -9.0,
+        "0.9": -9.0,
+        "0.8": -10.0
+      },
+      "energy_db": {
+        "0.95": 1.334237554869496,
+        "0.9": 1.334237554869496,
+        "0.8": 0.334237554869496
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 18,
+          "false_receptions": 0,
+          "success_rate": 0.18
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 85,
+          "false_receptions": 0,
+          "success_rate": 0.85
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 50,
+      "h": 1.0,
+      "bt": 0.3,
+      "modem_parameters": {
+        "baud": 50,
+        "h": 1.0,
+        "bt": 0.3,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 67.3828125,
+      "transmission_seconds": 10.8,
+      "thresholds_db": {
+        "0.95": -10.0,
+        "0.9": -10.0,
+        "0.8": -10.0
+      },
+      "energy_db": {
+        "0.95": 0.334237554869496,
+        "0.9": 0.334237554869496,
+        "0.8": 0.334237554869496
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 9,
+          "false_receptions": 0,
+          "success_rate": 0.09
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 76,
+          "false_receptions": 0,
+          "success_rate": 0.76
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 99,
+          "false_receptions": 0,
+          "success_rate": 0.99
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 50,
+      "h": 1.0,
+      "bt": 0.5,
+      "modem_parameters": {
+        "baud": 50,
+        "h": 1.0,
+        "bt": 0.5,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 67.3828125,
+      "transmission_seconds": 10.8,
+      "thresholds_db": {
+        "0.95": -11.0,
+        "0.9": -12.0,
+        "0.8": -12.0
+      },
+      "energy_db": {
+        "0.95": -0.665762445130504,
+        "0.9": -1.665762445130504,
+        "0.8": -1.665762445130504
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 11,
+          "false_receptions": 0,
+          "success_rate": 0.11
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 90,
+          "false_receptions": 0,
+          "success_rate": 0.9
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 50,
+      "h": 1.0,
+      "bt": null,
+      "modem_parameters": {
+        "baud": 50,
+        "h": 1.0,
+        "bt": null,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 80.56640625,
+      "transmission_seconds": 10.8,
+      "thresholds_db": {
+        "0.95": -12.0,
+        "0.9": -12.0,
+        "0.8": -12.0
+      },
+      "energy_db": {
+        "0.95": -1.665762445130504,
+        "0.9": -1.665762445130504,
+        "0.8": -1.665762445130504
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 29,
+          "false_receptions": 0,
+          "success_rate": 0.29
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 100,
+      "h": 0.5,
+      "bt": 0.3,
+      "modem_parameters": {
+        "baud": 100,
+        "h": 0.5,
+        "bt": 0.3,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 101.806640625,
+      "transmission_seconds": 6.68,
+      "thresholds_db": {
+        "0.95": null,
+        "0.9": null,
+        "0.8": null
+      },
+      "energy_db": {
+        "0.95": null,
+        "0.9": null,
+        "0.8": null
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 1,
+          "false_receptions": 0,
+          "success_rate": 0.01
+        }
+      ]
+    },
+    {
+      "baud": 100,
+      "h": 0.5,
+      "bt": 0.5,
+      "modem_parameters": {
+        "baud": 100,
+        "h": 0.5,
+        "bt": 0.5,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 116.455078125,
+      "transmission_seconds": 6.68,
+      "thresholds_db": {
+        "0.95": null,
+        "0.9": null,
+        "0.8": null
+      },
+      "energy_db": {
+        "0.95": null,
+        "0.9": null,
+        "0.8": null
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 8,
+          "false_receptions": 0,
+          "success_rate": 0.08
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 78,
+          "false_receptions": 0,
+          "success_rate": 0.78
+        }
+      ]
+    },
+    {
+      "baud": 100,
+      "h": 0.5,
+      "bt": null,
+      "modem_parameters": {
+        "baud": 100,
+        "h": 0.5,
+        "bt": null,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 126.708984375,
+      "transmission_seconds": 6.68,
+      "thresholds_db": {
+        "0.95": -6.0,
+        "0.9": -6.0,
+        "0.8": -7.0
+      },
+      "energy_db": {
+        "0.95": 2.2477646247554564,
+        "0.9": 2.2477646247554564,
+        "0.8": 1.2477646247554564
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 15,
+          "false_receptions": 0,
+          "success_rate": 0.15
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 82,
+          "false_receptions": 0,
+          "success_rate": 0.82
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 100,
+      "h": 1.0,
+      "bt": 0.3,
+      "modem_parameters": {
+        "baud": 100,
+        "h": 1.0,
+        "bt": 0.3,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 131.103515625,
+      "transmission_seconds": 6.68,
+      "thresholds_db": {
+        "0.95": -7.0,
+        "0.9": -7.0,
+        "0.8": -8.0
+      },
+      "energy_db": {
+        "0.95": 1.2477646247554564,
+        "0.9": 1.2477646247554564,
+        "0.8": 0.24776462475545635
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 11,
+          "false_receptions": 0,
+          "success_rate": 0.11
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 84,
+          "false_receptions": 0,
+          "success_rate": 0.84
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 99,
+          "false_receptions": 0,
+          "success_rate": 0.99
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 100,
+      "h": 1.0,
+      "bt": 0.5,
+      "modem_parameters": {
+        "baud": 100,
+        "h": 1.0,
+        "bt": 0.5,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 121.58203125,
+      "transmission_seconds": 6.68,
+      "thresholds_db": {
+        "0.95": -8.0,
+        "0.9": -8.0,
+        "0.8": -9.0
+      },
+      "energy_db": {
+        "0.95": 0.24776462475545635,
+        "0.9": 0.24776462475545635,
+        "0.8": -0.7522353752445436
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 12,
+          "false_receptions": 0,
+          "success_rate": 0.12
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 88,
+          "false_receptions": 0,
+          "success_rate": 0.88
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "baud": 100,
+      "h": 1.0,
+      "bt": null,
+      "modem_parameters": {
+        "baud": 100,
+        "h": 1.0,
+        "bt": null,
+        "interleave": false,
+        "repetitions": 1
+      },
+      "bandwidth_hz": 136.23046875,
+      "transmission_seconds": 6.68,
+      "thresholds_db": {
+        "0.95": -9.0,
+        "0.9": -9.0,
+        "0.8": -9.0
+      },
+      "energy_db": {
+        "0.95": -0.7522353752445436,
+        "0.9": -0.7522353752445436,
+        "0.8": -0.7522353752445436
+      },
+      "curve": [
+        {
+          "snr_db": -20.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -19.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -18.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -17.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -16.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -15.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -14.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -13.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -12.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -11.0,
+          "trials": 100,
+          "successes": 0,
+          "false_receptions": 0,
+          "success_rate": 0.0
+        },
+        {
+          "snr_db": -10.0,
+          "trials": 100,
+          "successes": 29,
+          "false_receptions": 0,
+          "success_rate": 0.29
+        },
+        {
+          "snr_db": -9.0,
+          "trials": 100,
+          "successes": 96,
+          "false_receptions": 0,
+          "success_rate": 0.96
+        },
+        {
+          "snr_db": -8.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -7.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        },
+        {
+          "snr_db": -6.0,
+          "trials": 100,
+          "successes": 100,
+          "false_receptions": 0,
+          "success_rate": 1.0
+        }
+      ]
+    }
+  ]
+}

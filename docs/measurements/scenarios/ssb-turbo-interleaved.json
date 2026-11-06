@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "modem": "vibemodem.core.turbo_modem:TurboModem",
+  "modem_options": {
+    "interleave": true
+  },
+  "modem_parameters": {
+    "tones": 8,
+    "symbol_ms": 80.0,
+    "interleave": true,
+    "repetitions": 1
+  },
+  "scenario": "ssb",
+  "code": {
+    "info_bits": 200,
+    "coded_bits": 412,
+    "kind": "turbo",
+    "memory": 3,
+    "polynomials_octal": [
+      "13",
+      "15"
+    ],
+    "interleaver_spread": 8,
+    "interleaver_digest": "9a2173e633b96e5d",
+    "scaling": 0.75,
+    "iterations": 8
+  },
+  "preset": "standard",
+  "seed": 1,
+  "trials": 200,
+  "message_bytes": 12,
+  "max_lead_in_s": 10.0,
+  "tail_s": 1.0,
+  "freq_offset_range_hz": [
+    -1100.0,
+    1100.0
+  ],
+  "reference_bandwidth_hz": 2500,
+  "required_success_rate": 0.95,
+  "channel": {
+    "sample_rate": 48000,
+    "fading_doppler_hz": null,
+    "clock_drift_ppm": 0.0,
+    "freq_offset_hz": 0.0,
+    "impulse_rate_hz": 0.0,
+    "impulse_duration_s": 0.001,
+    "impulse_amplitude": 1.0,
+    "band_filter": true,
+    "clip_level": null,
+    "impulse_over_noise_db": null,
+    "clip_rms_multiple": null
+  },
+  "curve": [
+    {
+      "snr_db": -18.0,
+      "trials": 200,
+      "successes": 5,
+      "false_receptions": 0,
+      "success_rate": 0.025
+    },
+    {
+      "snr_db": -17.0,
+      "trials": 200,
+      "successes": 109,
+      "false_receptions": 0,
+      "success_rate": 0.545
+    },
+    {
+      "snr_db": -16.0,
+      "trials": 200,
+      "successes": 199,
+      "false_receptions": 0,
+      "success_rate": 0.995
+    },
+    {
+      "snr_db": -15.0,
+      "trials": 200,
+      "successes": 200,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -14.0,
+      "trials": 200,
+      "successes": 200,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    },
+    {
+      "snr_db": -13.0,
+      "trials": 200,
+      "successes": 200,
+      "false_receptions": 0,
+      "success_rate": 1.0
+    }
+  ],
+  "threshold_db": -16.0
+}

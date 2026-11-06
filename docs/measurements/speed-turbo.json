@@ -1,0 +1,18 @@
+{
+  "modem": "vibemodem.core.turbo_modem:TurboModem",
+  "preset": "standard",
+  "machine": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "cpu_count": 12,
+    "numpy": "2.5.4"
+  },
+  "recording_seconds": 24.6,
+  "receive_seconds": 0.2178932890019496,
+  "real_time_factor": 112.89930090403057,
+  "repeats": 7,
+  "code_decode_seconds": {
+    "clean": 0.0028963709992240183,
+    "failing": 0.011517158998685773
+  }
+}

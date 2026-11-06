@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vibe AudioModem</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<div class="frame">
+<header class="top">
+  <h1>Vibe AudioModem</h1>
+  <span class="status"><i class="dot" id="dot"></i><span id="listening">Not listening</span></span>
+  <button id="listen" class="primary">Listen</button>
+  <button id="open-settings">Settings</button>
+</header>
+
+<main>
+  <section class="charts" aria-label="What is heard">
+    <div class="chart">
+      <canvas id="spectrum" role="img" aria-label="Spectrum of the sound heard, 300 to 2700 Hz"></canvas>
+      <div id="axis" aria-hidden="true"></div>
+      <canvas id="waterfall" role="img" aria-label="Waterfall: the spectrum over the last minute, newest at the top"></canvas>
+    </div>
+  </section>
+
+  <section class="chat" aria-label="Messages">
+    <div id="filters" class="filters" role="group" aria-label="Filter the messages">
+      <label>Signals from <input id="filter_from" aria-label="Lowest frequency shown, in Hz" class="wide" type="number" min="0" step="any" placeholder="any"></label>
+      <label>to <input id="filter_to" aria-label="Highest frequency shown, in Hz" class="wide" type="number" min="0" step="any" placeholder="any"> Hz</label>
+      <label class="check"><input id="filter_lost" type="checkbox" checked> Not decoded</label>
+      <button id="filter_reset" type="button" hidden>Reset filters</button>
+    </div>
+    <div id="conversation" role="log" aria-live="polite"></div>
+    <form id="composer" autocomplete="off">
+      <p id="error" class="problem" role="alert"></p>
+      <label class="send-at">Send at
+        <input id="frequency" class="wide" type="number" step="any" aria-describedby="range">
+        Hz <span id="range"></span>
+      </label>
+      <div class="line">
+        <textarea id="text" rows="1" placeholder="Write a message" aria-label="Message"></textarea>
+        <button id="send" class="primary" type="submit">Send</button>
+        <button id="cancel" type="button" hidden>Cancel</button>
+      </div>
+      <p id="estimate" aria-live="polite"></p>
+    </form>
+  </section>
+</main>
+</div>
+
+<dialog id="settings" aria-labelledby="settings-title">
+  <h2 id="settings-title">Settings</h2>
+
+  <div class="tabs" role="tablist" aria-label="Settings sections">
+    <button class="tab" id="tab-general" role="tab" aria-selected="true" aria-controls="panel-general">General</button>
+    <button class="tab" id="tab-advanced" role="tab" aria-selected="false" aria-controls="panel-advanced" tabindex="-1">Advanced settings</button>
+  </div>
+
+  <section id="panel-general" role="tabpanel" aria-labelledby="tab-general">
+    <div class="group">
+      <h3>Audio device</h3>
+      <label class="field"><span>Input</span><select id="input_device"><option value="">default</option></select></label>
+      <label class="field"><span>Output</span><select id="output_device"><option value="">default</option></select></label>
+    </div>
+    <div class="group">
+      <h3>Modulation</h3>
+      <label class="field"><span>Preset</span>
+        <select id="preset">
+          <option value="max-range">Slow - Maximum Range (29 Hz)</option>
+          <option value="standard" selected>Standard (107 Hz)</option>
+          <option value="fast">Fast - Good Conditions (212 Hz)</option>
+        </select>
+      </label>
+      <label class="field"><span>Repetitions</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
+    </div>
+    <div class="actions"><button id="apply" class="primary">Apply</button></div>
+  </section>
+
+  <section id="panel-advanced" role="tabpanel" aria-labelledby="tab-advanced" hidden>
+    <div class="group">
+      <h3>Listening band</h3>
+      <p>Only the Signals entirely inside this band of audio are read. Use it to leave out the low-frequency noise of a radio, or to pick the part of the audio where the conversation takes place. It applies to the next pass, also while listening. Leave both empty to listen to everything.</p>
+      <label class="field limit"><span>From</span><span class="limit-control"><input id="band-low" type="number" min="300" max="2700" step="10" placeholder="300"><span>Hz</span></span></label>
+      <label class="field limit"><span>To</span><span class="limit-control"><input id="band-high" type="number" min="300" max="2700" step="10" placeholder="2700"><span>Hz</span></span></label>
+      <div class="actions"><button id="band-set">Set the band</button></div>
+    </div>
+    <div class="group">
+      <h3>Stored receptions</h3>
+      <p>For debug purpose only, each message reception can be stored with 3 s around each Signal. The oldest are deleted first when the limit is reached.</p>
+      <label class="field">
+        Keep the audio and the figures of what is received
+        <input id="keep" type="checkbox">
+      </label>
+      <label class="field limit">
+        <span>Up to</span>
+        <span class="limit-control"><input id="limit" type="number" min="10" max="100000" step="10"><span>MB</span></span>
+      </label>
+      <p id="usage" aria-live="polite"></p>
+      <div class="actions"><button id="clear">Delete all stored receptions</button></div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <div class="messages">
+      <p id="settings-error" class="problem" role="alert"></p>
+      <p id="settings-note" aria-live="polite"></p>
+      <p id="settings-warning" class="problem" aria-live="assertive"></p>
+    </div>
+    <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
+  </div>
+</dialog>
+
+<script src="/assets/script.js"></script>
+</body>
+</html>

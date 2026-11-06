@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vibemodem"
+version = "0.0.0"
+description = "One-way weak-signal data modem for radio amateurs"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+dependencies = [
+    "fastapi>=0.162.0",
+    "numpy>=2.0",
+    "scipy>=1.14",
+    "sounddevice>=0.5.6",
+    "uvicorn>=0.54.0",
+]
+
+[project.optional-dependencies]
+io = ["sounddevice>=0.5"]
+app = [
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27",
+    "pytest>=8",
+    "ruff>=0.8",
+]
+package = [
+    "pyinstaller>=6.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["vibemodem*"]
+
+[tool.setuptools.package-data]
+"vibemodem.app" = ["assets/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+# Markdown holds code samples that are not ours to format.
+extend-exclude = ["docs", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# The report is built from HTML, CSS and SVG strings that read worse when wrapped.
+"bench/report.py" = ["E501"]

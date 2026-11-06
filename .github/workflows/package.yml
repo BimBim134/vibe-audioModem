@@ -1,0 +1,49 @@
+name: Package
+
+on:
+  push:
+    paths:
+      - "packaging/**"
+      - "src/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/package.yml"
+  workflow_dispatch:
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            executable: dist/VibeModem/VibeModem.exe
+            archive: vibemodem-windows
+          - os: macos-latest
+            executable: dist/VibeModem.app/Contents/MacOS/VibeModem
+            archive: vibemodem-macos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --group package
+      - name: Build
+        run: uv run pyinstaller packaging/vibemodem.spec --noconfirm
+      - name: Smoke test the packaged build
+        run: uv run python packaging/smoke_test.py ${{ matrix.executable }} --require-audio-library
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/VibeModem -DestinationPath ${{ matrix.archive }}.zip
+      - name: Zip (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent dist/VibeModem.app ${{ matrix.archive }}.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}.zip
