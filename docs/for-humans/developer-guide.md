@@ -581,7 +581,7 @@ Same modem, same channel, four codes on white noise: baseline −15 dB, LDPC −
 
 - **Loudspeaker and microphone, one room** (the owner, 117 receptions kept): every Message of one Fragment arrived; a longer Message (10 Fragments) in `fast` needed about 7 dB more SNR than the simulator, probably reverberation (not demonstrated). The recordings are not in the repository.
 - **Cable trial** (ticket #21, `bench/cable_trial.py`): a laptop plays Messages at exact digital SNRs into the tower's sound card through a cable. `fast` (−13 dB) and `standard` (−16 dB) **equal the simulator**: 20 of 20 at the threshold, 0 of 20 two dB lower. The clock drift between the two sound cards was measured at 17 ppm (about 1 ms over a Transmission), the receiver's own noise floor at −103 dBFS, and the received SNR estimates were within 0.2 to 0.3 dB of the nominal values.
-- **`max-range` over the cable** (ticket #28) first looked 3 to 4 dB worse than the simulator, then inconsistent from run to run. The cause was not the receiver: the application deleted the oldest receptions at its 200 MB storage limit, which were the lowest SNRs ([15.1](#151-the-storage-limit-silently-deletes-the-oldest-receptions)). Replaying the continuous recording of one run through the live receiver gave the same counts as decoding it offline. A confirmation run with the limit raised was in progress when this guide was written; the current figure is in `docs/measurements/README.md`.
+- **`max-range` over the cable** (ticket #28) first looked 3 to 4 dB worse than the simulator, then inconsistent from run to run. The cause was not the receiver: the application deleted the oldest receptions at its 200 MB storage limit, which were the lowest SNRs ([15.1](#151-the-storage-limit-silently-deletes-the-oldest-receptions)). Replaying the continuous recording of one run through the live receiver gave the same counts as decoding it offline. A rerun (run 5, limit raised to 3,000 MB, nothing deleted, 10 Messages per level) gave 0, 6, 10, 10, 10 and 10 of 10 at −24, −23, −22, −21, −20 and −19 dB: a threshold of **−22 dB, the simulator's, with 0.0 dB lost**. So over a cable all three Presets match the simulator.
 
 Two HTML reports show all of it with charts: `docs/measurements/cable-trial/report.html` (English, the cable trial) and `docs/measurements/project-report.html` (French, the whole project, written for a conference).
 
@@ -723,7 +723,7 @@ Digests and counts are pinned; waveform values are not compared exactly. Use `py
 **Open tickets at the time of writing** (check `gh issue list` for the truth):
 
 - **#23, field campaign** with loudspeaker and microphone, then with radios. The owner intends to propose it at a conference to people who will run life-size studies. It needs a working prototype and a clear procedure: `bench.field_check` and the kept receptions are the tools. It is the measurement that is still missing: everything above is simulator or cable.
-- **#28, `max-range` on a real chain**: the storage-limit artefact is understood; the confirmation run and the corrected reports were still to be finished.
+- **#28, `max-range` on a real chain**: resolved (a flaw of the trial, not of the chain); the ticket was still open for the owner to close.
 - **#29, make the page reachable from the whole network** with a QR code: a nice to have, not a priority; it must come with authentication and HTTPS.
 - **#1, the specification**, stays open until the others are done.
 
