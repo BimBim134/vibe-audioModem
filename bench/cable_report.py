@@ -152,12 +152,12 @@ INTRO = """
 <p class="meta">Branch AI_deep_refactoing, trials of 5 and 6 November 2026. Tickets
 <a href="https://github.com/BimBim134/vibe-audioModem/issues/21">#21</a> and
 <a href="https://github.com/BimBim134/vibe-audioModem/issues/28">#28</a>.</p>
-<div class="card"><strong>In short.</strong> Over a real audio cable, the <em>fast</em> and
-<em>standard</em> Presets reach 95 % of Messages received at exactly the simulator's threshold
-(-13 and -16 dB): the sound cards and the cable cost nothing. <em>Max-range</em> varies from run to run:
-its threshold was -18 and -19 dB in the first two runs (3 to 4 dB under the simulator's -22 dB), but the last
-runs read every Message at -21 dB, and at -22 dB when the cable recording is decoded offline. No Message was
-ever accepted wrongly.</div>
+<div class="card"><strong>In short.</strong> Over a real audio cable, all three Presets reach 95 % of
+Messages received at exactly the simulator's threshold (<em>fast</em> -13 dB, <em>standard</em> -16 dB,
+<em>max-range</em> -22 dB): the sound cards and the cable cost nothing. An apparent loss of 3 to 4 dB in
+<em>max-range</em> in the first runs was a flaw of the trial itself: the application deleted its oldest kept
+receptions beyond its 200 MB limit, and the lowest levels are sent first. No Message was ever accepted
+wrongly.</div>
 """
 
 SETUP = """
@@ -178,7 +178,8 @@ report needs no list. 20 Messages per level (10 for max-range), levels from 2 dB
 threshold to 8 dB over it.</li>
 <li><strong>Checks on the max-range gap</strong>: a finer 1 dB sweep, the clock drift between the two cards,
 the exact sent audio decoded again digitally (batch decoder and live receiver path), and a continuous
-recording of the cable decoded offline.</li>
+recording of the cable decoded offline. They led to the cause: the storage limit of the receiving
+application (see the Max-range section). Run 5 repeats the sweep with the limit raised to 3,000 MB.</li>
 </ol>
 """
 
@@ -191,14 +192,13 @@ simulator's threshold, 0 of 20 two dB below. The curve is a cliff, not a slope.<
 the SNR estimated by the receiver for the Frames read is within 0.2 dB of the one imposed.</li>
 <li><strong>The cable is not the room</strong>: the 7 dB lost over the air in <em>fast</em> is acoustic
 (loudspeaker, microphone, reverberation), not the modem and not the sound cards.</li>
-<li><strong>Max-range</strong>: the 3 to 4 dB loss of the first two runs was not constant. The detector, the
-clock drift (17 ppm, about 1 ms over a 54 s Transmission) and the receiving card's noise (-103 dBFS) are ruled out;
-what remains is a chain that changes between runs, and a live receiver that reads fewer Messages than an offline
-decoding of the same recording at the lowest levels (5 of 10 against 10 of 10 at -22 dB in run 4).</li>
+<li><strong>Max-range</strong> matches the simulator too: with nothing deleted (run 5), 10 of 10 from -22 dB up, 6 of 10
+at -23 dB, none at -24 dB: a threshold of -22 dB, 0.0 dB lost. The 3 to 4 dB loss of runs 1 and 2 and the live
+receiver reading fewer Messages in run 4 were one flaw: the lowest levels, sent first, were the receptions the
+storage limit deleted (<code>bench.cable_trial report</code> now warns).</li>
 </ul>
 <h2>Open items</h2>
 <ul>
-<li>Why the live receiver reads fewer Messages than an offline decoding of the same recording at the lowest levels, and what changes in the chain from one run to the next (ticket #28).</li>
 <li>The level robustness step (volume of the sender at 100 %, 25 %, 6 %) was not run: the sender's volume cannot be
 set over SSH.</li>
 <li>The over-the-air figures above are from the user's field trial and the analysis kept in
@@ -210,23 +210,20 @@ simulator curves: <code>docs/measurements/presets/</code>. Regenerate this page 
 """
 
 MAX_RANGE_TEXT = """
-<p>The four runs do not agree: threshold -18 dB (run 1), -19 dB (run 2), then in the later runs all Messages read at
--22 and -21 dB (run 3, 5 each) and, in run 4, 10 of 10 at -21 and -20 dB, 5 of 10 at -22 dB live and 10 of 10 at
--22 dB when the continuous recording of the cable is decoded offline. What was checked, each time with the same
-audio that had been sent:</p>
-<ul>
-<li>Decoded again digitally, with no sound card: 10 of 10 at -22, -21 and -20 dB, 4 of 10 at -23 dB. The
-detector is not the cause.</li>
-<li>Fed through the application's live receiver path: the same. On clean digital audio the live path is not the
-cause either.</li>
-<li>The two cards' clocks differ by 17 ppm (120 s tone): about 1 ms over a Transmission. Not the cause.</li>
-<li>Run 4 shows two separate effects: the chain gave 10 of 10 at -22 dB offline (no loss left against the
-simulator), but the live receiver read only 5 of 10 of the same Messages. On real audio the live path loses
-about 1 dB against offline decoding. Why is open; it read all of them from clean digital audio.</li>
-<li>The loss of runs 1 and 2 (3 to 4 dB) did not come back in runs 3 and 4: it depends on something that changes
-between runs (the sending laptop's audio state, PipeWire, time of day), not on the modem.</li>
-<li>Run 4 -19 dB offline is left out: the recording ended before its last Messages were all played.</li>
-</ul>
+<p>The first runs seemed to lose 3 to 4 dB (threshold -18 dB in run 1, -19 dB in run 2), and in run 4 the live
+receiver read 5 of 10 Messages at -22 dB that an offline decoding of the same continuous recording read 10 of 10.
+The cause is the trial, not the chain: the receiving application keeps the audio of what it receives up to a limit
+(200 MB by default) and deletes the oldest receptions beyond it. The Messages are sent from the lowest SNR up, so the
+lowest levels were the ones deleted: 25 receptions in run 1, 36 in run 2, 15 in run 4 (the numbering of the kept
+files starts at that number). They were counted as lost. The levels below show only what survived; the
+Messages that survived at -20 dB were read (4 of 5 in run 1, 4 of 4 in run 2), and replaying the whole run 4 recording
+through the live receiver gives the same 4, 10, 10, 10 and 9 of 10 (-23 to -19 dB) as offline decoding.
+Run 5 sends 6 levels of 10 Messages with the limit raised to 3,000 MB and nothing is deleted: the threshold is
+-22 dB, the simulator's.</p>
+<p>Also checked, with the same audio that had been sent: decoding it again digitally (10 of 10 from -22 dB, 4 of 10 at
+-23 dB), the application's live path on that audio (the same), the two cards' clocks (17 ppm, about 1 ms over a
+Transmission) and the receiving card's noise (-103 dBFS). None of them was a cause. The recording of run 4 at -19 dB
+offline is left out: it ended before its last Messages were played.</p>
 """
 
 

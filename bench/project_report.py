@@ -24,10 +24,11 @@ CODES = [
 RUN_LABELS = {
     "1-fast": "Essai 1, pas de 2 dB",
     "1-standard": "Essai 1, pas de 2 dB",
-    "1-max-range": "Essai 1, pas de 2 dB",
-    "2-max-range": "Essai 2, pas de 1 dB",
+    "1-max-range": "Essai 1, pas de 2 dB (niveaux bas supprimés)",
+    "2-max-range": "Essai 2, pas de 1 dB (niveaux bas supprimés)",
     "3-max-range": "Essai 3, enregistrement continu",
-    "4-max-range": "Essai 4, en direct",
+    "4-max-range": "Essai 4, en direct (niveaux bas supprimés)",
+    "5-max-range": "Essai 5, rien de supprimé",
     "4b-max-range": "Essai 4, même audio décodé hors ligne",
 }
 
@@ -121,14 +122,14 @@ TIMELINE = [
     ("#20", "Réceptions gardées", "L'audio de chaque Frame est conservé avec ses indicateurs, et rejoué à l'identique sur le banc (ADR 0006)."),
     ("#21", "Validation sur câble", "Les trois Presets sur une vraie chaîne audio, à des SNR connus : voir plus bas."),
     ("#24–#26", "Page et conversation", "Page découpée en fichiers, filtres de la conversation, avertissement quand on quitte en écoutant."),
-    ("#28", "Écart de max-range", "Jusqu'à 3 à 4 dB perdus sur câble en max-range selon l'essai, et un récepteur en direct qui lit moins que le décodage hors ligne : cause encore à l'étude."),
+    ("#22", "Paquet Windows", "Un zip construit par la CI et vérifié sur une machine Windows propre : lancement sans terminal, écoute et envoi."),
+    ("#27", "Bande d'écoute", "Le récepteur ne cherche que les Signaux entièrement dans une bande d'audio choisie (bruit de radio basse fréquence) ; réglage temporaire, tant que le cœur ne lit qu'un Signal à la fois."),
+    ("#28", "Écart de max-range", "Une perte apparente de 3 à 4 dB sur câble : un défaut de l'essai (l'application supprimait ses plus anciennes réceptions, les SNR les plus bas), pas de la chaîne. Remesuré : max-range égale le simulateur."),
 ]
 
 OPEN = [
-    ("#22", "Installateur Windows", "à faire"),
     ("#23", "Campagne sur le terrain : haut-parleur et micro, puis radios", "à faire"),
-    ("#27", "Choisir la plage de fréquences d'entrée", "à cadrer"),
-    ("#28", "Écart de max-range sur câble", "en cours"),
+    ("#29", "Page accessible depuis le réseau, avec un QR code", "non prioritaire"),
     ("#1", "La spécification d'ensemble, qui se ferme quand v1 est complète", "ouvert"),
 ]
 
@@ -354,12 +355,12 @@ bout en bout, par SSH.</p>
 0 sur 20 deux décibels plus bas. La courbe est une falaise. Les cartes son et le câble ne coûtent rien.</li>
 <li><strong>Aucune perte au-dessus du seuil</strong>, aucun trou de capture, et le SNR estimé par le récepteur
 est à 0,2 dB de celui imposé.</li>
-<li><strong>Max-range</strong> a d'abord perdu 3 à 4 dB (seuil −18 puis −19 dB au lieu de −22 dB), mais cette
-perte ne s'est pas reproduite à l'identique : dans les essais suivants tous les Messages sont lus à −21 dB, et à
-−22 dB quand on décode hors ligne l'enregistrement continu du câble. Le détecteur, la dérive d'horloge (17 ppm,
-environ 1 ms sur 54 s) et le bruit de la carte de réception (−103 dBFS) sont écartés. Il reste deux effets :
-une chaîne dont l'état change d'un essai à l'autre, et un récepteur en direct qui lit moins de Messages que le
-décodage hors ligne du même enregistrement aux niveaux les plus bas (5 sur 10 contre 10 sur 10 à −22 dB).
+<li><strong>Max-range</strong> égale le simulateur lui aussi : avec la limite de stockage relevée (essai 5), 10 sur 10 dès
+−22 dB, 6 sur 10 à −23 dB, aucun à −24 dB, soit un seuil de −22 dB et 0,0 dB de perte. La « perte de 3 à 4 dB » des
+essais 1 et 2, et le récepteur en direct qui lisait moins que le hors ligne à l'essai 4, étaient un seul défaut de
+l'essai : l'application supprimait ses plus anciennes réceptions au-delà de 200 Mo, et les SNR les plus bas sont
+envoyés en premier. On l'a trouvé en rejouant l'enregistrement dans le récepteur (même résultat que hors ligne) et
+en voyant que la numérotation des fichiers gardés ne commençait pas à zéro. L'outil de rapport prévient maintenant.
 Ticket #28.</li>
 <li><strong>La pièce coûte, pas la carte son :</strong> les 7 dB perdus dans la pièce en fast sont acoustiques
 (haut-parleur, micro, réverbération), pas ceux du modem.</li>

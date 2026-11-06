@@ -315,10 +315,11 @@ Summary (95 % of Messages received, white noise added digitally at a known SNR, 
 | :-- | :-- | :-- |
 | fast | -13 dB | -13 dB |
 | standard | -16 dB | -16 dB |
-| max-range | -22 dB | -18 dB (run 1), -19 dB (run 2); -21 dB live and -22 dB offline in run 4 |
+| max-range | -22 dB | -22 dB (run 5) |
 
-Fast and standard match the simulator. Max-range lost 3 to 4 dB in the first two runs and not in the later ones. Ruled
-out: the detector and the live receiver on clean digital audio (the same audio decodes 10 of 10 from -22 dB), the clock
-drift between the cards (17 ppm, about 1 ms over a Transmission) and the receiving card's noise (-103 dBFS). Open
-(#28): what changes in the chain from run to run, and why the live receiver read 5 of 10 Messages at -22 dB that an
-offline decoding of the same continuous recording read 10 of 10.
+All three Presets match the simulator. Max-range appeared to lose 3 to 4 dB in runs 1 and 2, and the live receiver
+to read fewer Messages than an offline decoding in run 4: the receiving application had deleted its oldest kept
+receptions beyond its 200 MB limit, which are the lowest SNRs, sent first (the kept files were numbered from 25, 36
+and 15). Run 5, with the limit raised to 3,000 MB and nothing deleted: 0, 6, 10, 10, 10, 10 of 10 from -24 to -19 dB
+(`cable-trial/max-range-run5.txt`). `bench.cable_trial report` now warns when receptions were deleted; raise the limit
+(`limit_mb` of `/api/storage`) before a trial. The raw reports of runs 1 and 2 keep the wrong zeros.
