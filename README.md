@@ -4,15 +4,18 @@
 
 **Vibe AudioModem** is yet another a one-way, weak-signal digital communication for radio amateurs. But this time, you can have a **real conversation**, in a mordern app that look like a **real chat** !
 
-You type a message, the program turns it into a **FSK** modulated signal that your beloved radio can transmit on the air, and the receiver decodes them from audio far below what the ear can pick out. There is no return channel and no handshake: you transmit, whoever hears you reads you.
+You type a message, the program turns it into a **8FSK** modulated signal that your beloved radio can transmit on the air, and the receiver decodes them from audio far below what the ear can pick out. There is no return channel and no handshake: you transmit, whoever hears you reads you.
 
 **simple, basic, but really powerful.**
 
-| Preset      | Symbol | Transmission time | Bandwidth | Simulated to works down to |
-| :---------- | :----- | :---------------- | :-------- | :------------------------- |
-| `fast`      | 40 ms  | 6.8 s             | 212 Hz    | -13 dB                     |
-| `standard`  | 80 ms  | 13.6 s            | 107 Hz    | -16 dB                     |
-| `max-range` | 320 ms | 54.4 s            | 29 Hz     | -22 dB                     |
+| Preset      | Symbol rate | Useful bit rate | Time on air for 17 characters | Bandwidth | Decodes down to (simulated) |
+| :---------- | :---------- | :-------------- | :---------------------------- | :-------- | :-------------------------- |
+| `fast`      | 25 baud     | 20 bit/s        | 6.8 s                         | 212 Hz    | -13 dB                      |
+| `standard`  | 12.5 baud   | 10 bit/s        | 13.6 s                        | 107 Hz    | -16 dB                      |
+| `max-range` | 3.1 baud    | 2.5 bit/s       | 54.4 s                        | 29 Hz     | -22 dB                      |
+
+***note** : Each symbol is one of 8 tones, so it carries 3 bits. Error correction, the preamble and the checksum use most of that.*
+*the **useful bit rate** counts only the 17 characters of text that one transmission carries. **A longer message is sent in several transmissions**.*
 
 
 ![a screenshot if the app itself](docs/Screenshot.png)
@@ -26,20 +29,19 @@ You type a message, the program turns it into a **FSK** modulated signal that yo
 
 ### what it does not yet, but soon will
 
-- **multiple message decoding** for now, it can decode only one message at a time, but soon, you'll be able to decode the whole band at once using Sucessive Interferences Cancelation (like in FT8 or JS8Call)
-- **no station identification** so two station can write the same message. it's a known conflict but it will fixed in the next version.
-- **light/dark mode and theming** because we deserve the better damnit.
-- **remote access** because why would you stay in the shed if you can access it on your phone on the couch ?
+- **multiple message decoding.** for now, it can decode only one message at a time, but soon, you'll be able to decode the whole band at once using Sucessive Interferences Cancelation (like in FT8 or JS8Call)
+- **no station identification.** so two station can write the same message. it's a known conflict but it will fixed in the next version.
+- **light/dark mode and theming.** because we deserve the best damnit.
+- **remote access.** because why would you stay in the shed if you can access your station on your phone, on the couch, next to the fireplace ?
 
 ### How well does it really work?
 
-- **In simulation** (white noise, random start time and frequency): the table above.
-- **Through a real sound chain** (two computers, sound cards and a cable, white noise added at an exact level): all three Presets match the simulator, with **0.0 dB loss** for `max-range`. See [`docs/measurements/`](docs/measurements/README.md).
-- **Over the air, with real radios:** not measured yet. Real radio noise is not white and the channel fades, so expect worse. A field study is planned; see [issue #23](https://github.com/BimBim134/vibe-audioModem/issues/23). If you want to take part, that is the best way to help.
+- **In simulation.** (white noise, random start time and frequency): see the table above.
+- **Through a real sound chain.** (two computers, sound cards and a cable, white noise added at an exact level): all three Presets match the simulator, with **0.0 dB loss** for `max-range`. See [`docs/measurements/`](docs/measurements/README.md).
+- **Over the air, with real radios** not measured yet. Real radio noise is not white and the channel fades, so expect worse. A field study is planned; see [issue #23](https://github.com/BimBim134/vibe-audioModem/issues/23). If you want to take part, that is the best way to help.
 
 ___
-
-# Try it
+### Try it
 
 ### Windows: download and run
 
@@ -50,8 +52,6 @@ Get `vibemodem-windows.zip` from the [latest release](https://github.com/BimBim1
 You will need [uv](https://docs.astral.sh/uv/), which installs the right Python for you.
 
 ```bash
-git clone https://github.com/BimBim134/vibe-audioModem.git
-cd vibe-audioModem
 git clone https://github.com/BimBim134/vibe-audioModem.git
 cd vibe-audioModem
 uv sync --locked --all-extras
@@ -70,9 +70,9 @@ The page has:
 
 And really, that's all. No need for more.
 
-___
 
-# For developers
+___
+### For developers
 
 Check your work (CI runs the same commands for Linux and Windows for every push, and on macOS for pull requests):
 
@@ -147,7 +147,6 @@ uv run python -m bench.report toy.json other.json --out compare.html
 ```
 
 The report is a single offline HTML file, so it can be opened anywhere and kept as a CI artifact. It flags results measured on different terms (message length, channel, Preset) as not directly comparable.
-The report is a single offline HTML file, so it can be opened anywhere and kept as a CI artifact. It flags results measured on different terms (message length, channel, Preset) as not directly comparable.
 
 Two companion commands: `python -m bench.speed --modem pkg.mod:Class` times how fast a candidate receives against real time, and `python -m bench.code_curves --code pkg.mod:Class` measures how often an error-correcting code alone loses a frame on white noise. To test a real sound chain with a cable, see `bench/cable_trial.py`.
 Two companion commands: `python -m bench.speed --modem pkg.mod:Class` times how fast a candidate receives against real time, and `python -m bench.code_curves --code pkg.mod:Class` measures how often an error-correcting code alone loses a frame on white noise. To test a real sound chain with a cable, see `bench/cable_trial.py`.
@@ -169,5 +168,4 @@ The software is a working prototype (release `v1.0`), still evolving. The first 
 
 ### License
 
-GPL-3.0 (`GPL-3.0-only`). See [`LICENSE`](LICENSE).
 GPL-3.0 (`GPL-3.0-only`). See [`LICENSE`](LICENSE).
