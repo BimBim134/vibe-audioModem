@@ -2,7 +2,7 @@
 
 Issue #3. Question: can a non-developer run a Python + NumPy/SciPy + audio + local web server application on Windows and macOS without a terminal?
 
-**Verdict: yes, with PyInstaller.** CI builds a Windows and a macOS artifact and smoke-tests each. The owner ran the Windows build on a clean Windows machine on 2026-11-01 and reported that everything worked (page, microphone recording, quit). The macOS build has been smoke-tested by CI only; it has not been run by hand on a Mac.
+**Verdict: yes, with PyInstaller.** CI builds a Windows and a macOS artifact and smoke-tests each. The owner ran the Windows build on a clean Windows machine on 2026-11-01 and reported that everything worked (page, microphone recording, quit). The macOS build was then run by hand on a Mac (reported by the owner on 2026-11-11): everything worked, with no terminal command needed, and a message was exchanged with another computer.
 
 ## What was built
 
@@ -25,8 +25,7 @@ Sizes of the uploaded archives: about 58 MB (Windows) and 35 MB (macOS). An unpa
 
 Recording from a real microphone was confirmed on a clean Windows machine. Still open:
 
-- **macOS:** recording 5 seconds from a real microphone in the packaged app, on a clean Mac.
-- On macOS, that the microphone permission prompt appears and works.
+- ~~**macOS:** recording from a real microphone in the packaged app, and the microphone permission prompt.~~ Done on 2026-11-11 with release `v1.0`: the page, the settings and the devices all worked, and a message went between the Mac and another computer. The Mac model and macOS version were not recorded.
 - Behaviour on Intel Macs: the macOS runner is Apple Silicon (arm64), so the artifact is arm64 only. An Intel build would need another runner.
 
 ### Manual check on a clean machine
