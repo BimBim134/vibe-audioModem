@@ -432,6 +432,8 @@ for (const id of ["frequency"]) {
 }
 $("copies").addEventListener("change", () =>
   act(call("/api/settings", "POST", { copies: Number($("copies").value) }), null, "settings-error"));
+$("callsign").addEventListener("change", () =>
+  act(call("/api/settings", "POST", { callsign: $("callsign").value.trim() || null }), null, "settings-error"));
 for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
 $("text").addEventListener("input", grow);
 $("frequency").addEventListener("input", drawScope);  // the band moves as it is typed
@@ -469,6 +471,7 @@ async function refresh() {
     if (settings !== lastSettings) {  // only when they changed, so a choice not yet applied is kept
       lastSettings = settings;
       if (document.activeElement !== $("copies")) $("copies").value = state.settings.copies;
+      if (document.activeElement !== $("callsign")) $("callsign").value = state.settings.callsign || "";
       askEstimate();  // the Preset decides the airtime and the range of frequencies
       $("preset").value = state.settings.preset;
       $("input_device").value = state.settings.input_device === null ? "" : state.settings.input_device;

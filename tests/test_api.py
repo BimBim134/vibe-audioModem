@@ -89,7 +89,8 @@ def test_a_missing_audio_library_is_reported_apart_from_missing_devices(made):
 def test_the_settings_are_read_and_changed_as_a_whole(client):
     changed = client.post("/api/settings", json={"preset": "fast", "output_device": "radio"})
     assert changed.json() == {
-        "preset": "fast", "input_device": None, "output_device": "radio", "copies": 1
+        "preset": "fast", "input_device": None, "output_device": "radio", "copies": 1,
+        "callsign": None
     }  # fmt: skip
     assert client.get("/api/settings").json()["preset"] == "fast"
 
@@ -534,3 +535,10 @@ def test_a_band_too_narrow_for_the_preset_is_refused_with_the_width_it_needs(mad
     refused = client.post("/api/band", json={"low_hz": 1000, "high_hz": 1100})
     assert refused.status_code == 422 and "175" in refused.json()["detail"]
     assert client.get("/api/band").json() == {"low_hz": None, "high_hz": None}
+
+
+def test_the_callsign_is_a_setting_that_is_checked(client):
+    assert client.post("/api/settings", json={"callsign": "f4jbo"}).json()["callsign"] == "F4JBO"
+    assert client.post("/api/settings", json={"callsign": "no way"}).status_code == 422
+    assert client.get("/api/settings").json()["callsign"] == "F4JBO"
+    assert client.post("/api/settings", json={"callsign": None}).json()["callsign"] is None

@@ -52,6 +52,7 @@ class SettingsRequest(BaseModel):
     input_device: int | str | None = None
     output_device: int | str | None = None
     copies: int | None = Field(None, ge=1, le=MAX_COPIES)
+    callsign: str | None = None
 
 
 def _band(band: tuple[float, float] | None) -> dict:

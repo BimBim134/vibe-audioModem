@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
+from vibemodem.app import callsign as callsign_module
 from vibemodem.app import receiver as receiver_module
 from vibemodem.app.conversation import SentEntry, build_conversation
 from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
@@ -56,6 +57,7 @@ class Settings:
     input_device: int | str | None = None
     output_device: int | str | None = None
     copies: int = 1
+    callsign: str | None = None
 
 
 @dataclass(frozen=True)
@@ -141,6 +143,11 @@ class ModemService:
             changes["copies"] = saved["copies"]
         except ValueError:
             pass
+        try:
+            if (callsign := callsign_module.normalise(saved.get("callsign"))) is not None:
+                changes["callsign"] = callsign
+        except ValueError:
+            pass
         devices = None
         for name, direction in (("input_device", "input"), ("output_device", "output")):
             wanted = saved.get(name)
@@ -173,8 +180,9 @@ class ModemService:
             raise BusyError("stop sending and listening before changing the settings")
 
     def _check_can_change(self, changes: dict) -> None:
-        """The number of copies can change at any time; the rest only while nothing is going on."""
-        if set(changes) <= {"copies"}:
+        """The number of copies and the Callsign can change at any time; the rest only while
+        nothing is going on."""
+        if set(changes) <= {"copies", "callsign"}:
             self._not_closed()
         else:
             self._check_idle()
@@ -184,7 +192,7 @@ class ModemService:
         with self._lock:
             self._check_can_change(changes)
         problems = []
-        unknown = set(changes) - {"preset", "input_device", "output_device", "copies"}
+        unknown = set(changes) - {"preset", "input_device", "output_device", "copies", "callsign"}
         if unknown:
             problems.append(f"unknown settings: {', '.join(sorted(unknown))}")
         if "preset" in changes and changes["preset"] not in presets.PRESETS:
@@ -193,6 +201,11 @@ class ModemService:
         if "copies" in changes:
             try:
                 check_copies(changes["copies"])
+            except ValueError as error:
+                problems.append(str(error))
+        if "callsign" in changes:
+            try:
+                changes["callsign"] = callsign_module.normalise(changes["callsign"])
             except ValueError as error:
                 problems.append(str(error))
         wanted = [(n, d) for n, d in (("input_device", "input"), ("output_device", "output"))
@@ -289,6 +302,7 @@ class ModemService:
         length = len(message.encode("utf-8")) if isinstance(message, str) else len(message)
         with self._lock:
             preset = self._settings.preset
+            length += len(callsign_module.prefix(self._settings.callsign))
             if preset not in self._frame_samples:  # a modem of its own: nobody else uses it
                 probe = self._make_modem(preset=preset)
                 size = probe.modulate(Fragment(0, 0, 1, b"").pack(), preset).size
@@ -335,6 +349,7 @@ class ModemService:
                     "input_device": self._settings.input_device,
                     "output_device": self._settings.output_device,
                     "copies": self._settings.copies,
+                    "callsign": self._settings.callsign,
                 },
                 "search_band": None if self._search_band is None else list(self._search_band),
                 "received": self._receiver.counts[0],
@@ -359,6 +374,7 @@ class ModemService:
                 raise BusyError("a Message is already being sent: cancel it or wait")
             if problem := self._frequency_problem(self._settings.preset, frequency_hz):
                 raise ValueError(problem)  # before anything is taken: nothing to give back
+            data = callsign_module.prefix(self._settings.callsign) + data
             self._sending, self._cancel_asked, self._send_thread = True, False, None
             preset, device, last_id = (
                 self._settings.preset,
