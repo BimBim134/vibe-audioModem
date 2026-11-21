@@ -88,8 +88,18 @@ def test_a_missing_audio_library_is_reported_apart_from_missing_devices(made):
 
 def test_the_settings_are_read_and_changed_as_a_whole(client):
     changed = client.post("/api/settings", json={"preset": "fast", "output_device": "radio"})
-    assert changed.json() == {"preset": "fast", "input_device": None, "output_device": "radio"}
+    assert changed.json() == {
+        "preset": "fast", "input_device": None, "output_device": "radio", "copies": 1
+    }  # fmt: skip
     assert client.get("/api/settings").json()["preset"] == "fast"
+
+
+def test_the_number_of_copies_is_a_setting(client):
+    assert client.post("/api/settings", json={"copies": 3}).json()["copies"] == 3
+    assert client.get("/api/settings").json()["copies"] == 3
+    for bad in (0, 9, "many"):
+        assert client.post("/api/settings", json={"copies": bad}).status_code == 422
+    assert client.get("/api/settings").json()["copies"] == 3
 
 
 def test_a_device_can_be_set_back_to_the_default(client):

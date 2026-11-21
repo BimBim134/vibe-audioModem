@@ -380,7 +380,7 @@ The modem classes that attach a code to the waveform are one-liners: `turbo_mode
 
 The one object the API talks to. It holds a lock (`RLock`) and no HTTP.
 
-- **Settings**: `Settings(preset, input_device, output_device)`. `apply_settings(**changes)` validates **all or nothing** (`SettingsError` lists every problem) and is refused while sending or listening (`BusyError`). Devices are checked against the sound card outside the lock because that call can be slow. Changing the Preset is refused if the Listening band no longer holds it.
+- **Settings**: `Settings(preset, input_device, output_device, copies)`. `apply_settings(**changes)` validates **all or nothing** (`SettingsError` lists every problem) and is refused while sending or listening (`BusyError`), except for `copies`, which can change at any time. The settings, with `keep` and `limit_mb` of the storage, are kept in `settings.json` in the receptions folder and read again at start (`SettingsFile`): a missing or damaged file gives the defaults, a bad value is ignored, a device that is not there is ignored but stays in the file for when it is back, and the Listening band is never saved. Devices are checked against the sound card outside the lock because that call can be slow. Changing the Preset is refused if the Listening band no longer holds it.
 - **Sending**: `send(text, copies, frequency_hz)` builds the whole Transmission first (so a Message that is too long is refused **before any sound**), then plays it on its own thread. `cancel()` repeats `audio.stop()` until the thread ends. `estimate(...)` says what a send would take (Fragments, airtime, longest Message, the refusal it would give, the allowed frequency range) without making a sound. Modems for sending are cached per (Preset, frequency), at most 8 (they are heavy).
 - **Listening**: `start_listening()`, `stop_listening()` delegate to the `Receiver`. `received()`, `undecoded()`, `conversation()`, `spectrum(since)` expose what it saw.
 - **Listening band**: `set_search_band(low, high)` / `search_band()`: 300 to 2,700 Hz, low below high, at least `minimum_band_hz(preset)` wide; applied at the next decoding pass, also while listening; global; not saved. `(None, None)` clears it.
@@ -396,7 +396,7 @@ The one object the API talks to. It holds a lock (`RLock`) and no HTTP.
 | :-- | :-- |
 | `GET /`, `GET /assets/{name}` | The page (`index.html`, `style.css`, `script.js`), read at each request with `Cache-Control: no-cache`; `{name}` is a file directly in the assets folder, nothing else. |
 | `GET /api/health`, `GET /api/status`, `GET /api/devices` | Liveness; the polled state; audio devices (or why the library is unavailable). |
-| `GET/POST /api/settings` | Preset and devices (`SettingsRequest`, extra fields forbidden). |
+| `GET/POST /api/settings` | Preset, devices and number of copies (`SettingsRequest`, extra fields forbidden). |
 | `POST /api/estimate`, `POST /api/send`, `POST /api/cancel` | Plan, send, cancel. |
 | `POST /api/listen/start`, `/api/listen/stop` | Listening. |
 | `GET/POST /api/band` | The Listening band: `low_hz`, `high_hz` (both null clears). |
@@ -500,7 +500,7 @@ About 1,090 tests in `tests/`, run by `uv run pytest` (`pythonpath = ["."]`, so 
 | Waveform and modems | `test_waveform.py`, `test_mfsk_modems.py`, `test_modem_options.py`, `test_presets.py`, `test_frequency.py`, `test_search_band.py` |
 | Receiver behaviour | `test_detections.py` (lost, arriving, side peaks), `test_clicks.py` (clicks are not Signals), `test_false_alarms.py`, `test_latency.py` |
 | Spectrum, levels, audio, WAV | `test_spectrum.py`, `test_levels.py`, `test_audio.py`, `test_audio_check.py`, `test_wav.py` |
-| Application | `test_service.py` (the biggest: sending, cancelling, listening, settings, the band), `test_api.py` (through HTTP), `test_conversation.py`, `test_keeping.py`, `test_store.py` |
+| Application | `test_service.py` (the biggest: sending, cancelling, listening, settings, the band), `test_api.py` (through HTTP), `test_conversation.py`, `test_keeping.py`, `test_store.py`, `test_settings_file.py` (what survives a restart) |
 | Bench | `test_channel.py`, `test_scenarios.py`, `test_threshold.py`, `test_threshold_command.py`, `test_report.py`, `test_report_command.py`, `test_sweep.py`, `test_bandwidth.py`, `test_code_curves.py`, `test_speed.py`, `test_toy_modem.py`, `test_replay.py`, `test_field_check.py`, `test_cable_trial.py`, `test_cable_report.py` |
 
 ### 10.2 How they are written

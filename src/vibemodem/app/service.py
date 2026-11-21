@@ -17,6 +17,7 @@ from vibemodem.app import receiver as receiver_module
 from vibemodem.app.conversation import SentEntry, build_conversation
 from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
 from vibemodem.app.receiver import Receiver
+from vibemodem.app.settings_file import SettingsFile
 from vibemodem.app.store import ReceptionStore
 from vibemodem.core import mfsk, presets
 from vibemodem.core.coded_modem import SAMPLE_RATE
@@ -54,6 +55,7 @@ class Settings:
     preset: str = presets.DEFAULT_PRESET
     input_device: int | str | None = None
     output_device: int | str | None = None
+    copies: int = 1
 
 
 @dataclass(frozen=True)
@@ -89,8 +91,10 @@ class ModemService:
         decode_every_seconds: float = receiver_module.DECODE_EVERY_SECONDS,
         max_received: int = receiver_module.MAX_RECEIVED,
         store: ReceptionStore | None = None,
+        settings_file: SettingsFile | None = None,
     ):
         self._audio = audio
+        self._settings_file = settings_file
         self._make_modem = make_modem
         self._receiver = Receiver(
             audio,
@@ -114,6 +118,7 @@ class ModemService:
         self._send_thread: threading.Thread | None = None
         self._last_id: int | None = None
         self._last_error: str | None = None
+        self._load_settings()
 
     # Settings -------------------------------------------------------------------------------
 
@@ -121,22 +126,75 @@ class ModemService:
     def settings(self) -> Settings:
         return self._settings
 
+    def _load_settings(self) -> None:
+        """Take the settings the last run kept. Each value is checked and a bad one is ignored,
+        so a damaged file costs the values it damaged and nothing else."""
+        if self._settings_file is None:
+            return
+        saved = self._settings_file.read()
+        changes = {}
+        preset = saved.get("preset")
+        if isinstance(preset, str) and preset in presets.PRESETS:
+            changes["preset"] = preset
+        try:
+            check_copies(saved.get("copies"))
+            changes["copies"] = saved["copies"]
+        except ValueError:
+            pass
+        devices = None
+        for name, direction in (("input_device", "input"), ("output_device", "output")):
+            wanted = saved.get(name)
+            if isinstance(wanted, bool) or not isinstance(wanted, int | str):
+                continue
+            try:  # a device that is not there now stays in the file, for when it is back
+                devices = self._audio.list_devices() if devices is None else devices
+                find_device(devices, wanted, direction)
+            except AudioError:
+                continue
+            changes[name] = wanted
+        self._settings = replace(self._settings, **changes)
+        storage = {}
+        keep, limit_mb = saved.get("keep"), saved.get("limit_mb")
+        if isinstance(keep, bool):
+            storage["keep"] = keep
+        if isinstance(limit_mb, int) and not isinstance(limit_mb, bool):
+            if MIN_LIMIT_MB <= limit_mb <= MAX_LIMIT_MB:
+                storage["limit_mb"] = limit_mb
+        if storage and self._receiver.store is not None:
+            self._set_storage(**{"keep": None, "limit_mb": None, **storage})
+
+    def _remember(self, **values) -> None:
+        if self._settings_file is not None:
+            self._settings_file.update(**values)
+
     def _check_idle(self) -> None:
         self._not_closed()
         if self._sending or self._receiver.listening:
             raise BusyError("stop sending and listening before changing the settings")
 
+    def _check_can_change(self, changes: dict) -> None:
+        """The number of copies can change at any time; the rest only while nothing is going on."""
+        if set(changes) <= {"copies"}:
+            self._not_closed()
+        else:
+            self._check_idle()
+
     def apply_settings(self, **changes) -> Settings:
         """Change settings all together or not at all."""
         with self._lock:
-            self._check_idle()
+            self._check_can_change(changes)
         problems = []
-        unknown = set(changes) - {"preset", "input_device", "output_device"}
+        unknown = set(changes) - {"preset", "input_device", "output_device", "copies"}
         if unknown:
             problems.append(f"unknown settings: {', '.join(sorted(unknown))}")
         if "preset" in changes and changes["preset"] not in presets.PRESETS:
             known = ", ".join(presets.PRESETS)
             problems.append(f"preset {changes['preset']!r} is not one of {known}")
+        if "copies" in changes:
+            try:
+                check_copies(changes["copies"])
+            except ValueError as error:
+                problems.append(str(error))
         wanted = [(n, d) for n, d in (("input_device", "input"), ("output_device", "output"))
                   if changes.get(n) is not None]  # fmt: skip
         if wanted:  # the sound card is asked outside the lock: it can be slow
@@ -153,10 +211,11 @@ class ModemService:
         if problems:
             raise SettingsError("; ".join(problems))
         with self._lock:
-            self._check_idle()  # it may have changed while the devices were looked at
+            self._check_can_change(changes)  # it may have changed while the devices were looked at
             if "preset" in changes:
                 self._check_band_fits(changes["preset"], self._search_band)
             self._settings = replace(self._settings, **changes)
+            self._remember(**changes)
             return self._settings
 
     # The audio band listened in -------------------------------------------------------------
@@ -275,6 +334,7 @@ class ModemService:
                     "preset": self._settings.preset,
                     "input_device": self._settings.input_device,
                     "output_device": self._settings.output_device,
+                    "copies": self._settings.copies,
                 },
                 "search_band": None if self._search_band is None else list(self._search_band),
                 "received": self._receiver.counts[0],
@@ -408,7 +468,11 @@ class ModemService:
     def set_storage(self, keep: bool | None = None, limit_mb: int | None = None) -> dict:
         """Keep receptions or not, and the bound, together or not at all."""
         with self._lock:
-            return self._set_storage(keep, limit_mb)
+            storage = self._set_storage(keep, limit_mb)
+            self._remember(
+                **{n: v for n, v in (("keep", keep), ("limit_mb", limit_mb)) if v is not None}
+            )
+            return storage
 
     def _set_storage(self, keep: bool | None, limit_mb: int | None) -> dict:
         store = self._receiver.store

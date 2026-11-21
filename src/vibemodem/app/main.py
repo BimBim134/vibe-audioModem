@@ -12,6 +12,7 @@ import uvicorn
 
 from vibemodem.app.api import create_app
 from vibemodem.app.service import DEFAULT_LIMIT_MB, MEGABYTE, ModemService
+from vibemodem.app.settings_file import SettingsFile
 from vibemodem.app.store import ReceptionStore, default_directory
 from vibemodem.io.audio import SoundCard
 
@@ -64,7 +65,8 @@ def main(argv: list[str] | None = None) -> None:
     _ensure_std_streams()
     port = args.port or free_port()
     store = ReceptionStore(args.receptions_dir, DEFAULT_LIMIT_MB * MEGABYTE)
-    server = make_server(ModemService(SoundCard(), store=store), port)
+    settings_file = SettingsFile(args.receptions_dir / "settings.json")
+    server = make_server(ModemService(SoundCard(), store=store, settings_file=settings_file), port)
     if not args.no_browser:
         url = f"http://127.0.0.1:{port}/"
         threading.Thread(target=_open_browser_when_ready, args=(server, url), daemon=True).start()

@@ -424,11 +424,14 @@ const grow = () => { $("text").style.height = "auto"; $("text").style.height = M
 $("text").addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); $("composer").requestSubmit(); }
 });
-// What is set for sending is kept for next time (if the browser allows it).
-for (const id of ["copies", "frequency"]) {
+// The frequency set for sending is kept for next time (if the browser allows it); the number of
+// copies is a setting of the application, kept with the others.
+for (const id of ["frequency"]) {
   try { const saved = localStorage.getItem("vibemodem." + id); if (saved !== null) $(id).value = saved; } catch (error) { /* no storage: the page still works */ }
   $(id).addEventListener("input", () => { try { localStorage.setItem("vibemodem." + id, $(id).value); } catch (error) { /* idem */ } });
 }
+$("copies").addEventListener("change", () =>
+  act(call("/api/settings", "POST", { copies: Number($("copies").value) }), null, "settings-error"));
 for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
 $("text").addEventListener("input", grow);
 $("frequency").addEventListener("input", drawScope);  // the band moves as it is typed
@@ -465,6 +468,7 @@ async function refresh() {
     const settings = JSON.stringify(state.settings);
     if (settings !== lastSettings) {  // only when they changed, so a choice not yet applied is kept
       lastSettings = settings;
+      if (document.activeElement !== $("copies")) $("copies").value = state.settings.copies;
       askEstimate();  // the Preset decides the airtime and the range of frequencies
       $("preset").value = state.settings.preset;
       $("input_device").value = state.settings.input_device === null ? "" : state.settings.input_device;

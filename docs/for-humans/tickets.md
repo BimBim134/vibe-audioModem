@@ -1,6 +1,6 @@
 # Where the tickets stand
 
-Last updated: 2026-11-21. Keep this page up to date whenever a ticket is opened, closed or changes place in the order. The reasons behind each decision are in the comments of the tickets and in `docs/agents/memory.md`.
+Last updated: 2026-11-22. Keep this page up to date whenever a ticket is opened, closed or changes place in the order. The reasons behind each decision are in the comments of the tickets and in `docs/agents/memory.md`.
 
 Ticket links: `https://github.com/BimBim134/vibe-audioModem/issues/<number>`.
 
@@ -13,7 +13,7 @@ Ticket links: `https://github.com/BimBim134/vibe-audioModem/issues/<number>`.
 
 | Order | Ticket           | What it does                                                                                                     | Waits for                             |
 | :---- | :--------------- | :--------------------------------------------------------------------------------------------------------------- | :------------------------------------ |
-| 1     | #52              | Keep the settings between sessions                                                                               | nothing                               |
+| 1     | #52              | Keep the settings between sessions. **Done on `dev`, to be closed on GitHub**                                    | nothing                               |
 | 2     | #53              | Callsign setting, written in front of each sent Message (`F4JBO: hello`)                                         | #52                                   |
 | 3     | #49              | TX blanking: the station no longer hears its own Transmission as a received Message                              | nothing (the margin setting uses #52) |
 | 4     | #45              | Lead-in: an optional tone before the Preamble, to open a squelch or a VOX                                        | nothing (the setting uses #52)        |
