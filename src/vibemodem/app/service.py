@@ -15,6 +15,7 @@ import numpy as np
 
 from vibemodem.app import callsign as callsign_module
 from vibemodem.app import receiver as receiver_module
+from vibemodem.app.blanking import Blanking
 from vibemodem.app.conversation import SentEntry, build_conversation
 from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
 from vibemodem.app.receiver import Receiver
@@ -35,6 +36,8 @@ from vibemodem.io.audio import Audio, AudioError, DeviceInfo, find_device
 MEGABYTE = 1_000_000
 MIN_LIMIT_MB, MAX_LIMIT_MB = 10, 100_000
 DEFAULT_LIMIT_MB = 200
+DEFAULT_TX_MARGIN_MS = 250  # of silence after the end of playback, besides the output latency
+MAX_TX_MARGIN_MS = 10_000
 MAX_SENDING_MODEMS = 8  # one per Preset and frequency recently sent at
 JOIN_SECONDS = 10.0  # for the thread that plays a Transmission, once it has been told to stop
 
@@ -51,6 +54,17 @@ class Cancelled(BusyError):
     """The Transmission was cancelled (or the application closed) before any sound was played."""
 
 
+def check_margin(margin_ms: int) -> None:
+    if (
+        not isinstance(margin_ms, int)
+        or isinstance(margin_ms, bool)
+        or not 0 <= margin_ms <= MAX_TX_MARGIN_MS
+    ):
+        raise ValueError(
+            f"the TX blanking margin must be a whole number of ms, 0 to {MAX_TX_MARGIN_MS}"
+        )
+
+
 @dataclass(frozen=True)
 class Settings:
     preset: str = presets.DEFAULT_PRESET
@@ -58,6 +72,7 @@ class Settings:
     output_device: int | str | None = None
     copies: int = 1
     callsign: str | None = None
+    tx_margin_ms: int = DEFAULT_TX_MARGIN_MS
 
 
 @dataclass(frozen=True)
@@ -98,6 +113,7 @@ class ModemService:
         self._audio = audio
         self._settings_file = settings_file
         self._make_modem = make_modem
+        self._blanking = Blanking()
         self._receiver = Receiver(
             audio,
             make_modem,
@@ -105,6 +121,7 @@ class ModemService:
             decode_every_seconds=decode_every_seconds,
             max_received=max_received,
             store=store,
+            blanking=self._blanking,
         )
         self._lock = threading.RLock()
         self._settings = Settings()
@@ -148,6 +165,11 @@ class ModemService:
                 changes["callsign"] = callsign
         except ValueError:
             pass
+        try:
+            check_margin(saved.get("tx_margin_ms"))
+            changes["tx_margin_ms"] = saved["tx_margin_ms"]
+        except ValueError:
+            pass
         devices = None
         for name, direction in (("input_device", "input"), ("output_device", "output")):
             wanted = saved.get(name)
@@ -180,9 +202,9 @@ class ModemService:
             raise BusyError("stop sending and listening before changing the settings")
 
     def _check_can_change(self, changes: dict) -> None:
-        """The number of copies and the Callsign can change at any time; the rest only while
-        nothing is going on."""
-        if set(changes) <= {"copies", "callsign"}:
+        """The number of copies, the Callsign and the TX blanking margin can change at any time;
+        the rest only while nothing is going on."""
+        if set(changes) <= {"copies", "callsign", "tx_margin_ms"}:
             self._not_closed()
         else:
             self._check_idle()
@@ -192,7 +214,8 @@ class ModemService:
         with self._lock:
             self._check_can_change(changes)
         problems = []
-        unknown = set(changes) - {"preset", "input_device", "output_device", "copies", "callsign"}
+        settable = {"preset", "input_device", "output_device", "copies", "callsign", "tx_margin_ms"}
+        unknown = set(changes) - settable
         if unknown:
             problems.append(f"unknown settings: {', '.join(sorted(unknown))}")
         if "preset" in changes and changes["preset"] not in presets.PRESETS:
@@ -201,6 +224,11 @@ class ModemService:
         if "copies" in changes:
             try:
                 check_copies(changes["copies"])
+            except ValueError as error:
+                problems.append(str(error))
+        if "tx_margin_ms" in changes:
+            try:
+                check_margin(changes["tx_margin_ms"])
             except ValueError as error:
                 problems.append(str(error))
         if "callsign" in changes:
@@ -350,6 +378,7 @@ class ModemService:
                     "output_device": self._settings.output_device,
                     "copies": self._settings.copies,
                     "callsign": self._settings.callsign,
+                    "tx_margin_ms": self._settings.tx_margin_ms,
                 },
                 "search_band": None if self._search_band is None else list(self._search_band),
                 "received": self._receiver.counts[0],
@@ -434,6 +463,7 @@ class ModemService:
     def _play(self, sound: np.ndarray, device, entry: SentEntry) -> None:
         outcome, error_text = "sent", None
         began = time.monotonic()
+        self._blanking.start(time.time())
         try:
             self._audio.play(sound, device=device)
         except Exception as error:  # a sound card can fail in many ways; say which, keep going
@@ -441,6 +471,11 @@ class ModemService:
             self._fail(error_text)
         finally:
             with self._lock:
+                self._blanking.end(
+                    time.time()
+                    + self._audio.output_latency_seconds
+                    + self._settings.tx_margin_ms / 1000
+                )
                 played = time.monotonic() - began
                 if (
                     outcome == "sent"

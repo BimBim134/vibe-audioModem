@@ -92,6 +92,11 @@
       <div class="actions"><button id="band-set">Set the band</button></div>
     </div>
     <div class="group">
+      <h3>TX blanking</h3>
+      <p>While the station sends, it does not listen, so that its own Transmission, heard back through the audio interface, is not shown as received. The input is heard again this long after the end of the sound, besides the delay of the sound card. A station that answers at once needs it short; a radio with a long squelch tail needs it longer.</p>
+      <label class="field limit"><span>Margin</span><span class="limit-control"><input id="tx_margin" type="number" min="0" max="10000" step="50"><span>ms</span></span></label>
+    </div>
+    <div class="group">
       <h3>Stored receptions</h3>
       <p>For debug purpose only, each message reception can be stored with 3 s around each Signal. The oldest are deleted first when the limit is reached.</p>
       <label class="field">

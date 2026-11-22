@@ -9,7 +9,13 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from vibemodem.app.service import BusyError, Cancelled, ModemService, SettingsError
+from vibemodem.app.service import (
+    MAX_TX_MARGIN_MS,
+    BusyError,
+    Cancelled,
+    ModemService,
+    SettingsError,
+)
 from vibemodem.core.message import MAX_MESSAGE_BYTES
 from vibemodem.core.spectrum import BAND_HZ, BIN_HZ
 from vibemodem.core.transmission import MAX_COPIES, MessageTooLong
@@ -53,6 +59,7 @@ class SettingsRequest(BaseModel):
     output_device: int | str | None = None
     copies: int | None = Field(None, ge=1, le=MAX_COPIES)
     callsign: str | None = None
+    tx_margin_ms: int | None = Field(None, ge=0, le=MAX_TX_MARGIN_MS)
 
 
 def _band(band: tuple[float, float] | None) -> dict:

@@ -15,6 +15,7 @@ from collections.abc import Callable
 
 import numpy as np
 
+from vibemodem.app.blanking import Blanking
 from vibemodem.app.heard import (
     Arriving,
     Heard,
@@ -62,8 +63,10 @@ class Receiver:
         decode_every_seconds: float = DECODE_EVERY_SECONDS,
         max_received: int = MAX_RECEIVED,
         store: ReceptionStore | None = None,
+        blanking: Blanking | None = None,
     ):
         self._audio = audio
+        self._blanking = blanking
         self._keeper = Keeper(store)
         self._make_modem = make_modem
         self._window_seconds = window_seconds  # None: what one Frame needs, see `_listen`
@@ -183,6 +186,8 @@ class Receiver:
                 if started is None:
                     started = time.time() - block.size / SAMPLE_RATE
                 self._draw(block)
+                if self._blanking is not None:  # the station's own sound, heard back
+                    block = self._blanking.silence(block, started + heard / SAMPLE_RATE)
                 window.append(block)
                 held += block.size
                 heard += block.size
