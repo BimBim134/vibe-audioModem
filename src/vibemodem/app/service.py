@@ -27,6 +27,7 @@ from vibemodem.core.message import Fragment, fragment_count, random_message_id
 from vibemodem.core.transmission import (
     check_copies,
     explain_refusal,
+    lead_in,
     max_message_bytes,
     transmit,
 )
@@ -38,6 +39,7 @@ MIN_LIMIT_MB, MAX_LIMIT_MB = 10, 100_000
 DEFAULT_LIMIT_MB = 200
 DEFAULT_TX_MARGIN_MS = 250  # of silence after the end of playback, besides the output latency
 MAX_TX_MARGIN_MS = 10_000
+MAX_LEAD_IN_MS = 5_000
 MAX_SENDING_MODEMS = 8  # one per Preset and frequency recently sent at
 JOIN_SECONDS = 10.0  # for the thread that plays a Transmission, once it has been told to stop
 
@@ -65,6 +67,15 @@ def check_margin(margin_ms: int) -> None:
         )
 
 
+def check_lead_in(lead_in_ms: int) -> None:
+    if (
+        not isinstance(lead_in_ms, int)
+        or isinstance(lead_in_ms, bool)
+        or not 0 <= lead_in_ms <= MAX_LEAD_IN_MS
+    ):
+        raise ValueError(f"the Lead-in must be a whole number of ms, 0 to {MAX_LEAD_IN_MS}")
+
+
 @dataclass(frozen=True)
 class Settings:
     preset: str = presets.DEFAULT_PRESET
@@ -73,6 +84,7 @@ class Settings:
     copies: int = 1
     callsign: str | None = None
     tx_margin_ms: int = DEFAULT_TX_MARGIN_MS
+    lead_in_ms: int = 0
 
 
 @dataclass(frozen=True)
@@ -170,6 +182,11 @@ class ModemService:
             changes["tx_margin_ms"] = saved["tx_margin_ms"]
         except ValueError:
             pass
+        try:
+            check_lead_in(saved.get("lead_in_ms"))
+            changes["lead_in_ms"] = saved["lead_in_ms"]
+        except ValueError:
+            pass
         devices = None
         for name, direction in (("input_device", "input"), ("output_device", "output")):
             wanted = saved.get(name)
@@ -202,9 +219,9 @@ class ModemService:
             raise BusyError("stop sending and listening before changing the settings")
 
     def _check_can_change(self, changes: dict) -> None:
-        """The number of copies, the Callsign and the TX blanking margin can change at any time;
-        the rest only while nothing is going on."""
-        if set(changes) <= {"copies", "callsign", "tx_margin_ms"}:
+        """The number of copies, the Callsign, the TX blanking margin and the Lead-in can change
+        at any time; the rest only while nothing is going on."""
+        if set(changes) <= {"copies", "callsign", "tx_margin_ms", "lead_in_ms"}:
             self._not_closed()
         else:
             self._check_idle()
@@ -214,7 +231,15 @@ class ModemService:
         with self._lock:
             self._check_can_change(changes)
         problems = []
-        settable = {"preset", "input_device", "output_device", "copies", "callsign", "tx_margin_ms"}
+        settable = {
+            "preset",
+            "input_device",
+            "output_device",
+            "copies",
+            "callsign",
+            "tx_margin_ms",
+            "lead_in_ms",
+        }
         unknown = set(changes) - settable
         if unknown:
             problems.append(f"unknown settings: {', '.join(sorted(unknown))}")
@@ -226,11 +251,12 @@ class ModemService:
                 check_copies(changes["copies"])
             except ValueError as error:
                 problems.append(str(error))
-        if "tx_margin_ms" in changes:
-            try:
-                check_margin(changes["tx_margin_ms"])
-            except ValueError as error:
-                problems.append(str(error))
+        for name, check in (("tx_margin_ms", check_margin), ("lead_in_ms", check_lead_in)):
+            if name in changes:
+                try:
+                    check(changes[name])
+                except ValueError as error:
+                    problems.append(str(error))
         if "callsign" in changes:
             try:
                 changes["callsign"] = callsign_module.normalise(changes["callsign"])
@@ -330,6 +356,7 @@ class ModemService:
         length = len(message.encode("utf-8")) if isinstance(message, str) else len(message)
         with self._lock:
             preset = self._settings.preset
+            lead_in_seconds = self._settings.lead_in_ms / 1000
             length += len(callsign_module.prefix(self._settings.callsign))
             if preset not in self._frame_samples:  # a modem of its own: nobody else uses it
                 probe = self._make_modem(preset=preset)
@@ -341,7 +368,7 @@ class ModemService:
         fragments = fragment_count(length)
         return Estimate(
             fragments=fragments,
-            airtime_seconds=fragments * copies * samples / SAMPLE_RATE,
+            airtime_seconds=fragments * copies * samples / SAMPLE_RATE + lead_in_seconds,
             max_bytes=max_message_bytes(samples / SAMPLE_RATE, copies),
             fits=reason is None,
             reason=reason,
@@ -379,6 +406,7 @@ class ModemService:
                     "copies": self._settings.copies,
                     "callsign": self._settings.callsign,
                     "tx_margin_ms": self._settings.tx_margin_ms,
+                    "lead_in_ms": self._settings.lead_in_ms,
                 },
                 "search_band": None if self._search_band is None else list(self._search_band),
                 "received": self._receiver.counts[0],
@@ -405,15 +433,23 @@ class ModemService:
                 raise ValueError(problem)  # before anything is taken: nothing to give back
             data = callsign_module.prefix(self._settings.callsign) + data
             self._sending, self._cancel_asked, self._send_thread = True, False, None
-            preset, device, last_id = (
+            preset, device, last_id, lead_in_ms = (
                 self._settings.preset,
                 self._settings.output_device,
                 self._last_id,
+                self._settings.lead_in_ms,
             )
         try:
             modem = self._sending_modem(preset, frequency_hz)
             msg_id = random_message_id(last_id)
             sound = transmit(modem, data, preset, msg_id=msg_id, copies=copies)
+            if lead_in_ms:  # before the first Preamble, as loud as the Signal
+                tone = lead_in(
+                    float(frequency_hz or mfsk.FIRST_TONE_HZ),
+                    lead_in_ms,
+                    level=float(np.abs(sound).max()),
+                )
+                sound = np.concatenate([tone, sound])
             with self._lock:  # the sound is ready: unless it was cancelled or we closed meanwhile
                 if self._cancel_asked or self._closed:
                     raise Cancelled("cancelled before any sound was played")

@@ -90,7 +90,7 @@ def test_the_settings_are_read_and_changed_as_a_whole(client):
     changed = client.post("/api/settings", json={"preset": "fast", "output_device": "radio"})
     assert changed.json() == {
         "preset": "fast", "input_device": None, "output_device": "radio", "copies": 1,
-        "callsign": None, "tx_margin_ms": 250
+        "callsign": None, "tx_margin_ms": 250, "lead_in_ms": 0
     }  # fmt: skip
     assert client.get("/api/settings").json()["preset"] == "fast"
 
@@ -547,3 +547,8 @@ def test_the_callsign_is_a_setting_that_is_checked(client):
 def test_the_tx_blanking_margin_is_set_through_the_settings(client):
     assert client.post("/api/settings", json={"tx_margin_ms": 400}).json()["tx_margin_ms"] == 400
     assert client.post("/api/settings", json={"tx_margin_ms": -1}).status_code == 422
+
+
+def test_the_lead_in_is_set_through_the_settings(client):
+    assert client.post("/api/settings", json={"lead_in_ms": 500}).json()["lead_in_ms"] == 500
+    assert client.post("/api/settings", json={"lead_in_ms": 6000}).status_code == 422

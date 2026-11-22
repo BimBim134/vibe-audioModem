@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from vibemodem.app.service import (
+    MAX_LEAD_IN_MS,
     MAX_TX_MARGIN_MS,
     BusyError,
     Cancelled,
@@ -60,6 +61,7 @@ class SettingsRequest(BaseModel):
     copies: int | None = Field(None, ge=1, le=MAX_COPIES)
     callsign: str | None = None
     tx_margin_ms: int | None = Field(None, ge=0, le=MAX_TX_MARGIN_MS)
+    lead_in_ms: int | None = Field(None, ge=0, le=MAX_LEAD_IN_MS)
 
 
 def _band(band: tuple[float, float] | None) -> dict:

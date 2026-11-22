@@ -1,0 +1,83 @@
+{
+  "lead_in_ms": 500,
+  "rows": [
+    {
+      "preset": "max-range",
+      "snr_db": -22.0,
+      "trials": 60,
+      "without": {
+        "received": 59,
+        "extra_signals": 1
+      },
+      "with": {
+        "received": 59,
+        "extra_signals": 1
+      }
+    },
+    {
+      "preset": "max-range",
+      "snr_db": -20.0,
+      "trials": 60,
+      "without": {
+        "received": 60,
+        "extra_signals": 0
+      },
+      "with": {
+        "received": 60,
+        "extra_signals": 0
+      }
+    },
+    {
+      "preset": "standard",
+      "snr_db": -16.0,
+      "trials": 60,
+      "without": {
+        "received": 59,
+        "extra_signals": 1
+      },
+      "with": {
+        "received": 60,
+        "extra_signals": 0
+      }
+    },
+    {
+      "preset": "standard",
+      "snr_db": -14.0,
+      "trials": 60,
+      "without": {
+        "received": 60,
+        "extra_signals": 0
+      },
+      "with": {
+        "received": 60,
+        "extra_signals": 0
+      }
+    },
+    {
+      "preset": "fast",
+      "snr_db": -13.0,
+      "trials": 60,
+      "without": {
+        "received": 60,
+        "extra_signals": 0
+      },
+      "with": {
+        "received": 59,
+        "extra_signals": 1
+      }
+    },
+    {
+      "preset": "fast",
+      "snr_db": -11.0,
+      "trials": 60,
+      "without": {
+        "received": 60,
+        "extra_signals": 0
+      },
+      "with": {
+        "received": 60,
+        "extra_signals": 0
+      }
+    }
+  ]
+}

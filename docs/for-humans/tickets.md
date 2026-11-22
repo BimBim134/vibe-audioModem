@@ -11,19 +11,19 @@ Ticket links: `https://github.com/BimBim134/vibe-audioModem/issues/<number>`.
 
 ## Now: the real-radio batch, in this order
 
-| Order | Ticket           | What it does                                                                                                     | Waits for                             |
-| :---- | :--------------- | :--------------------------------------------------------------------------------------------------------------- | :------------------------------------ |
-| 1     | #52              | Keep the settings between sessions. **Done on `dev`, to be closed on GitHub**                                    | nothing                               |
-| 2     | #53              | Callsign setting, written in front of each sent Message (`F4JBO: hello`). **Done on `dev`, to be closed on GitHub** | #52                                   |
+| Order | Ticket           | What it does                                                                                                                                                                                     | Waits for                             |
+| :---- | :--------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------ |
+| 1     | #52              | Keep the settings between sessions. **Done on `dev`, to be closed on GitHub**                                                                                                                    | nothing                               |
+| 2     | #53              | Callsign setting, written in front of each sent Message (`F4JBO: hello`). **Done on `dev`, to be closed on GitHub**                                                                              | #52                                   |
 | 3     | #49              | TX blanking: the station no longer hears its own Transmission as a received Message. **Done on `dev` except the latency measure (needs the Scarlett at home, `bench/measure_audio_latency.py`)** | nothing (the margin setting uses #52) |
-| 4     | #45              | Lead-in: an optional tone before the Preamble, to open a squelch or a VOX                                        | nothing (the setting uses #52)        |
-| 5     | #42              | PTT through Hamlib (`rigctld`)                                                                                   | #52                                   |
-| 6     | #54              | Warning when sending while a Signal is arriving (never blocks)                                                   | nothing                               |
-| 7     | #39              | History of Messages in a database, with the Callsign and a CSV export                                            | #52, #53                              |
-| 8     | #51, #50         | The manual (French and English, F1 and PDF) and the translation of the page                                      | #52                                   |
-| 9     | #29              | The page reachable from other devices on the local network, with a QR code and a token                           | #52                                   |
-| 10    | #55 (parent #41) | Bench study of a faster, wider Preset ("turbo") for an FM voice channel                                          | nothing                               |
-| 11    | #46, then #56    | Bench scenarios for impulsive noise and carriers, then the processing in front of the receiver if it is worth it | #56 waits for #46                     |
+| 4     | #45              | Lead-in: an optional tone before the Preamble. **Done on `dev`, to be closed on GitHub**                                                                                                                     | nothing (the setting uses #52)        |
+| 5     | #42              | PTT through Hamlib (`rigctld`)                                                                                                                                                                   | #52                                   |
+| 6     | #54              | Warning when sending while a Signal is arriving (never blocks)                                                                                                                                   | nothing                               |
+| 7     | #39              | History of Messages in a database, with the Callsign and a CSV export                                                                                                                            | #52, #53                              |
+| 8     | #51, #50         | The manual (French and English, F1 and PDF) and the translation of the page                                                                                                                      | #52                                   |
+| 9     | #29              | The page reachable from other devices on the local network, with a QR code and a token                                                                                                           | #52                                   |
+| 10    | #55 (parent #41) | Bench study of a faster, wider Preset ("turbo") for an FM voice channel                                                                                                                          | nothing                               |
+| 11    | #46, then #56    | Bench scenarios for impulsive noise and carriers, then the processing in front of the receiver if it is worth it                                                                                 | #56 waits for #46                     |
 
 ## Waiting for hardware or the field
 
