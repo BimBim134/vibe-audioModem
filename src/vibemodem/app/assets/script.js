@@ -438,6 +438,17 @@ $("tx_margin").addEventListener("change", () =>
   act(call("/api/settings", "POST", { tx_margin_ms: Number($("tx_margin").value) }), null, "settings-error"));
 $("lead_in").addEventListener("change", () =>
   act(call("/api/settings", "POST", { lead_in_ms: Number($("lead_in").value) }), null, "settings-error"));
+const pttFields = {
+  ptt: ["ptt", (el) => el.checked],
+  ptt_host: ["ptt_host", (el) => el.value.trim()],
+  ptt_port: ["ptt_port", (el) => Number(el.value)],
+  ptt_before_ms: ["ptt_before", (el) => Number(el.value)],
+  ptt_after_ms: ["ptt_after", (el) => Number(el.value)],
+};
+for (const [name, [id, read]] of Object.entries(pttFields)) {
+  $(id).addEventListener("change", () =>
+    act(call("/api/settings", "POST", { [name]: read($(id)) }), null, "settings-error"));
+}
 for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
 $("text").addEventListener("input", grow);
 $("frequency").addEventListener("input", drawScope);  // the band moves as it is typed
@@ -478,6 +489,11 @@ async function refresh() {
       if (document.activeElement !== $("callsign")) $("callsign").value = state.settings.callsign || "";
       if (document.activeElement !== $("tx_margin")) $("tx_margin").value = state.settings.tx_margin_ms;
       if (document.activeElement !== $("lead_in")) $("lead_in").value = state.settings.lead_in_ms;
+      for (const [name, [id]] of Object.entries(pttFields)) {
+        if (document.activeElement === $(id)) continue;
+        if (id === "ptt") $(id).checked = state.settings.ptt;
+        else $(id).value = state.settings[name];
+      }
       askEstimate();  // the Preset decides the airtime and the range of frequencies
       $("preset").value = state.settings.preset;
       $("input_device").value = state.settings.input_device === null ? "" : state.settings.input_device;

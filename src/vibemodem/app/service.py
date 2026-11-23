@@ -9,11 +9,12 @@ import threading
 import time
 from collections import OrderedDict, deque
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 
 import numpy as np
 
 from vibemodem.app import callsign as callsign_module
+from vibemodem.app import ptt as ptt_module
 from vibemodem.app import receiver as receiver_module
 from vibemodem.app.blanking import Blanking
 from vibemodem.app.conversation import SentEntry, build_conversation
@@ -76,6 +77,18 @@ def check_lead_in(lead_in_ms: int) -> None:
         raise ValueError(f"the Lead-in must be a whole number of ms, 0 to {MAX_LEAD_IN_MS}")
 
 
+# Settings with one value to check, and that can change at any time, even while listening.
+CHECKED = {
+    "tx_margin_ms": check_margin,
+    "lead_in_ms": check_lead_in,
+    "ptt": ptt_module.check_flag,
+    "ptt_host": ptt_module.check_host,
+    "ptt_port": ptt_module.check_port,
+    "ptt_before_ms": ptt_module.check_delay,
+    "ptt_after_ms": ptt_module.check_delay,
+}
+
+
 @dataclass(frozen=True)
 class Settings:
     preset: str = presets.DEFAULT_PRESET
@@ -85,6 +98,11 @@ class Settings:
     callsign: str | None = None
     tx_margin_ms: int = DEFAULT_TX_MARGIN_MS
     lead_in_ms: int = 0
+    ptt: bool = False
+    ptt_host: str = ptt_module.DEFAULT_HOST
+    ptt_port: int = ptt_module.DEFAULT_PORT
+    ptt_before_ms: int = ptt_module.DEFAULT_BEFORE_MS
+    ptt_after_ms: int = ptt_module.DEFAULT_AFTER_MS
 
 
 @dataclass(frozen=True)
@@ -177,16 +195,12 @@ class ModemService:
                 changes["callsign"] = callsign
         except ValueError:
             pass
-        try:
-            check_margin(saved.get("tx_margin_ms"))
-            changes["tx_margin_ms"] = saved["tx_margin_ms"]
-        except ValueError:
-            pass
-        try:
-            check_lead_in(saved.get("lead_in_ms"))
-            changes["lead_in_ms"] = saved["lead_in_ms"]
-        except ValueError:
-            pass
+        for name, check in CHECKED.items():
+            try:
+                check(saved.get(name))
+                changes[name] = saved[name]
+            except ValueError:
+                pass
         devices = None
         for name, direction in (("input_device", "input"), ("output_device", "output")):
             wanted = saved.get(name)
@@ -219,9 +233,9 @@ class ModemService:
             raise BusyError("stop sending and listening before changing the settings")
 
     def _check_can_change(self, changes: dict) -> None:
-        """The number of copies, the Callsign, the TX blanking margin and the Lead-in can change
-        at any time; the rest only while nothing is going on."""
-        if set(changes) <= {"copies", "callsign", "tx_margin_ms", "lead_in_ms"}:
+        """The number of copies, the Callsign and the settings of CHECKED can change at any time;
+        the rest only while nothing is going on."""
+        if set(changes) <= {"copies", "callsign", *CHECKED}:
             self._not_closed()
         else:
             self._check_idle()
@@ -231,15 +245,7 @@ class ModemService:
         with self._lock:
             self._check_can_change(changes)
         problems = []
-        settable = {
-            "preset",
-            "input_device",
-            "output_device",
-            "copies",
-            "callsign",
-            "tx_margin_ms",
-            "lead_in_ms",
-        }
+        settable = {"preset", "input_device", "output_device", "copies", "callsign", *CHECKED}
         unknown = set(changes) - settable
         if unknown:
             problems.append(f"unknown settings: {', '.join(sorted(unknown))}")
@@ -251,7 +257,7 @@ class ModemService:
                 check_copies(changes["copies"])
             except ValueError as error:
                 problems.append(str(error))
-        for name, check in (("tx_margin_ms", check_margin), ("lead_in_ms", check_lead_in)):
+        for name, check in CHECKED.items():
             if name in changes:
                 try:
                     check(changes[name])
@@ -399,15 +405,7 @@ class ModemService:
             return {
                 "sending": self._sending,
                 "listening": self._receiver.listening,
-                "settings": {
-                    "preset": self._settings.preset,
-                    "input_device": self._settings.input_device,
-                    "output_device": self._settings.output_device,
-                    "copies": self._settings.copies,
-                    "callsign": self._settings.callsign,
-                    "tx_margin_ms": self._settings.tx_margin_ms,
-                    "lead_in_ms": self._settings.lead_in_ms,
-                },
+                "settings": asdict(self._settings),
                 "search_band": None if self._search_band is None else list(self._search_band),
                 "received": self._receiver.counts[0],
                 "incomplete": self._receiver.counts[1],
@@ -433,6 +431,13 @@ class ModemService:
                 raise ValueError(problem)  # before anything is taken: nothing to give back
             data = callsign_module.prefix(self._settings.callsign) + data
             self._sending, self._cancel_asked, self._send_thread = True, False, None
+            radio = (  # the PTT as set now: what is sent is not changed by a later setting
+                ptt_module.RigctldPtt(self._settings.ptt_host, self._settings.ptt_port)
+                if self._settings.ptt
+                else None,
+                self._settings.ptt_before_ms / 1000,
+                self._settings.ptt_after_ms / 1000,
+            )
             preset, device, last_id, lead_in_ms = (
                 self._settings.preset,
                 self._settings.output_device,
@@ -469,7 +474,7 @@ class ModemService:
                 self._sent_log.append(entry)
                 self._send_thread = threading.Thread(
                     target=self._play,
-                    args=(sound, device, entry),
+                    args=(sound, device, entry, radio),
                     name="vibemodem-send",
                     daemon=True,
                 )
@@ -496,16 +501,33 @@ class ModemService:
             self._sending_modems.move_to_end(key)
             return self._sending_modems[key]
 
-    def _play(self, sound: np.ndarray, device, entry: SentEntry) -> None:
+    def _play(self, sound: np.ndarray, device, entry: SentEntry, radio) -> None:
+        """Key the radio if asked to, play, and release it whatever happened."""
+        ptt, before, after = radio
         outcome, error_text = "sent", None
+        keyed = False
         began = time.monotonic()
-        self._blanking.start(time.time())
+        self._blanking.start(time.time())  # the station is transmitting from the PTT on
         try:
-            self._audio.play(sound, device=device)
+            if ptt is not None:
+                keyed = True  # even if the answer is lost, the radio may be keyed: release it
+                ptt.key(True)
+                self._wait(before)
+            began = time.monotonic()
+            if not self._cancel_asked:
+                self._audio.play(sound, device=device)
+            self._wait(after if ptt is not None else 0.0)
         except Exception as error:  # a sound card can fail in many ways; say which, keep going
             outcome, error_text = "failed", str(error)
             self._fail(error_text)
         finally:
+            if keyed:
+                try:
+                    ptt.key(False)
+                except ptt_module.PttError as error:
+                    if outcome != "failed":
+                        outcome, error_text = "failed", str(error)
+                    self._fail(str(error))
             with self._lock:
                 self._blanking.end(
                     time.time()
@@ -521,6 +543,12 @@ class ModemService:
                     outcome = "cancelled"  # a cancel in the last instants cut nothing: it was sent
                 entry.status, entry.error = outcome, error_text
                 self._sending = False
+
+    def _wait(self, seconds: float) -> None:
+        """A pause of the Transmission, cut short by a cancel."""
+        deadline = time.monotonic() + seconds
+        while not self._cancel_asked and (left := deadline - time.monotonic()) > 0:
+            time.sleep(min(left, 0.02))
 
     def cancel(self) -> bool:
         """Cut the Transmission, if any: being made (it will not play) or being played."""

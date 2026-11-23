@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from vibemodem.app.ptt import MAX_DELAY_MS
 from vibemodem.app.service import (
     MAX_LEAD_IN_MS,
     MAX_TX_MARGIN_MS,
@@ -62,6 +63,11 @@ class SettingsRequest(BaseModel):
     callsign: str | None = None
     tx_margin_ms: int | None = Field(None, ge=0, le=MAX_TX_MARGIN_MS)
     lead_in_ms: int | None = Field(None, ge=0, le=MAX_LEAD_IN_MS)
+    ptt: bool | None = None
+    ptt_host: str | None = None
+    ptt_port: int | None = Field(None, ge=1, le=65_535)
+    ptt_before_ms: int | None = Field(None, ge=0, le=MAX_DELAY_MS)
+    ptt_after_ms: int | None = Field(None, ge=0, le=MAX_DELAY_MS)
 
 
 def _band(band: tuple[float, float] | None) -> dict:

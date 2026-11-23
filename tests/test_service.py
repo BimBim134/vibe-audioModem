@@ -73,7 +73,9 @@ def test_the_application_starts_idle_on_the_standard_preset(services):
     assert status["sending"] is False and status["listening"] is False
     assert status["settings"] == {
         "preset": "standard", "input_device": None, "output_device": None, "copies": 1,
-        "callsign": None, "tx_margin_ms": 250, "lead_in_ms": 0
+        "callsign": None, "tx_margin_ms": 250, "lead_in_ms": 0, 
+        "ptt": False, "ptt_host": "127.0.0.1", "ptt_port": 4532, "ptt_before_ms": 100,
+        "ptt_after_ms": 100
     }  # fmt: skip
 
 

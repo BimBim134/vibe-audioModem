@@ -194,11 +194,11 @@ def test_a_cancel_that_came_when_all_was_played_cut_nothing_and_the_message_was_
         entry = SentEntry(1, "all of it", 0.0, "sending", 1, 1, 1450.0, airtime_seconds=0.0)
         service._sent_log.append(entry)
         service._sending = True
-        service._play(__import__("numpy").zeros(4800), None, entry)
+        service._play(__import__("numpy").zeros(4800), None, entry, (None, 0.0, 0.0))
         assert entry.status == "sent"
         entry = SentEntry(2, "cut", 0.0, "sending", 1, 1, 1450.0, airtime_seconds=30.0)
         service._sending = True
-        service._play(__import__("numpy").zeros(4800), None, entry)
+        service._play(__import__("numpy").zeros(4800), None, entry, (None, 0.0, 0.0))
         assert entry.status == "cancelled"  # it was meant to last 30 s and ended at once
     finally:
         service.close()

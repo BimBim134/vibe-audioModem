@@ -90,7 +90,9 @@ def test_the_settings_are_read_and_changed_as_a_whole(client):
     changed = client.post("/api/settings", json={"preset": "fast", "output_device": "radio"})
     assert changed.json() == {
         "preset": "fast", "input_device": None, "output_device": "radio", "copies": 1,
-        "callsign": None, "tx_margin_ms": 250, "lead_in_ms": 0
+        "callsign": None, "tx_margin_ms": 250, "lead_in_ms": 0, 
+        "ptt": False, "ptt_host": "127.0.0.1", "ptt_port": 4532, "ptt_before_ms": 100,
+        "ptt_after_ms": 100
     }  # fmt: skip
     assert client.get("/api/settings").json()["preset"] == "fast"
 
@@ -552,3 +554,12 @@ def test_the_tx_blanking_margin_is_set_through_the_settings(client):
 def test_the_lead_in_is_set_through_the_settings(client):
     assert client.post("/api/settings", json={"lead_in_ms": 500}).json()["lead_in_ms"] == 500
     assert client.post("/api/settings", json={"lead_in_ms": 6000}).status_code == 422
+
+
+def test_the_ptt_is_set_through_the_settings(client):
+    body = client.post(
+        "/api/settings", json={"ptt": True, "ptt_host": "shack.local", "ptt_port": 4540}
+    ).json()
+    assert body["ptt"] is True and body["ptt_host"] == "shack.local" and body["ptt_port"] == 4540
+    assert client.post("/api/settings", json={"ptt_port": 0}).status_code == 422
+    assert client.post("/api/settings", json={"ptt_host": "two words"}).status_code == 422
