@@ -402,6 +402,15 @@ confirmed($("clear"), "Delete all stored receptions", () =>
   act(call("/api/storage/clear", "POST"), (done) => { say("usage", done.deleted + " deleted."); refreshStorage(); }, "settings-error"));
 confirmed($("clear-history"), "Clear the history", () =>
   act(call("/api/history/clear", "POST"), (done) => { say("settings-note", done.deleted + " deleted from the history."); }, "settings-error"));
+// The manual: the button, and F1 (which opens the part about the settings while they are open).
+const manualUrl = () => {
+  const language = (navigator.language || "en").toLowerCase().startsWith("fr") ? "fr" : "en";
+  return "/manual?lang=" + language + ($("settings").open ? "#settings" : "");
+};
+$("open-manual").onclick = () => window.open(manualUrl(), "_blank", "noopener");
+document.addEventListener("keydown", (event) => {
+  if (event.key === "F1") { event.preventDefault(); window.open(manualUrl(), "_blank", "noopener"); }
+});
 $("open-settings").onclick = () => $("settings").showModal();
 $("close-settings").onclick = () => $("settings").close();
 let quitting = false;

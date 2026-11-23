@@ -13,7 +13,10 @@ a = Analysis(  # noqa: F821
     pathex=[os.path.join(root, "src")],
     hiddenimports=collect_submodules("uvicorn"),
     # The page of the application is a folder of files (HTML, CSS, JS) next to its module.
-    datas=[(os.path.join(root, "src", "vibemodem", "app", "assets"), "vibemodem/app/assets")],
+    datas=[
+        (os.path.join(root, "src", "vibemodem", "app", "assets"), "vibemodem/app/assets"),
+        (os.path.join(root, "src", "vibemodem", "app", "manual"), "vibemodem/app/manual"),
+    ],
 )
 pyz = PYZ(a.pure)  # noqa: F821
 exe = EXE(  # noqa: F821

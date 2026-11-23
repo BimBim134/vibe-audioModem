@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from vibemodem.app import manual
 from vibemodem.app.ptt import MAX_DELAY_MS
 from vibemodem.app.service import (
     MAX_LEAD_IN_MS,
@@ -122,6 +123,10 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     def index() -> HTMLResponse:
         page = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
         return HTMLResponse(page, headers=NO_CACHE)
+
+    @app.get("/manual", response_class=HTMLResponse)
+    def show_manual(lang: str | None = None) -> HTMLResponse:
+        return HTMLResponse(manual.render(lang), headers=NO_CACHE)
 
     @app.get("/assets/{name}")
     def asset(name: str) -> FileResponse:
