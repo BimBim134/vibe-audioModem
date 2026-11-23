@@ -407,6 +407,7 @@ class ModemService:
                 "listening": self._receiver.listening,
                 "settings": asdict(self._settings),
                 "search_band": None if self._search_band is None else list(self._search_band),
+                "arriving": [round(a.frequency_hz, 1) for a in self._receiver.arriving()],
                 "received": self._receiver.counts[0],
                 "incomplete": self._receiver.counts[1],
                 "blocks_lost": self._receiver.blocks_lost,

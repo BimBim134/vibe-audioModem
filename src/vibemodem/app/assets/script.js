@@ -507,6 +507,13 @@ async function refresh() {
     else if ($("settings-note").textContent.startsWith("Stop listening")) say("settings-note", "");
     $("send").hidden = state.sending; $("cancel").hidden = !state.sending;
     $("send").disabled = !canSend();
+    // Only a warning: Send stays available, it just says what sending now would do.
+    const coming = state.arriving || [];
+    $("busy").hidden = !coming.length;
+    $("busy").textContent = coming.length
+      ? "A signal is arriving at " + coming.map(hz).join(", ") + ": sending now would talk over it."
+      : "";
+    $("send").textContent = coming.length ? "Send anyway" : "Send";
     if (state.last_error) showError(state.last_error);
     refreshStorage();
     conversationNow = conversation;

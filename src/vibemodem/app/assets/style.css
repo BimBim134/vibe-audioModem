@@ -190,6 +190,7 @@ canvas { cursor: crosshair; }  /* a click on a chart places the Signal */
 .problem:empty { display: none; }
 #estimate { margin: 0.4rem 0.2rem 0; font-size: 0.8rem; color: var(--soft); min-height: 1.1em; }
 #estimate.refused { color: rgb(var(--accent)); }
+.busy { margin: 0.3rem 0.2rem 0; font-size: 0.8rem; color: rgb(var(--accent)); }
 .wide { width: 6rem; }
 .narrow { width: 4rem; }
 
