@@ -36,6 +36,7 @@ Ticket links: `https://github.com/BimBim134/vibe-audioModem/issues/<number>`.
 - **Several Signals at once**, in this order: #30 (measure how they disturb each other), #31 (search rules that know about frequency), #32 (successive interference cancellation), then #34 (remove the Listening band). #44 (receive the three Presets without choosing one) and #43 (images, behind the wider Preset) come after.
 - **The protocol**, to rework together: #33 (telling stations apart), #37 (locator), #47 (rooms like an IRC chat), #48 (mesh). The Callsign stays a setting that prefixes the text until then.
 - **#40**, a Linux package (.deb, AppImage or another format).
+- **#58**, a command line: send, listen and run the application from a terminal, with no browser (new, `needs-triage`). To narrow first: a headless mode, or real commands.
 
 ## Decisions in a nutshell
 
