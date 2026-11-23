@@ -1,0 +1,32 @@
+name: Bug report
+description: Something does not work as expected
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version (release number or commit)
+  - type: dropdown
+    id: system
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux, Other]
+  - type: input
+    id: preset
+    attributes:
+      label: Preset in use (fast, standard, max-range)
+  - type: textarea
+    id: audio
+    attributes:
+      label: Your sound chain
+      description: Radio, sound card or cable, and whether you were sending or listening.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce

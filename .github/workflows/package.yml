@@ -8,6 +8,8 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/package.yml"
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -47,3 +49,21 @@ jobs:
         with:
           name: ${{ matrix.archive }}
           path: ${{ matrix.archive }}.zip
+
+  attach:
+    name: Attach the archives to the release
+    if: github.event_name == 'release'
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vibemodem-*
+          merge-multiple: true
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" vibemodem-*.zip --clobber --repo "$GITHUB_REPOSITORY"
