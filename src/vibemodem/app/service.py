@@ -5,18 +5,24 @@ One `ModemService` owns the sound hardware: at most one Transmission being playe
 memory only (the last `max_received` Messages).
 """
 
+import sqlite3
 import threading
 import time
 from collections import OrderedDict, deque
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 
 import numpy as np
 
+from vibemodem.app import callsign as callsign_module
+from vibemodem.app import ptt as ptt_module
 from vibemodem.app import receiver as receiver_module
+from vibemodem.app.blanking import Blanking
 from vibemodem.app.conversation import SentEntry, build_conversation
 from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
+from vibemodem.app.history import LOADED, History, as_conversation_item, csv_of
 from vibemodem.app.receiver import Receiver
+from vibemodem.app.settings_file import SettingsFile
 from vibemodem.app.store import ReceptionStore
 from vibemodem.core import mfsk, presets
 from vibemodem.core.coded_modem import SAMPLE_RATE
@@ -24,6 +30,7 @@ from vibemodem.core.message import Fragment, fragment_count, random_message_id
 from vibemodem.core.transmission import (
     check_copies,
     explain_refusal,
+    lead_in,
     max_message_bytes,
     transmit,
 )
@@ -33,6 +40,9 @@ from vibemodem.io.audio import Audio, AudioError, DeviceInfo, find_device
 MEGABYTE = 1_000_000
 MIN_LIMIT_MB, MAX_LIMIT_MB = 10, 100_000
 DEFAULT_LIMIT_MB = 200
+DEFAULT_TX_MARGIN_MS = 250  # of silence after the end of playback, besides the output latency
+MAX_TX_MARGIN_MS = 10_000
+MAX_LEAD_IN_MS = 5_000
 MAX_SENDING_MODEMS = 8  # one per Preset and frequency recently sent at
 JOIN_SECONDS = 10.0  # for the thread that plays a Transmission, once it has been told to stop
 
@@ -49,11 +59,52 @@ class Cancelled(BusyError):
     """The Transmission was cancelled (or the application closed) before any sound was played."""
 
 
+def check_margin(margin_ms: int) -> None:
+    if (
+        not isinstance(margin_ms, int)
+        or isinstance(margin_ms, bool)
+        or not 0 <= margin_ms <= MAX_TX_MARGIN_MS
+    ):
+        raise ValueError(
+            f"the TX blanking margin must be a whole number of ms, 0 to {MAX_TX_MARGIN_MS}"
+        )
+
+
+def check_lead_in(lead_in_ms: int) -> None:
+    if (
+        not isinstance(lead_in_ms, int)
+        or isinstance(lead_in_ms, bool)
+        or not 0 <= lead_in_ms <= MAX_LEAD_IN_MS
+    ):
+        raise ValueError(f"the Lead-in must be a whole number of ms, 0 to {MAX_LEAD_IN_MS}")
+
+
+# Settings with one value to check, and that can change at any time, even while listening.
+CHECKED = {
+    "tx_margin_ms": check_margin,
+    "lead_in_ms": check_lead_in,
+    "ptt": ptt_module.check_flag,
+    "ptt_host": ptt_module.check_host,
+    "ptt_port": ptt_module.check_port,
+    "ptt_before_ms": ptt_module.check_delay,
+    "ptt_after_ms": ptt_module.check_delay,
+}
+
+
 @dataclass(frozen=True)
 class Settings:
     preset: str = presets.DEFAULT_PRESET
     input_device: int | str | None = None
     output_device: int | str | None = None
+    copies: int = 1
+    callsign: str | None = None
+    tx_margin_ms: int = DEFAULT_TX_MARGIN_MS
+    lead_in_ms: int = 0
+    ptt: bool = False
+    ptt_host: str = ptt_module.DEFAULT_HOST
+    ptt_port: int = ptt_module.DEFAULT_PORT
+    ptt_before_ms: int = ptt_module.DEFAULT_BEFORE_MS
+    ptt_after_ms: int = ptt_module.DEFAULT_AFTER_MS
 
 
 @dataclass(frozen=True)
@@ -89,9 +140,17 @@ class ModemService:
         decode_every_seconds: float = receiver_module.DECODE_EVERY_SECONDS,
         max_received: int = receiver_module.MAX_RECEIVED,
         store: ReceptionStore | None = None,
+        settings_file: SettingsFile | None = None,
+        history: History | None = None,
     ):
         self._audio = audio
+        self._history = history
+        # The Messages of earlier sessions, as the page shows them; what happens now is in memory.
+        self._past = [as_conversation_item(row) for row in history.rows(LOADED)] if history else []
+        self._partial_written: set[tuple[int, int]] = set()
+        self._settings_file = settings_file
         self._make_modem = make_modem
+        self._blanking = Blanking()
         self._receiver = Receiver(
             audio,
             make_modem,
@@ -99,6 +158,8 @@ class ModemService:
             decode_every_seconds=decode_every_seconds,
             max_received=max_received,
             store=store,
+            blanking=self._blanking,
+            on_whole=self._record_received,
         )
         self._lock = threading.RLock()
         self._settings = Settings()
@@ -114,6 +175,7 @@ class ModemService:
         self._send_thread: threading.Thread | None = None
         self._last_id: int | None = None
         self._last_error: str | None = None
+        self._load_settings()
 
     # Settings -------------------------------------------------------------------------------
 
@@ -121,22 +183,99 @@ class ModemService:
     def settings(self) -> Settings:
         return self._settings
 
+    def _load_settings(self) -> None:
+        """Take the settings the last run kept. Each value is checked and a bad one is ignored,
+        so a damaged file costs the values it damaged and nothing else."""
+        if self._settings_file is None:
+            return
+        saved = self._settings_file.read()
+        changes = {}
+        preset = saved.get("preset")
+        if isinstance(preset, str) and preset in presets.PRESETS:
+            changes["preset"] = preset
+        try:
+            check_copies(saved.get("copies"))
+            changes["copies"] = saved["copies"]
+        except ValueError:
+            pass
+        try:
+            if (callsign := callsign_module.normalise(saved.get("callsign"))) is not None:
+                changes["callsign"] = callsign
+        except ValueError:
+            pass
+        for name, check in CHECKED.items():
+            try:
+                check(saved.get(name))
+                changes[name] = saved[name]
+            except ValueError:
+                pass
+        devices = None
+        for name, direction in (("input_device", "input"), ("output_device", "output")):
+            wanted = saved.get(name)
+            if isinstance(wanted, bool) or not isinstance(wanted, int | str):
+                continue
+            try:  # a device that is not there now stays in the file, for when it is back
+                devices = self._audio.list_devices() if devices is None else devices
+                find_device(devices, wanted, direction)
+            except AudioError:
+                continue
+            changes[name] = wanted
+        self._settings = replace(self._settings, **changes)
+        storage = {}
+        keep, limit_mb = saved.get("keep"), saved.get("limit_mb")
+        if isinstance(keep, bool):
+            storage["keep"] = keep
+        if isinstance(limit_mb, int) and not isinstance(limit_mb, bool):
+            if MIN_LIMIT_MB <= limit_mb <= MAX_LIMIT_MB:
+                storage["limit_mb"] = limit_mb
+        if storage and self._receiver.store is not None:
+            self._set_storage(**{"keep": None, "limit_mb": None, **storage})
+
+    def _remember(self, **values) -> None:
+        if self._settings_file is not None:
+            self._settings_file.update(**values)
+
     def _check_idle(self) -> None:
         self._not_closed()
         if self._sending or self._receiver.listening:
             raise BusyError("stop sending and listening before changing the settings")
 
+    def _check_can_change(self, changes: dict) -> None:
+        """The number of copies, the Callsign and the settings of CHECKED can change at any time;
+        the rest only while nothing is going on."""
+        if set(changes) <= {"copies", "callsign", *CHECKED}:
+            self._not_closed()
+        else:
+            self._check_idle()
+
     def apply_settings(self, **changes) -> Settings:
         """Change settings all together or not at all."""
         with self._lock:
-            self._check_idle()
+            self._check_can_change(changes)
         problems = []
-        unknown = set(changes) - {"preset", "input_device", "output_device"}
+        settable = {"preset", "input_device", "output_device", "copies", "callsign", *CHECKED}
+        unknown = set(changes) - settable
         if unknown:
             problems.append(f"unknown settings: {', '.join(sorted(unknown))}")
         if "preset" in changes and changes["preset"] not in presets.PRESETS:
             known = ", ".join(presets.PRESETS)
             problems.append(f"preset {changes['preset']!r} is not one of {known}")
+        if "copies" in changes:
+            try:
+                check_copies(changes["copies"])
+            except ValueError as error:
+                problems.append(str(error))
+        for name, check in CHECKED.items():
+            if name in changes:
+                try:
+                    check(changes[name])
+                except ValueError as error:
+                    problems.append(str(error))
+        if "callsign" in changes:
+            try:
+                changes["callsign"] = callsign_module.normalise(changes["callsign"])
+            except ValueError as error:
+                problems.append(str(error))
         wanted = [(n, d) for n, d in (("input_device", "input"), ("output_device", "output"))
                   if changes.get(n) is not None]  # fmt: skip
         if wanted:  # the sound card is asked outside the lock: it can be slow
@@ -153,10 +292,11 @@ class ModemService:
         if problems:
             raise SettingsError("; ".join(problems))
         with self._lock:
-            self._check_idle()  # it may have changed while the devices were looked at
+            self._check_can_change(changes)  # it may have changed while the devices were looked at
             if "preset" in changes:
                 self._check_band_fits(changes["preset"], self._search_band)
             self._settings = replace(self._settings, **changes)
+            self._remember(**changes)
             return self._settings
 
     # The audio band listened in -------------------------------------------------------------
@@ -230,6 +370,8 @@ class ModemService:
         length = len(message.encode("utf-8")) if isinstance(message, str) else len(message)
         with self._lock:
             preset = self._settings.preset
+            lead_in_seconds = self._settings.lead_in_ms / 1000
+            length += len(callsign_module.prefix(self._settings.callsign))
             if preset not in self._frame_samples:  # a modem of its own: nobody else uses it
                 probe = self._make_modem(preset=preset)
                 size = probe.modulate(Fragment(0, 0, 1, b"").pack(), preset).size
@@ -240,7 +382,7 @@ class ModemService:
         fragments = fragment_count(length)
         return Estimate(
             fragments=fragments,
-            airtime_seconds=fragments * copies * samples / SAMPLE_RATE,
+            airtime_seconds=fragments * copies * samples / SAMPLE_RATE + lead_in_seconds,
             max_bytes=max_message_bytes(samples / SAMPLE_RATE, copies),
             fits=reason is None,
             reason=reason,
@@ -271,12 +413,9 @@ class ModemService:
             return {
                 "sending": self._sending,
                 "listening": self._receiver.listening,
-                "settings": {
-                    "preset": self._settings.preset,
-                    "input_device": self._settings.input_device,
-                    "output_device": self._settings.output_device,
-                },
+                "settings": asdict(self._settings),
                 "search_band": None if self._search_band is None else list(self._search_band),
+                "arriving": [round(a.frequency_hz, 1) for a in self._receiver.arriving()],
                 "received": self._receiver.counts[0],
                 "incomplete": self._receiver.counts[1],
                 "blocks_lost": self._receiver.blocks_lost,
@@ -299,16 +438,32 @@ class ModemService:
                 raise BusyError("a Message is already being sent: cancel it or wait")
             if problem := self._frequency_problem(self._settings.preset, frequency_hz):
                 raise ValueError(problem)  # before anything is taken: nothing to give back
+            data = callsign_module.prefix(self._settings.callsign) + data
             self._sending, self._cancel_asked, self._send_thread = True, False, None
-            preset, device, last_id = (
+            radio = (  # the PTT as set now: what is sent is not changed by a later setting
+                ptt_module.RigctldPtt(self._settings.ptt_host, self._settings.ptt_port)
+                if self._settings.ptt
+                else None,
+                self._settings.ptt_before_ms / 1000,
+                self._settings.ptt_after_ms / 1000,
+            )
+            preset, device, last_id, lead_in_ms = (
                 self._settings.preset,
                 self._settings.output_device,
                 self._last_id,
+                self._settings.lead_in_ms,
             )
         try:
             modem = self._sending_modem(preset, frequency_hz)
             msg_id = random_message_id(last_id)
             sound = transmit(modem, data, preset, msg_id=msg_id, copies=copies)
+            if lead_in_ms:  # before the first Preamble, as loud as the Signal
+                tone = lead_in(
+                    float(frequency_hz or mfsk.FIRST_TONE_HZ),
+                    lead_in_ms,
+                    level=float(np.abs(sound).max()),
+                )
+                sound = np.concatenate([tone, sound])
             with self._lock:  # the sound is ready: unless it was cancelled or we closed meanwhile
                 if self._cancel_asked or self._closed:
                     raise Cancelled("cancelled before any sound was played")
@@ -328,7 +483,7 @@ class ModemService:
                 self._sent_log.append(entry)
                 self._send_thread = threading.Thread(
                     target=self._play,
-                    args=(sound, device, entry),
+                    args=(sound, device, entry, radio),
                     name="vibemodem-send",
                     daemon=True,
                 )
@@ -355,16 +510,39 @@ class ModemService:
             self._sending_modems.move_to_end(key)
             return self._sending_modems[key]
 
-    def _play(self, sound: np.ndarray, device, entry: SentEntry) -> None:
+    def _play(self, sound: np.ndarray, device, entry: SentEntry, radio) -> None:
+        """Key the radio if asked to, play, and release it whatever happened."""
+        ptt, before, after = radio
         outcome, error_text = "sent", None
+        keyed = False
         began = time.monotonic()
+        self._blanking.start(time.time())  # the station is transmitting from the PTT on
         try:
-            self._audio.play(sound, device=device)
+            if ptt is not None:
+                keyed = True  # even if the answer is lost, the radio may be keyed: release it
+                ptt.key(True)
+                self._wait(before)
+            began = time.monotonic()
+            if not self._cancel_asked:
+                self._audio.play(sound, device=device)
+            self._wait(after if ptt is not None else 0.0)
         except Exception as error:  # a sound card can fail in many ways; say which, keep going
             outcome, error_text = "failed", str(error)
             self._fail(error_text)
         finally:
+            if keyed:
+                try:
+                    ptt.key(False)
+                except ptt_module.PttError as error:
+                    if outcome != "failed":
+                        outcome, error_text = "failed", str(error)
+                    self._fail(str(error))
             with self._lock:
+                self._blanking.end(
+                    time.time()
+                    + self._audio.output_latency_seconds
+                    + self._settings.tx_margin_ms / 1000
+                )
                 played = time.monotonic() - began
                 if (
                     outcome == "sent"
@@ -373,7 +551,15 @@ class ModemService:
                 ):
                     outcome = "cancelled"  # a cancel in the last instants cut nothing: it was sent
                 entry.status, entry.error = outcome, error_text
+            self._record_sent(entry)  # before it is free to send again: one at a time, in order
+            with self._lock:
                 self._sending = False
+
+    def _wait(self, seconds: float) -> None:
+        """A pause of the Transmission, cut short by a cancel."""
+        deadline = time.monotonic() + seconds
+        while not self._cancel_asked and (left := deadline - time.monotonic()) > 0:
+            time.sleep(min(left, 0.02))
 
     def cancel(self) -> bool:
         """Cut the Transmission, if any: being made (it will not play) or being played."""
@@ -408,7 +594,11 @@ class ModemService:
     def set_storage(self, keep: bool | None = None, limit_mb: int | None = None) -> dict:
         """Keep receptions or not, and the bound, together or not at all."""
         with self._lock:
-            return self._set_storage(keep, limit_mb)
+            storage = self._set_storage(keep, limit_mb)
+            self._remember(
+                **{n: v for n, v in (("keep", keep), ("limit_mb", limit_mb)) if v is not None}
+            )
+            return storage
 
     def _set_storage(self, keep: bool | None, limit_mb: int | None) -> dict:
         store = self._receiver.store
@@ -449,16 +639,89 @@ class ModemService:
 
     def stop_listening(self) -> bool:
         """Stop hearing the input once what is already heard has been decoded."""
-        return self._receiver.stop()
+        was_listening = self._receiver.stop()
+        self._record_partial()
+        return was_listening
 
     def conversation(self) -> list[dict]:
         """What was sent and what was heard, oldest first, for the page."""
         with self._lock:
             sent = [replace(e) for e in self._sent_log]
         receiver = self._receiver
-        return build_conversation(
+        now = build_conversation(
             sent, receiver.received(), receiver.undecoded(), receiver.arriving()
         )
+        return sorted(self._past + now, key=lambda item: item["at"])
+
+    # History --------------------------------------------------------------------------------
+
+    def _write_history(self, **message) -> None:
+        if self._history is None:
+            return
+        try:
+            self._history.add(preset=self._settings.preset, **message)
+        except (sqlite3.Error, OSError) as error:  # the Message is still shown: say what failed
+            self._fail(f"history not written: {error}")
+
+    def _record_received(self, heard: Heard) -> None:
+        self._write_history(
+            at=heard.heard_at,
+            direction="received",
+            text=heard.text or "",
+            frequency_hz=heard.frequency_hz,
+            snr_db=heard.snr_db,
+            state="complete",
+        )
+
+    def _record_partial(self) -> None:
+        """The Messages heard in part, once, when the listening stops: they will not grow."""
+        for heard in self._receiver.received():
+            key = (heard.msg_id, heard.total)
+            if heard.complete or key in self._partial_written:
+                continue
+            self._partial_written.add(key)
+            self._write_history(
+                at=heard.heard_at,
+                direction="received",
+                text=" […] ".join(text for _, text in heard.parts),
+                frequency_hz=heard.frequency_hz,
+                snr_db=heard.snr_db,
+                state="incomplete",
+                detail={
+                    "parts": [[offset, text] for offset, text in heard.parts],
+                    "missing": list(heard.missing),
+                    "total": heard.total,
+                },
+            )
+
+    def _record_sent(self, entry: SentEntry) -> None:
+        self._write_history(
+            at=entry.at,
+            direction="sent",
+            text=entry.text,
+            frequency_hz=entry.frequency_hz,
+            snr_db=None,
+            state=entry.status,
+            detail={
+                "fragments": entry.fragments,
+                "copies": entry.copies,
+                "airtime_seconds": entry.airtime_seconds,
+                "error": entry.error,
+            },
+        )
+
+    def clear_history(self) -> int:
+        """Forget the conversation: the page, and the file. How many Messages the file held."""
+        with self._lock:
+            self._sent_log.clear()
+            self._past = []
+            self._partial_written.clear()
+        self._receiver.clear_heard()
+        return self._history.clear() if self._history is not None else 0
+
+    def history_csv(self) -> bytes:
+        """Every Message of the history as a CSV for a spreadsheet."""
+        return self._history.export_csv() if self._history is not None else csv_of([])
 
     def received(self) -> list[Heard]:
         """The Messages heard whole, in order of arrival, then those heard in part."""

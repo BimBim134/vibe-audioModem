@@ -12,6 +12,7 @@ license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 dependencies = [
     "fastapi>=0.162.0",
+    "markdown>=3.7",
     "numpy>=2.0",
     "scipy>=1.14",
     "sounddevice>=0.5.6",

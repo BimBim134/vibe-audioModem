@@ -147,6 +147,23 @@ def transmit(
     return np.concatenate([frames[index] for index in order])
 
 
+LEAD_IN_RAMP_SECONDS = 0.005  # so that the tone starts and ends without a click
+
+
+def lead_in(frequency_hz: float, milliseconds: int, level: float) -> np.ndarray:
+    """A plain tone of `level` (peak) to put before the Preamble, so that a squelch or a VOX is
+    open when the Preamble starts. The receiver ignores it."""
+    count = round(milliseconds / 1000 * SAMPLE_RATE)
+    time_s = np.arange(count) / SAMPLE_RATE
+    tone = np.sin(2 * np.pi * frequency_hz * time_s)
+    ramp = min(round(LEAD_IN_RAMP_SECONDS * SAMPLE_RATE), count // 2)
+    if ramp:
+        edge = np.linspace(0.0, 1.0, ramp, endpoint=False)
+        tone[:ramp] *= edge
+        tone[count - ramp :] *= edge[::-1]
+    return (level * tone).astype(np.float32)
+
+
 def receive(modem: Modem, samples: np.ndarray, reassembler: Reassembler | None = None) -> Received:
     """The Messages in a recording: the complete ones and, if it is over, the incomplete ones.
 

@@ -6,10 +6,19 @@ from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from vibemodem.app.service import BusyError, Cancelled, ModemService, SettingsError
+from vibemodem.app import manual
+from vibemodem.app.ptt import MAX_DELAY_MS
+from vibemodem.app.service import (
+    MAX_LEAD_IN_MS,
+    MAX_TX_MARGIN_MS,
+    BusyError,
+    Cancelled,
+    ModemService,
+    SettingsError,
+)
 from vibemodem.core.message import MAX_MESSAGE_BYTES
 from vibemodem.core.spectrum import BAND_HZ, BIN_HZ
 from vibemodem.core.transmission import MAX_COPIES, MessageTooLong
@@ -51,6 +60,15 @@ class SettingsRequest(BaseModel):
     preset: str | None = None
     input_device: int | str | None = None
     output_device: int | str | None = None
+    copies: int | None = Field(None, ge=1, le=MAX_COPIES)
+    callsign: str | None = None
+    tx_margin_ms: int | None = Field(None, ge=0, le=MAX_TX_MARGIN_MS)
+    lead_in_ms: int | None = Field(None, ge=0, le=MAX_LEAD_IN_MS)
+    ptt: bool | None = None
+    ptt_host: str | None = None
+    ptt_port: int | None = Field(None, ge=1, le=65_535)
+    ptt_before_ms: int | None = Field(None, ge=0, le=MAX_DELAY_MS)
+    ptt_after_ms: int | None = Field(None, ge=0, le=MAX_DELAY_MS)
 
 
 def _band(band: tuple[float, float] | None) -> dict:
@@ -105,6 +123,10 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     def index() -> HTMLResponse:
         page = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
         return HTMLResponse(page, headers=NO_CACHE)
+
+    @app.get("/manual", response_class=HTMLResponse)
+    def show_manual(lang: str | None = None) -> HTMLResponse:
+        return HTMLResponse(manual.render(lang), headers=NO_CACHE)
 
     @app.get("/assets/{name}")
     def asset(name: str) -> FileResponse:
@@ -181,6 +203,18 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     @app.post("/api/storage/clear")
     def clear_storage() -> dict:
         return {"deleted": service.clear_receptions()}
+
+    @app.get("/api/history.csv")
+    def history_csv() -> Response:
+        return Response(
+            service.history_csv(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="vibemodem-history.csv"'},
+        )
+
+    @app.post("/api/history/clear")
+    def clear_history() -> dict:
+        return {"deleted": service.clear_history()}
 
     @app.post("/api/cancel")
     def cancel() -> dict:

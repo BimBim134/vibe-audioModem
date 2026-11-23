@@ -141,6 +141,10 @@ class Audio(Protocol):
         """Cut short the sound being played, from another thread; nothing playing: nothing."""
         ...
 
+    output_latency_seconds: float
+    """What the library reports as the delay between handing it the sound and hearing it, for
+    the last playback; zero before any."""
+
 
 def _playable(samples: np.ndarray) -> np.ndarray:
     return checked_samples(samples).astype(np.float32)
@@ -168,6 +172,7 @@ class SoundCard:
         self._module = None
         self._cut = threading.Event()
         self._playing = False
+        self.output_latency_seconds = 0.0
 
     def _sd(self):
         if self._module is None:
@@ -245,6 +250,7 @@ class SoundCard:
                 callback=feed,
                 finished_callback=finished.set,
             )
+            self.output_latency_seconds = float(getattr(stream, "latency", 0.0))
             try:
                 stream.start()
                 if not finished.wait(timeout=data.size / SAMPLE_RATE + PLAY_GRACE_SECONDS):
@@ -321,9 +327,11 @@ class FakeAudio:
     """Sound hardware for tests: remembers what is played, serves the input it was given.
 
     With `loopback` what is played is heard on the input, as with a cable from the output to
-    the input of the same machine; `connect_to` runs that cable to another fake, to try two
-    instances of the application. With `play_seconds` playing takes that long, in real time,
-    and `stop` cuts the sound where it is.
+    the input of the same machine, `echo_delay_seconds` late and `echo_gain` times as strong;
+    `connect_to` runs that cable to another fake, to try two instances of the application. With
+    `play_seconds` playing takes that long, in real time, and `stop` cuts the sound where it is.
+    With `real_time` playing takes as long as the sound and the input hears it as it goes, like
+    a real sound card; `output_latency_seconds` is what the fake reports as its own.
     """
 
     def __init__(
@@ -332,6 +340,10 @@ class FakeAudio:
         input_samples: np.ndarray | None = None,
         loopback: bool = False,
         play_seconds: float = 0.0,
+        real_time: bool = False,
+        echo_delay_seconds: float = 0.0,
+        echo_gain: float = 1.0,
+        output_latency_seconds: float = 0.0,
     ):
         self._devices = devices or [DeviceInfo(0, "Fake audio device", 1, 1, float(SAMPLE_RATE))]
         self._input = np.zeros(0, dtype=np.float32)
@@ -342,6 +354,10 @@ class FakeAudio:
         self._cables: list[FakeAudio] = []
         self._fed = False  # a cable from another fake ends here
         self._play_seconds = play_seconds
+        self._real_time = real_time
+        self._echo_delay = echo_delay_seconds
+        self._echo_gain = echo_gain
+        self.output_latency_seconds = output_latency_seconds
         self._cut = threading.Event()
         self.playing = False
         self.played: list[np.ndarray] = []
@@ -369,9 +385,39 @@ class FakeAudio:
     def list_devices(self) -> list[DeviceInfo]:
         return list(self._devices)
 
+    def _echo(self, data: np.ndarray) -> np.ndarray:
+        """What the input hears of a sound played: late and weaker, as set."""
+        late = np.zeros(round(self._echo_delay * SAMPLE_RATE), dtype=np.float32)
+        return np.concatenate([late, data * np.float32(self._echo_gain)])
+
+    def _play_in_real_time(self, data: np.ndarray) -> None:
+        step = round(0.5 * SAMPLE_RATE)
+        echo = self._echo(data)
+        sent = 0
+        self.playing = True
+        try:
+            for start in range(0, data.size, step):  # a block is heard once it has been played
+                if self._cut.wait(step / SAMPLE_RATE):
+                    break
+                for other in self._cables:
+                    other._hear(data[start : start + step])
+                if self._loopback:
+                    self._hear(echo[start : start + step])
+                sent = min(start + step, data.size)
+        finally:
+            self.playing = False
+            cut = self._cut.is_set()
+            self._cut.clear()
+        if self._loopback and not cut:
+            self._hear(echo[sent:])  # the echo still on its way when the playback has ended
+        self.played.append(data[:sent])
+
     def play(self, samples: np.ndarray, device: int | str | None = None) -> None:
         find_device(self._devices, device, "output")
         data = _playable(samples)
+        if self._real_time:
+            self._play_in_real_time(data)
+            return
         if self._play_seconds > 0:  # takes its time, and can be cut short
             self.playing = True
             started = time.monotonic()
@@ -382,7 +428,7 @@ class FakeAudio:
             self._cut.clear()
         self.played.append(data)
         if self._loopback:
-            self._hear(data)
+            self._hear(self._echo(data))
         for other in self._cables:
             other._hear(data)
 

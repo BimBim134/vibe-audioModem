@@ -48,6 +48,18 @@ _Avoid_: filter, passband
 A Signal the receiver found whole in the audio, by its Preamble, whose Frame could not be read (the checksum or the code refused it). It is reported to the operator with its frequency and how sure the detection was, so that a Transmission heard but lost is not mistaken for silence.
 _Avoid_: failed packet, error frame
 
+**Lead-in**:
+An optional tone, of a length the operator sets in milliseconds, sent before the Preamble so that a squelch or a VOX is open when the Preamble starts. Off by default; its time counts in the airtime of the Transmission, and the receiver ignores it.
+_Avoid_: beep, beeper
+
+**TX blanking**:
+The receiver ignoring the sound while the station is transmitting, and for a short margin after the end of playback, so that a station's own Transmission, heard back through its audio interface, is not shown as a received Message.
+_Avoid_: mute, echo cancellation
+
+**Callsign**:
+The amateur radio call sign of the station that sends a Message. For now the application adds it in front of the text of each Message the operator sends, from a setting; the protocol does not carry it as a field of its own, which is to be reviewed when the protocol is reworked.
+_Avoid_: identifier, name
+
 **Signal**:
 What the receiver detects at a given audio frequency and time: a Transmission as seen from the receiving side.
 _Avoid_: carrier, track, peak

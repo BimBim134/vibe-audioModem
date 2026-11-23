@@ -11,7 +11,9 @@ from pathlib import Path
 import uvicorn
 
 from vibemodem.app.api import create_app
+from vibemodem.app.history import History
 from vibemodem.app.service import DEFAULT_LIMIT_MB, MEGABYTE, ModemService
+from vibemodem.app.settings_file import SettingsFile
 from vibemodem.app.store import ReceptionStore, default_directory
 from vibemodem.io.audio import SoundCard
 
@@ -64,8 +66,16 @@ def main(argv: list[str] | None = None) -> None:
     _ensure_std_streams()
     port = args.port or free_port()
     store = ReceptionStore(args.receptions_dir, DEFAULT_LIMIT_MB * MEGABYTE)
-    server = make_server(ModemService(SoundCard(), store=store), port)
+    settings_file = SettingsFile(args.receptions_dir / "settings.json")
+    history = History(args.receptions_dir / "history.sqlite3")
+    service = ModemService(SoundCard(), store=store, settings_file=settings_file, history=history)
+    server = make_server(service, port)
     if not args.no_browser:
         url = f"http://127.0.0.1:{port}/"
         threading.Thread(target=_open_browser_when_ready, args=(server, url), daemon=True).start()
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        # Ctrl+C: uvicorn has already stopped the server and the service is closed with it; it
+        # only raises the interruption again at the end, which would print a traceback.
+        print("Stopped.", file=sys.stderr)

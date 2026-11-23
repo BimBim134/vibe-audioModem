@@ -40,16 +40,19 @@ async function act(promise, then, where = "error") {
 // A click that cannot be undone asks for a second one (the browser's own dialogs ignore our colours).
 // `warn`, when given, tells what the click will cost, while it waits for the second one.
 function confirmed(button, label, action, warn) {
+  const text = button.querySelector(".label");  // an icon button keeps its icon and writes here
+  const write = (words) => { if (text) text.textContent = words; else button.textContent = words; };
   const disarm = (warning) => {
-    delete button.dataset.sure; button.textContent = label; button.classList.remove("sure");
+    delete button.dataset.sure; write(text ? "" : label); button.classList.remove("sure");
     if (warning && $("settings-warning").textContent === warning) say("settings-warning", "");
   };
   button.onclick = () => {
     if (button.dataset.sure) { clearTimeout(Number(button.dataset.sure)); disarm(button.dataset.warning); action(); return; }
     const warning = warn ? warn() : "";
     button.dataset.warning = warning;
-    if (warning) say("settings-warning", warning);  // its own line: refresh() writes to the note every second
-    button.textContent = "Click again to confirm"; button.classList.add("sure");
+    if (warning && !text) say("settings-warning", warning);  // its own line: refresh() writes to the note every second
+    write(text && warning ? "Still listening: click again to quit" : "Click again to confirm");
+    button.classList.add("sure");
     button.dataset.sure = setTimeout(() => disarm(warning), 4000);
   };
 }
@@ -397,13 +400,23 @@ $("keep").onchange = () => act(call("/api/storage", "POST", { keep: $("keep").ch
 $("limit").onchange = () => act(call("/api/storage", "POST", { limit_mb: Number($("limit").value) }), refreshStorage, "settings-error");
 confirmed($("clear"), "Delete all stored receptions", () =>
   act(call("/api/storage/clear", "POST"), (done) => { say("usage", done.deleted + " deleted."); refreshStorage(); }, "settings-error"));
+confirmed($("clear-history"), "Clear the history", () =>
+  act(call("/api/history/clear", "POST"), (done) => { say("settings-note", done.deleted + " deleted from the history."); }, "settings-error"));
+// The manual: the button, and F1 (which opens the part about the settings while they are open).
+const manualUrl = () => {
+  const language = (navigator.language || "en").toLowerCase().startsWith("fr") ? "fr" : "en";
+  return "/manual?lang=" + language + ($("settings").open ? "#settings" : "");
+};
+$("open-manual").onclick = () => window.open(manualUrl(), "_blank", "noopener");
+document.addEventListener("keydown", (event) => {
+  if (event.key === "F1") { event.preventDefault(); window.open(manualUrl(), "_blank", "noopener"); }
+});
 $("open-settings").onclick = () => $("settings").showModal();
 $("close-settings").onclick = () => $("settings").close();
 let quitting = false;
 confirmed($("quit"), "Quit the application", async () => {
   quitting = true;  // the tab may be closed now without the browser asking
   await call("/api/quit", "POST").catch(() => {});
-  $("settings").close();
   document.body.replaceChildren(element("p", "empty", "Stopped. You can close this tab."));
 }, () => state.listening ? "It is still listening: quitting stops the listening, and nothing is received until the application is started again." : "");
 // Closing the tab while listening: the browser asks first (it chooses the words itself). The listening
@@ -424,10 +437,30 @@ const grow = () => { $("text").style.height = "auto"; $("text").style.height = M
 $("text").addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); $("composer").requestSubmit(); }
 });
-// What is set for sending is kept for next time (if the browser allows it).
-for (const id of ["copies", "frequency"]) {
+// The frequency set for sending is kept for next time (if the browser allows it); the number of
+// copies is a setting of the application, kept with the others.
+for (const id of ["frequency"]) {
   try { const saved = localStorage.getItem("vibemodem." + id); if (saved !== null) $(id).value = saved; } catch (error) { /* no storage: the page still works */ }
   $(id).addEventListener("input", () => { try { localStorage.setItem("vibemodem." + id, $(id).value); } catch (error) { /* idem */ } });
+}
+$("copies").addEventListener("change", () =>
+  act(call("/api/settings", "POST", { copies: Number($("copies").value) }), null, "settings-error"));
+$("callsign").addEventListener("change", () =>
+  act(call("/api/settings", "POST", { callsign: $("callsign").value.trim() || null }), null, "settings-error"));
+$("tx_margin").addEventListener("change", () =>
+  act(call("/api/settings", "POST", { tx_margin_ms: Number($("tx_margin").value) }), null, "settings-error"));
+$("lead_in").addEventListener("change", () =>
+  act(call("/api/settings", "POST", { lead_in_ms: Number($("lead_in").value) }), null, "settings-error"));
+const pttFields = {
+  ptt: ["ptt", (el) => el.checked],
+  ptt_host: ["ptt_host", (el) => el.value.trim()],
+  ptt_port: ["ptt_port", (el) => Number(el.value)],
+  ptt_before_ms: ["ptt_before", (el) => Number(el.value)],
+  ptt_after_ms: ["ptt_after", (el) => Number(el.value)],
+};
+for (const [name, [id, read]] of Object.entries(pttFields)) {
+  $(id).addEventListener("change", () =>
+    act(call("/api/settings", "POST", { [name]: read($(id)) }), null, "settings-error"));
 }
 for (const id of ["text", "copies", "frequency"]) $(id).addEventListener("input", askEstimate);
 $("text").addEventListener("input", grow);
@@ -465,6 +498,15 @@ async function refresh() {
     const settings = JSON.stringify(state.settings);
     if (settings !== lastSettings) {  // only when they changed, so a choice not yet applied is kept
       lastSettings = settings;
+      if (document.activeElement !== $("copies")) $("copies").value = state.settings.copies;
+      if (document.activeElement !== $("callsign")) $("callsign").value = state.settings.callsign || "";
+      if (document.activeElement !== $("tx_margin")) $("tx_margin").value = state.settings.tx_margin_ms;
+      if (document.activeElement !== $("lead_in")) $("lead_in").value = state.settings.lead_in_ms;
+      for (const [name, [id]] of Object.entries(pttFields)) {
+        if (document.activeElement === $(id)) continue;
+        if (id === "ptt") $(id).checked = state.settings.ptt;
+        else $(id).value = state.settings[name];
+      }
       askEstimate();  // the Preset decides the airtime and the range of frequencies
       $("preset").value = state.settings.preset;
       $("input_device").value = state.settings.input_device === null ? "" : state.settings.input_device;
@@ -476,6 +518,13 @@ async function refresh() {
     else if ($("settings-note").textContent.startsWith("Stop listening")) say("settings-note", "");
     $("send").hidden = state.sending; $("cancel").hidden = !state.sending;
     $("send").disabled = !canSend();
+    // Only a warning: Send stays available, it just says what sending now would do.
+    const coming = state.arriving || [];
+    $("busy").hidden = !coming.length;
+    $("busy").textContent = coming.length
+      ? "A signal is arriving at " + coming.map(hz).join(", ") + ": sending now would talk over it."
+      : "";
+    $("send").textContent = coming.length ? "Send anyway" : "Send";
     if (state.last_error) showError(state.last_error);
     refreshStorage();
     conversationNow = conversation;

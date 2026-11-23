@@ -14,6 +14,11 @@
   <span class="status"><i class="dot" id="dot"></i><span id="listening">Not listening</span></span>
   <button id="listen" class="primary">Listen</button>
   <button id="open-settings">Settings</button>
+  <button id="open-manual" class="icon" title="Manual (F1)" aria-label="Manual (F1)">?</button>
+  <button id="quit" class="icon" title="Quit the application" aria-label="Quit the application">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>
+    <span class="label"></span>
+  </button>
 </header>
 
 <main>
@@ -31,6 +36,7 @@
       <label>to <input id="filter_to" aria-label="Highest frequency shown, in Hz" class="wide" type="number" min="0" step="any" placeholder="any"> Hz</label>
       <label class="check"><input id="filter_lost" type="checkbox" checked> Not decoded</label>
       <button id="filter_reset" type="button" hidden>Reset filters</button>
+      <a id="export" class="export" href="/api/history.csv" download="vibemodem-history.csv" title="Download the whole history of the conversation as a spreadsheet (CSV)">Export CSV</a>
     </div>
     <div id="conversation" role="log" aria-live="polite"></div>
     <form id="composer" autocomplete="off">
@@ -45,6 +51,7 @@
         <button id="cancel" type="button" hidden>Cancel</button>
       </div>
       <p id="estimate" aria-live="polite"></p>
+      <p id="busy" class="busy" role="status" hidden></p>
     </form>
   </section>
 </main>
@@ -59,6 +66,10 @@
   </div>
 
   <section id="panel-general" role="tabpanel" aria-labelledby="tab-general">
+    <div class="group">
+      <h3>Station</h3>
+      <label class="field" title="Written in front of each message you send. Add /P when portable."><span>Callsign</span><input id="callsign" type="text" maxlength="12" autocomplete="off" spellcheck="false" placeholder="F4JBO"></label>
+    </div>
     <div class="group">
       <h3>Audio device</h3>
       <label class="field"><span>Input</span><select id="input_device"><option value="">default</option></select></label>
@@ -75,20 +86,38 @@
       </label>
       <label class="field"><span>Repetitions</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
     </div>
+    <div class="group">
+      <h3>History</h3>
+      <div class="actions"><button id="clear-history">Clear the history</button></div>
+    </div>
     <div class="actions"><button id="apply" class="primary">Apply</button></div>
   </section>
 
   <section id="panel-advanced" role="tabpanel" aria-labelledby="tab-advanced" hidden>
     <div class="group">
       <h3>Listening band</h3>
-      <p>Only the Signals entirely inside this band of audio are read. Use it to leave out the low-frequency noise of a radio, or to pick the part of the audio where the conversation takes place. It applies to the next pass, also while listening. Leave both empty to listen to everything.</p>
-      <label class="field limit"><span>From</span><span class="limit-control"><input id="band-low" type="number" min="300" max="2700" step="10" placeholder="300"><span>Hz</span></span></label>
+      <label class="field limit" title="Only Signals entirely inside this band are read."><span>From</span><span class="limit-control"><input id="band-low" type="number" min="300" max="2700" step="10" placeholder="300"><span>Hz</span></span></label>
       <label class="field limit"><span>To</span><span class="limit-control"><input id="band-high" type="number" min="300" max="2700" step="10" placeholder="2700"><span>Hz</span></span></label>
       <div class="actions"><button id="band-set">Set the band</button></div>
     </div>
     <div class="group">
+      <h3>Lead-in</h3>
+      <label class="field limit" title="A tone before the Preamble, to open a squelch or a VOX. 0: off."><span>Length</span><span class="limit-control"><input id="lead_in" type="number" min="0" max="5000" step="50"><span>ms</span></span></label>
+    </div>
+    <div class="group">
+      <h3 title="Key the radio through Hamlib's rigctld. Leave off to use a VOX.">Push to talk</h3>
+      <label class="field limit" title="Key the radio through Hamlib's rigctld"><span>Use rigctld</span><span class="check-cell"><input id="ptt" type="checkbox"></span></label>
+      <label class="field limit"><span>Address</span><span class="limit-control"><input id="ptt_host" type="text" autocomplete="off" spellcheck="false" placeholder="127.0.0.1"></span></label>
+      <label class="field limit"><span>Port</span><span class="limit-control"><input id="ptt_port" type="number" min="1" max="65535" placeholder="4532"></span></label>
+      <label class="field limit"><span>Before the sound</span><span class="limit-control"><input id="ptt_before" type="number" min="0" max="5000" step="50"><span>ms</span></span></label>
+      <label class="field limit"><span>After the sound</span><span class="limit-control"><input id="ptt_after" type="number" min="0" max="5000" step="50"><span>ms</span></span></label>
+    </div>
+    <div class="group">
+      <h3>TX blanking</h3>
+      <label class="field limit" title="Silence after your own Transmission, besides the delay of the sound card."><span>Margin</span><span class="limit-control"><input id="tx_margin" type="number" min="0" max="10000" step="50"><span>ms</span></span></label>
+    </div>
+    <div class="group">
       <h3>Stored receptions</h3>
-      <p>For debug purpose only, each message reception can be stored with 3 s around each Signal. The oldest are deleted first when the limit is reached.</p>
       <label class="field">
         Keep the audio and the figures of what is received
         <input id="keep" type="checkbox">
@@ -108,7 +137,7 @@
       <p id="settings-note" aria-live="polite"></p>
       <p id="settings-warning" class="problem" aria-live="assertive"></p>
     </div>
-    <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
+    <div class="actions"><button id="close-settings" class="primary">Done</button></div>
   </div>
 </dialog>
 

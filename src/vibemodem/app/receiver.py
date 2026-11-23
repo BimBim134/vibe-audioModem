@@ -15,6 +15,7 @@ from collections.abc import Callable
 
 import numpy as np
 
+from vibemodem.app.blanking import Blanking
 from vibemodem.app.heard import (
     Arriving,
     Heard,
@@ -62,8 +63,12 @@ class Receiver:
         decode_every_seconds: float = DECODE_EVERY_SECONDS,
         max_received: int = MAX_RECEIVED,
         store: ReceptionStore | None = None,
+        blanking: Blanking | None = None,
+        on_whole: Callable[[Heard], None] | None = None,
     ):
         self._audio = audio
+        self._blanking = blanking
+        self._on_whole = on_whole  # told of each Message heard whole, outside the lock
         self._keeper = Keeper(store)
         self._make_modem = make_modem
         self._window_seconds = window_seconds  # None: what one Frame needs, see `_listen`
@@ -183,6 +188,8 @@ class Receiver:
                 if started is None:
                     started = time.time() - block.size / SAMPLE_RATE
                 self._draw(block)
+                if self._blanking is not None:  # the station's own sound, heard back
+                    block = self._blanking.silence(block, started + heard / SAMPLE_RATE)
                 window.append(block)
                 held += block.size
                 heard += block.size
@@ -295,20 +302,22 @@ class Receiver:
             while len(self._quality) > MEMORY:
                 self._quality.popitem(last=False)
             done = self._reassembler.add(fragment)
+            whole = None
             if done:
                 self._count += 1
-                self._whole.append(
-                    self._heard(
-                        summarize(self._quality.pop(key, parts)),
-                        number=self._count,
-                        complete=True,
-                        msg_id=done.msg_id,
-                        total=fragment.total,
-                        text=_text(done.message),
-                        parts=[],
-                        missing=(),
-                    )
+                whole = self._heard(
+                    summarize(self._quality.pop(key, parts)),
+                    number=self._count,
+                    complete=True,
+                    msg_id=done.msg_id,
+                    total=fragment.total,
+                    text=_text(done.message),
+                    parts=[],
+                    missing=(),
                 )
+                self._whole.append(whole)
+        if whole is not None and self._on_whole is not None:
+            self._on_whole(whole)
 
     def _note_read(self, quality: Quality, tolerance: Tolerance) -> None:
         """A Frame was read: remember where, and forget a lost Signal that was the same one."""
@@ -380,6 +389,14 @@ class Receiver:
             for part in pending
         ]
         return whole + partial
+
+    def clear_heard(self) -> None:
+        """Forget what was heard: the Messages, those in part and the lost Signals."""
+        with self._lock:
+            self._whole.clear()
+            self._undecoded.clear()
+            self._quality.clear()
+            self._reassembler = Reassembler(max_given_up=self._whole.maxlen)
 
     def undecoded(self) -> list[Undecoded]:
         """The Signals found whole whose Message was not read, the last few, oldest first."""
