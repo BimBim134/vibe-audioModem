@@ -231,6 +231,7 @@ dialog .group h3 { margin: 0 0 0.4rem; }
   padding: 0.4rem 0.6rem;
 }
 .limit-control > span { color: var(--soft); }
+.check-cell { display: flex; align-items: center; }
 .limit-control:has(input:focus-visible) { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
 .limit-control input:focus-visible { outline: none; }
 dialog .field { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0; }
