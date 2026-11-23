@@ -139,7 +139,7 @@ rigctld -m <modèle> -P RTS -p /dev/ttyUSB0     # commander la ligne RTS d'un po
 
 Vérifiez avec `rigctl -m 2 -r localhost:4532 T 1` puis `... T 0` que la radio part bien en émission, avant d'utiliser l'application. Ces commandes dépendent de votre radio et de votre interface ; consultez la documentation de Hamlib pour la vôtre.
 
-**Dans l'application**, ouvrez **Settings → Advanced → Push to talk**, cochez **Key the radio through rigctld**, et donnez l'adresse (`127.0.0.1` quand `rigctld` tourne sur cet ordinateur) et le port (`4532`, le défaut de `rigctld`). Les deux délais sont le temps entre la mise en émission et le premier son, et entre le dernier son et le retour en réception (100 ms chacun par défaut). Allongez-les si le début ou la fin de vos Messages est coupé.
+**Dans l'application**, ouvrez **Settings → Advanced → Push to talk**, cochez **Use rigctld**, et donnez l'adresse (`127.0.0.1` quand `rigctld` tourne sur cet ordinateur) et le port (`4532`, le défaut de `rigctld`). Les deux délais sont le temps entre la mise en émission et le premier son, et entre le dernier son et le retour en réception (100 ms chacun par défaut). Allongez-les si le début ou la fin de vos Messages est coupé.
 
 La radio est mise en émission **avant** le Lead-in et relâchée après la fin du son, **même** si la carte son tombe en panne ou si vous annulez. Si `rigctld` est injoignable, rien n'est joué, le Message s'affiche en échec et la raison est écrite sur la page.
 

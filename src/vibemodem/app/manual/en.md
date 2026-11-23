@@ -139,7 +139,7 @@ rigctld -m <model> -P RTS -p /dev/ttyUSB0      # key the RTS line of a serial po
 
 Check with `rigctl -m 2 -r localhost:4532 T 1` and `... T 0` that the radio keys, before using the application. These commands depend on your radio and interface; check Hamlib's own documentation for yours.
 
-**In the application**, open **Settings → Advanced → Push to talk**, tick **Key the radio through rigctld**, and give the address (`127.0.0.1` when `rigctld` runs on this computer) and the port (`4532`, the default of `rigctld`). The two delays are the time between the key-down and the first sound, and between the last sound and the key-up (100 ms each by default). Lengthen them if the start or the end of your Messages is cut.
+**In the application**, open **Settings → Advanced → Push to talk**, tick **Use rigctld**, and give the address (`127.0.0.1` when `rigctld` runs on this computer) and the port (`4532`, the default of `rigctld`). The two delays are the time between the key-down and the first sound, and between the last sound and the key-up (100 ms each by default). Lengthen them if the start or the end of your Messages is cut.
 
 The radio is keyed **before** the Lead-in and released after the end of the sound, **also** if the sound card fails or if you cancel. If `rigctld` cannot be reached, nothing is played, the Message shows as failed and the reason is written on the page.
 
