@@ -70,4 +70,9 @@ def main(argv: list[str] | None = None) -> None:
     if not args.no_browser:
         url = f"http://127.0.0.1:{port}/"
         threading.Thread(target=_open_browser_when_ready, args=(server, url), daemon=True).start()
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        # Ctrl+C: uvicorn has already stopped the server and the service is closed with it; it
+        # only raises the interruption again at the end, which would print a traceback.
+        print("Stopped.", file=sys.stderr)
