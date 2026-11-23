@@ -72,6 +72,19 @@ def test_a_sent_message_is_in_the_history_with_its_figures(make, path):
     assert row["frequency_hz"] == 1450.0 and row["snr_db"] is None
 
 
+def test_a_portable_callsign_is_kept_with_its_slash_in_the_history(make, path):
+    app = make()
+    app.apply_settings(callsign="f4jbo/p")
+    send_and_wait(app, "hello")
+    assert [r["callsign"] for r in rows(path)] == ["F4JBO/P"]
+    assert parsed(path)[1][2] == "F4JBO/P"
+
+
+def test_without_a_callsign_set_the_field_is_empty(make, path):
+    send_and_wait(make(), "hello")
+    assert [r["callsign"] for r in rows(path)] == [None]
+
+
 def test_a_cancelled_or_failed_message_says_so(make, path):
     class Broken(FakeAudio):
         def play(self, samples, device=None):
