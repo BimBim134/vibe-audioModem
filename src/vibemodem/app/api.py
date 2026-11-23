@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from vibemodem.app.ptt import MAX_DELAY_MS
@@ -198,6 +198,18 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     @app.post("/api/storage/clear")
     def clear_storage() -> dict:
         return {"deleted": service.clear_receptions()}
+
+    @app.get("/api/history.csv")
+    def history_csv() -> Response:
+        return Response(
+            service.history_csv(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="vibemodem-history.csv"'},
+        )
+
+    @app.post("/api/history/clear")
+    def clear_history() -> dict:
+        return {"deleted": service.clear_history()}
 
     @app.post("/api/cancel")
     def cancel() -> dict:

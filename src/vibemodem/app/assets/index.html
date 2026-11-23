@@ -35,6 +35,7 @@
       <label>to <input id="filter_to" aria-label="Highest frequency shown, in Hz" class="wide" type="number" min="0" step="any" placeholder="any"> Hz</label>
       <label class="check"><input id="filter_lost" type="checkbox" checked> Not decoded</label>
       <button id="filter_reset" type="button" hidden>Reset filters</button>
+      <a id="export" class="export" href="/api/history.csv" download="vibemodem-history.csv" title="Download the whole history of the conversation as a spreadsheet (CSV)">Export CSV</a>
     </div>
     <div id="conversation" role="log" aria-live="polite"></div>
     <form id="composer" autocomplete="off">
@@ -84,6 +85,11 @@
         </select>
       </label>
       <label class="field"><span>Repetitions</span><input id="copies" class="narrow" type="number" min="1" max="8" value="1"></label>
+    </div>
+    <div class="group">
+      <h3>History</h3>
+      <p>The Messages sent and received are kept on this computer and shown again when the application starts. Only text and figures are kept, never sound. The <b>Export CSV</b> link above the conversation downloads them for a spreadsheet.</p>
+      <div class="actions"><button id="clear-history">Clear the history</button></div>
     </div>
     <div class="actions"><button id="apply" class="primary">Apply</button></div>
   </section>

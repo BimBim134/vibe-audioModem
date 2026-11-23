@@ -563,3 +563,26 @@ def test_the_ptt_is_set_through_the_settings(client):
     assert body["ptt"] is True and body["ptt_host"] == "shack.local" and body["ptt_port"] == 4540
     assert client.post("/api/settings", json={"ptt_port": 0}).status_code == 422
     assert client.post("/api/settings", json={"ptt_host": "two words"}).status_code == 422
+
+
+def test_the_history_is_exported_as_a_csv_file_and_can_be_cleared(tmp_path):
+    from vibemodem.app.history import History
+
+    service = ModemService(FakeAudio(devices=DEVICES), history=History(tmp_path / "h.sqlite3"))
+    try:
+        client = TestClient(create_app(service), base_url="http://127.0.0.1")
+        client.post("/api/send", json={"text": "hello"})
+        assert idle(client)
+        answer = client.get("/api/history.csv")
+        assert answer.headers["content-type"].startswith("text/csv")
+        assert "attachment" in answer.headers["content-disposition"]
+        assert answer.content.startswith(b"\xef\xbb\xbftime;direction;callsign;text;")
+        assert b";sent;" in answer.content and b"hello" in answer.content
+        assert client.post("/api/history/clear").json() == {"deleted": 1}
+        assert answer.content != client.get("/api/history.csv").content
+    finally:
+        service.close()
+
+
+def test_without_a_history_the_export_is_the_header_only(client):
+    assert client.get("/api/history.csv").content.count(b"\n") == 1

@@ -5,6 +5,7 @@ One `ModemService` owns the sound hardware: at most one Transmission being playe
 memory only (the last `max_received` Messages).
 """
 
+import sqlite3
 import threading
 import time
 from collections import OrderedDict, deque
@@ -19,6 +20,7 @@ from vibemodem.app import receiver as receiver_module
 from vibemodem.app.blanking import Blanking
 from vibemodem.app.conversation import SentEntry, build_conversation
 from vibemodem.app.heard import Heard, SpectrumRows, Undecoded
+from vibemodem.app.history import LOADED, History, as_conversation_item, csv_of
 from vibemodem.app.receiver import Receiver
 from vibemodem.app.settings_file import SettingsFile
 from vibemodem.app.store import ReceptionStore
@@ -139,8 +141,13 @@ class ModemService:
         max_received: int = receiver_module.MAX_RECEIVED,
         store: ReceptionStore | None = None,
         settings_file: SettingsFile | None = None,
+        history: History | None = None,
     ):
         self._audio = audio
+        self._history = history
+        # The Messages of earlier sessions, as the page shows them; what happens now is in memory.
+        self._past = [as_conversation_item(row) for row in history.rows(LOADED)] if history else []
+        self._partial_written: set[tuple[int, int]] = set()
         self._settings_file = settings_file
         self._make_modem = make_modem
         self._blanking = Blanking()
@@ -152,6 +159,7 @@ class ModemService:
             max_received=max_received,
             store=store,
             blanking=self._blanking,
+            on_whole=self._record_received,
         )
         self._lock = threading.RLock()
         self._settings = Settings()
@@ -543,6 +551,8 @@ class ModemService:
                 ):
                     outcome = "cancelled"  # a cancel in the last instants cut nothing: it was sent
                 entry.status, entry.error = outcome, error_text
+            self._record_sent(entry)  # before it is free to send again: one at a time, in order
+            with self._lock:
                 self._sending = False
 
     def _wait(self, seconds: float) -> None:
@@ -629,16 +639,89 @@ class ModemService:
 
     def stop_listening(self) -> bool:
         """Stop hearing the input once what is already heard has been decoded."""
-        return self._receiver.stop()
+        was_listening = self._receiver.stop()
+        self._record_partial()
+        return was_listening
 
     def conversation(self) -> list[dict]:
         """What was sent and what was heard, oldest first, for the page."""
         with self._lock:
             sent = [replace(e) for e in self._sent_log]
         receiver = self._receiver
-        return build_conversation(
+        now = build_conversation(
             sent, receiver.received(), receiver.undecoded(), receiver.arriving()
         )
+        return sorted(self._past + now, key=lambda item: item["at"])
+
+    # History --------------------------------------------------------------------------------
+
+    def _write_history(self, **message) -> None:
+        if self._history is None:
+            return
+        try:
+            self._history.add(preset=self._settings.preset, **message)
+        except (sqlite3.Error, OSError) as error:  # the Message is still shown: say what failed
+            self._fail(f"history not written: {error}")
+
+    def _record_received(self, heard: Heard) -> None:
+        self._write_history(
+            at=heard.heard_at,
+            direction="received",
+            text=heard.text or "",
+            frequency_hz=heard.frequency_hz,
+            snr_db=heard.snr_db,
+            state="complete",
+        )
+
+    def _record_partial(self) -> None:
+        """The Messages heard in part, once, when the listening stops: they will not grow."""
+        for heard in self._receiver.received():
+            key = (heard.msg_id, heard.total)
+            if heard.complete or key in self._partial_written:
+                continue
+            self._partial_written.add(key)
+            self._write_history(
+                at=heard.heard_at,
+                direction="received",
+                text=" […] ".join(text for _, text in heard.parts),
+                frequency_hz=heard.frequency_hz,
+                snr_db=heard.snr_db,
+                state="incomplete",
+                detail={
+                    "parts": [[offset, text] for offset, text in heard.parts],
+                    "missing": list(heard.missing),
+                    "total": heard.total,
+                },
+            )
+
+    def _record_sent(self, entry: SentEntry) -> None:
+        self._write_history(
+            at=entry.at,
+            direction="sent",
+            text=entry.text,
+            frequency_hz=entry.frequency_hz,
+            snr_db=None,
+            state=entry.status,
+            detail={
+                "fragments": entry.fragments,
+                "copies": entry.copies,
+                "airtime_seconds": entry.airtime_seconds,
+                "error": entry.error,
+            },
+        )
+
+    def clear_history(self) -> int:
+        """Forget the conversation: the page, and the file. How many Messages the file held."""
+        with self._lock:
+            self._sent_log.clear()
+            self._past = []
+            self._partial_written.clear()
+        self._receiver.clear_heard()
+        return self._history.clear() if self._history is not None else 0
+
+    def history_csv(self) -> bytes:
+        """Every Message of the history as a CSV for a spreadsheet."""
+        return self._history.export_csv() if self._history is not None else csv_of([])
 
     def received(self) -> list[Heard]:
         """The Messages heard whole, in order of arrival, then those heard in part."""

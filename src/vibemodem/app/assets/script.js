@@ -400,6 +400,8 @@ $("keep").onchange = () => act(call("/api/storage", "POST", { keep: $("keep").ch
 $("limit").onchange = () => act(call("/api/storage", "POST", { limit_mb: Number($("limit").value) }), refreshStorage, "settings-error");
 confirmed($("clear"), "Delete all stored receptions", () =>
   act(call("/api/storage/clear", "POST"), (done) => { say("usage", done.deleted + " deleted."); refreshStorage(); }, "settings-error"));
+confirmed($("clear-history"), "Clear the history", () =>
+  act(call("/api/history/clear", "POST"), (done) => { say("settings-note", done.deleted + " deleted from the history."); }, "settings-error"));
 $("open-settings").onclick = () => $("settings").showModal();
 $("close-settings").onclick = () => $("settings").close();
 let quitting = false;
