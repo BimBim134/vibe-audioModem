@@ -40,16 +40,19 @@ async function act(promise, then, where = "error") {
 // A click that cannot be undone asks for a second one (the browser's own dialogs ignore our colours).
 // `warn`, when given, tells what the click will cost, while it waits for the second one.
 function confirmed(button, label, action, warn) {
+  const text = button.querySelector(".label");  // an icon button keeps its icon and writes here
+  const write = (words) => { if (text) text.textContent = words; else button.textContent = words; };
   const disarm = (warning) => {
-    delete button.dataset.sure; button.textContent = label; button.classList.remove("sure");
+    delete button.dataset.sure; write(text ? "" : label); button.classList.remove("sure");
     if (warning && $("settings-warning").textContent === warning) say("settings-warning", "");
   };
   button.onclick = () => {
     if (button.dataset.sure) { clearTimeout(Number(button.dataset.sure)); disarm(button.dataset.warning); action(); return; }
     const warning = warn ? warn() : "";
     button.dataset.warning = warning;
-    if (warning) say("settings-warning", warning);  // its own line: refresh() writes to the note every second
-    button.textContent = "Click again to confirm"; button.classList.add("sure");
+    if (warning && !text) say("settings-warning", warning);  // its own line: refresh() writes to the note every second
+    write(text && warning ? "Still listening: click again to quit" : "Click again to confirm");
+    button.classList.add("sure");
     button.dataset.sure = setTimeout(() => disarm(warning), 4000);
   };
 }
@@ -403,7 +406,6 @@ let quitting = false;
 confirmed($("quit"), "Quit the application", async () => {
   quitting = true;  // the tab may be closed now without the browser asking
   await call("/api/quit", "POST").catch(() => {});
-  $("settings").close();
   document.body.replaceChildren(element("p", "empty", "Stopped. You can close this tab."));
 }, () => state.listening ? "It is still listening: quitting stops the listening, and nothing is received until the application is started again." : "");
 // Closing the tab while listening: the browser asks first (it chooses the words itself). The listening

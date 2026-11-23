@@ -14,6 +14,10 @@
   <span class="status"><i class="dot" id="dot"></i><span id="listening">Not listening</span></span>
   <button id="listen" class="primary">Listen</button>
   <button id="open-settings">Settings</button>
+  <button id="quit" class="icon" title="Quit the application" aria-label="Quit the application">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>
+    <span class="label"></span>
+  </button>
 </header>
 
 <main>
@@ -132,7 +136,7 @@
       <p id="settings-note" aria-live="polite"></p>
       <p id="settings-warning" class="problem" aria-live="assertive"></p>
     </div>
-    <div class="actions"><button id="quit">Quit the application</button><button id="close-settings" class="primary">Done</button></div>
+    <div class="actions"><button id="close-settings" class="primary">Done</button></div>
   </div>
 </dialog>
 
