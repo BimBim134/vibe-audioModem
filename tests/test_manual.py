@@ -21,7 +21,7 @@ def anchors(lang):
 
 def test_both_languages_have_the_same_sections_in_the_same_order():
     assert anchors("en") == anchors("fr")
-    assert len(anchors("en")) >= 14
+    assert len(anchors("en")) >= 15
 
 
 def test_every_link_inside_the_manual_goes_to_a_section_that_exists():
@@ -39,7 +39,7 @@ def test_the_settings_of_the_page_are_all_described():
         ("fr", ["Callsign", "Preset", "Repetitions", "Listening band", "Lead-in", "Margin",
                 "Push to talk", "Stored receptions", "Clear the history", "Export CSV"]),
     ):  # fmt: skip
-        for word in words:
+        for word in [*words, "Download the log"]:
             assert word in source(lang), (lang, word)
 
 

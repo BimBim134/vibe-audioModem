@@ -45,6 +45,8 @@ def main(executable, require_audio_library):
         assert 'id="send"' in page and 'id="listen"' in page, "page has no send or listen"
         for asset in ("style.css", "script.js", "manual.css"):
             assert get(f"/assets/{asset}")[0] == 200, f"{asset} not served"
+        # The release number is known in the packaged build (its metadata is bundled).
+        assert json.loads(get("/api/about")[1])["version"] != "unknown", "version unknown"
         # The manual (Markdown files and the library that renders them) is bundled too.
         for lang in ("en", "fr"):
             status, manual = get(f"/manual?lang={lang}")

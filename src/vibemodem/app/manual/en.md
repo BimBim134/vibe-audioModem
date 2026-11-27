@@ -18,8 +18,9 @@ Press **F1** in the application to open this manual at any time.
 10. [History and CSV export](#history)
 11. [Stored receptions (debug)](#stored)
 12. [Quit](#quit)
-13. [Problems](#problems)
-14. [Words used](#words)
+13. [The log and bug reports](#log)
+14. [Problems](#problems)
+15. [Words used](#words)
 
 ## How it works { #how-it-works }
 
@@ -176,6 +177,14 @@ The option `--receptions-dir <folder>` chooses another folder when the applicati
 ## Quit { #quit }
 
 Use the power button (top right) and click again to confirm. If the application is still listening, it says so: quitting stops the listening. **Closing the browser tab does not stop the application**: it goes on listening and sending. From a terminal, **Ctrl+C** stops it cleanly.
+
+## The log and bug reports { #log }
+
+The application writes a **log file**, `vibemodem.log`, in its data folder (see [Stored receptions](#stored) for where). It is cut into five files of at most 1 MB each: the oldest part is forgotten. It tells what the application did and what went wrong: the version, the system, the audio libraries and devices seen, the settings changed, each Message sent (the Preset, the number of Fragments, the length on the air, how it ended), the PTT, the Messages received (their figures), and every error with its trace. It holds **no sound and no text of a Message**.
+
+**To report a bug**, press **Settings → Advanced → Log → Download the log** and attach the file to the report, with a line on what you did and what you saw. The release number, and the git state if you run from the sources, are at the foot of the Settings window and at the top of the log.
+
+When the application is started from a terminal, `--log-level debug` makes the log much more detailed (every step of the sound card, for example); use it when asked to look for a bug. Warnings and errors also appear in the terminal.
 
 ## Problems { #problems }
 

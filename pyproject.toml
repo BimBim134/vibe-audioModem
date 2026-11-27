@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vibemodem"
-version = "0.0.0"
+version = "1.1.0"
 description = "One-way weak-signal data modem for radio amateurs"
 readme = "README.md"
 requires-python = ">=3.12"

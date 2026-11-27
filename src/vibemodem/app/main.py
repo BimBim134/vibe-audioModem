@@ -10,6 +10,7 @@ from pathlib import Path
 
 import uvicorn
 
+from vibemodem.app import logs
 from vibemodem.app.api import create_app
 from vibemodem.app.history import History
 from vibemodem.app.service import DEFAULT_LIMIT_MB, MEGABYTE, ModemService
@@ -61,9 +62,17 @@ def main(argv: list[str] | None = None) -> None:
         default=default_directory(),
         help="where receptions are kept when the page asks for it (default: %(default)s)",
     )
+    parser.add_argument(
+        "--log-level",
+        choices=["debug", "info", "warning"],
+        default="info",
+        help="how much the log file tells (default: %(default)s); debug is for finding a bug",
+    )
     args = parser.parse_args(argv)
 
     _ensure_std_streams()
+    logs.setup(args.receptions_dir, args.log_level)
+    logs.banner(sys.argv[1:] if argv is None else argv)
     port = args.port or free_port()
     store = ReceptionStore(args.receptions_dir, DEFAULT_LIMIT_MB * MEGABYTE)
     settings_file = SettingsFile(args.receptions_dir / "settings.json")
@@ -75,7 +84,9 @@ def main(argv: list[str] | None = None) -> None:
         threading.Thread(target=_open_browser_when_ready, args=(server, url), daemon=True).start()
     try:
         server.run()
+        logs.log.info("stopped")
     except KeyboardInterrupt:
+        logs.log.info("stopped with Ctrl+C")
         # Ctrl+C: uvicorn has already stopped the server and the service is closed with it; it
         # only raises the interruption again at the end, which would print a traceback.
         print("Stopped.", file=sys.stderr)

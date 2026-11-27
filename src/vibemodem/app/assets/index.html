@@ -113,6 +113,10 @@
       <label class="field limit"><span>After the sound</span><span class="limit-control"><input id="ptt_after" type="number" min="0" max="5000" step="50"><span>ms</span></span></label>
     </div>
     <div class="group">
+      <h3>Log</h3>
+      <label class="field limit"><span>For a bug report</span><span class="check-cell"><a id="download-log" href="/api/log" download="vibemodem.log">Download the log</a></span></label>
+    </div>
+    <div class="group">
       <h3>TX blanking</h3>
       <label class="field limit" title="Silence after your own Transmission, besides the delay of the sound card."><span>Margin</span><span class="limit-control"><input id="tx_margin" type="number" min="0" max="10000" step="50"><span>ms</span></span></label>
     </div>
@@ -132,6 +136,7 @@
   </section>
 
   <div class="footer">
+    <p id="about" class="about"></p>
     <div class="messages">
       <p id="settings-error" class="problem" role="alert"></p>
       <p id="settings-note" aria-live="polite"></p>
