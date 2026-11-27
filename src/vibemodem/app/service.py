@@ -5,6 +5,7 @@ One `ModemService` owns the sound hardware: at most one Transmission being playe
 memory only (the last `max_received` Messages).
 """
 
+import logging
 import sqlite3
 import threading
 import time
@@ -36,6 +37,8 @@ from vibemodem.core.transmission import (
 )
 from vibemodem.core.turbo_modem import TurboModem
 from vibemodem.io.audio import Audio, AudioError, DeviceInfo, find_device
+
+log = logging.getLogger("vibemodem.service")
 
 MEGABYTE = 1_000_000
 MIN_LIMIT_MB, MAX_LIMIT_MB = 10, 100_000
@@ -297,6 +300,7 @@ class ModemService:
                 self._check_band_fits(changes["preset"], self._search_band)
             self._settings = replace(self._settings, **changes)
             self._remember(**changes)
+            log.info("settings changed: %s", changes)
             return self._settings
 
     # The audio band listened in -------------------------------------------------------------
@@ -405,6 +409,7 @@ class ModemService:
             raise BusyError("the application is closed")
 
     def _fail(self, message: str) -> None:
+        log.error("%s", message)
         with self._lock:
             self._last_error = message
 
@@ -481,6 +486,15 @@ class ModemService:
                     airtime_seconds=sound.size / SAMPLE_RATE,
                 )
                 self._sent_log.append(entry)
+                log.info(
+                    "sending Message %d: preset %s, %d Fragments, %d copies, %.0f Hz, %.1f s",
+                    entry.id,
+                    preset,
+                    entry.fragments,
+                    copies,
+                    entry.frequency_hz,
+                    entry.airtime_seconds,
+                )
                 self._send_thread = threading.Thread(
                     target=self._play,
                     args=(sound, device, entry, radio),
@@ -520,6 +534,7 @@ class ModemService:
         try:
             if ptt is not None:
                 keyed = True  # even if the answer is lost, the radio may be keyed: release it
+                log.info("PTT on through rigctld at %s:%s", ptt.host, ptt.port)
                 ptt.key(True)
                 self._wait(before)
             began = time.monotonic()
@@ -532,6 +547,7 @@ class ModemService:
         finally:
             if keyed:
                 try:
+                    log.info("PTT off")
                     ptt.key(False)
                 except ptt_module.PttError as error:
                     if outcome != "failed":
@@ -551,6 +567,12 @@ class ModemService:
                 ):
                     outcome = "cancelled"  # a cancel in the last instants cut nothing: it was sent
                 entry.status, entry.error = outcome, error_text
+            if outcome == "sent":
+                log.info("Message %d sent", entry.id)
+            else:
+                log.warning(
+                    "Message %d %s%s", entry.id, outcome, f": {error_text}" if error_text else ""
+                )
             self._record_sent(entry)  # before it is free to send again: one at a time, in order
             with self._lock:
                 self._sending = False
@@ -636,10 +658,17 @@ class ModemService:
             if self._receiver.listening:
                 raise BusyError("already listening")
             self._receiver.start(self._settings.preset, self._settings.input_device)
+            log.info(
+                "listening started: preset %s, input %s",
+                self._settings.preset,
+                self._settings.input_device,
+            )
 
     def stop_listening(self) -> bool:
         """Stop hearing the input once what is already heard has been decoded."""
         was_listening = self._receiver.stop()
+        if was_listening:
+            log.info("listening stopped")
         self._record_partial()
         return was_listening
 
@@ -664,6 +693,12 @@ class ModemService:
             self._fail(f"history not written: {error}")
 
     def _record_received(self, heard: Heard) -> None:
+        log.info(
+            "received a Message: %d Fragments, %.0f Hz, SNR %.1f dB",
+            heard.total,
+            heard.frequency_hz or 0.0,
+            heard.snr_db if heard.snr_db is not None else float("nan"),
+        )
         self._write_history(
             at=heard.heard_at,
             direction="received",
@@ -680,6 +715,11 @@ class ModemService:
             if heard.complete or key in self._partial_written:
                 continue
             self._partial_written.add(key)
+            log.info(
+                "a Message heard in part: %d of %d Fragments",
+                heard.total - len(heard.missing),
+                heard.total,
+            )
             self._write_history(
                 at=heard.heard_at,
                 direction="received",
@@ -717,6 +757,7 @@ class ModemService:
             self._past = []
             self._partial_written.clear()
         self._receiver.clear_heard()
+        log.info("the history was cleared")
         return self._history.clear() if self._history is not None else 0
 
     def history_csv(self) -> bytes:

@@ -9,7 +9,8 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from vibemodem.app import manual
+from vibemodem import version
+from vibemodem.app import logs, manual
 from vibemodem.app.ptt import MAX_DELAY_MS
 from vibemodem.app.service import (
     MAX_LEAD_IN_MS,
@@ -203,6 +204,21 @@ def create_app(service: ModemService, *, on_quit: Callable[[], None] = lambda: N
     @app.post("/api/storage/clear")
     def clear_storage() -> dict:
         return {"deleted": service.clear_receptions()}
+
+    @app.get("/api/about")
+    def about() -> dict:
+        return version.describe()
+
+    @app.get("/api/log")
+    def download_log() -> Response:
+        content = logs.read_all()
+        if content is None:
+            raise HTTPException(status_code=404, detail="no log file is written")
+        return Response(
+            content,
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="vibemodem.log"'},
+        )
 
     @app.get("/api/history.csv")
     def history_csv() -> Response:

@@ -5,6 +5,7 @@ tests and can loop what is played back into the input. Both follow the `Audio` p
 the rest of the system never knows which one it has.
 """
 
+import logging
 import threading
 import time
 from collections import deque
@@ -16,6 +17,8 @@ import numpy as np
 
 from vibemodem.core.coded_modem import SAMPLE_RATE
 from vibemodem.io._samples import checked_samples
+
+log = logging.getLogger("vibemodem.audio")
 
 
 class AudioError(RuntimeError):
@@ -155,7 +158,8 @@ def _positive(value: float, what: str) -> None:
         raise ValueError(f"{what} lasts a positive number of seconds")
 
 
-PLAY_GRACE_SECONDS = 10.0  # more than the sound lasts, before the sound card is given up on
+STALL_SECONDS = 5.0  # without the sound card asking for more sound, it is given up on
+END_GRACE_SECONDS = 2.0  # after the last sample is handed over, besides the latency, to be told
 
 
 def _import_sounddevice():
@@ -221,14 +225,21 @@ class SoundCard:
         # the callback looks at: the thread that opened the stream is the one that closes it.
         # Calling PortAudio to stop it from another thread, while this one waited for the end,
         # corrupted its memory and killed the application.
+        #
+        # The end is when the last sample was handed over, not when PortAudio says so: on some
+        # hosts (seen on Linux, with a USB interface) it never calls the finished callback although
+        # everything was played. Only a card that stops asking for sound is a failure.
         data = _playable(samples)
         number = self._open_check("output", device)
         sd = self._sd()
         finished = threading.Event()
+        handed_over = threading.Event()  # the last sample was given to the sound card
         position = 0
+        last_call = time.monotonic()
 
         def feed(outdata, frames, _time, _status):
-            nonlocal position
+            nonlocal position, last_call
+            last_call = time.monotonic()
             if self._cut.is_set():
                 outdata[:] = 0
                 raise sd.CallbackAbort
@@ -237,10 +248,12 @@ class SoundCard:
             outdata[piece.size :, 0] = 0
             position += frames
             if position >= data.size:
+                handed_over.set()
                 raise sd.CallbackStop  # what is queued is still heard
 
         self._cut.clear()
         self._playing = True
+        began = time.monotonic()
         try:
             stream = sd.OutputStream(
                 samplerate=SAMPLE_RATE,
@@ -251,16 +264,47 @@ class SoundCard:
                 finished_callback=finished.set,
             )
             self.output_latency_seconds = float(getattr(stream, "latency", 0.0))
+            log.info(
+                "playing %.1f s on output %s, latency %.0f ms",
+                data.size / SAMPLE_RATE,
+                number,
+                self.output_latency_seconds * 1000,
+            )
             try:
                 stream.start()
-                if not finished.wait(timeout=data.size / SAMPLE_RATE + PLAY_GRACE_SECONDS):
-                    raise NoAudioDeviceError("the sound card stopped taking the sound")
+                told = self._wait_for_the_end(
+                    finished, handed_over, lambda: last_call, self.output_latency_seconds
+                )
+                if not told:  # all of it was handed over: end the stream ourselves, here
+                    log.warning(
+                        "the sound card was given all the sound but did not say it finished "
+                        "after %.1f s; stopping the stream (%d of %d samples handed over)",
+                        time.monotonic() - began,
+                        min(position, data.size),
+                        data.size,
+                    )
+                    stream.stop()
             finally:
                 stream.close()
         except sd.PortAudioError as error:
+            log.error("the sound card failed while playing: %s", error)
             raise NoAudioDeviceError(str(error)) from error
         finally:
             self._playing = False
+        log.info("played in %.1f s", time.monotonic() - began)
+
+    @staticmethod
+    def _wait_for_the_end(finished, handed_over, last_call, latency: float) -> bool:
+        """Wait until the sound is over. True if the sound card said so, False if it did not but
+        was given all the sound; raises if it stopped asking for sound before that."""
+        while not finished.is_set():
+            if handed_over.is_set():
+                return finished.wait(latency + END_GRACE_SECONDS)
+            if time.monotonic() - last_call() > STALL_SECONDS:
+                log.error("the sound card has not asked for sound for %.1f s", STALL_SECONDS)
+                raise NoAudioDeviceError("the sound card stopped taking the sound")
+            finished.wait(0.05)
+        return True
 
     def record(self, seconds: float, device: int | str | None = None) -> np.ndarray:
         _positive(seconds, "a recording")

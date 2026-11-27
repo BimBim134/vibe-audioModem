@@ -18,8 +18,9 @@ Appuyez sur **F1** dans l'application pour ouvrir ce manuel à tout moment.
 10. [Historique et export CSV](#history)
 11. [Réceptions gardées (débogage)](#stored)
 12. [Quitter](#quit)
-13. [Problèmes](#problems)
-14. [Vocabulaire](#words)
+13. [Le journal et les rapports de bug](#log)
+14. [Problèmes](#problems)
+15. [Vocabulaire](#words)
 
 ## Fonctionnement { #how-it-works }
 
@@ -176,6 +177,14 @@ L'option `--receptions-dir <dossier>` choisit un autre dossier quand l'applicati
 ## Quitter { #quit }
 
 Utilisez le bouton marche/arrêt (en haut à droite) et cliquez une seconde fois pour confirmer. Si l'application écoute encore, elle le dit : quitter arrête l'écoute. **Fermer l'onglet du navigateur n'arrête pas l'application** : elle continue d'écouter et d'envoyer. Depuis un terminal, **Ctrl+C** l'arrête proprement.
+
+## Le journal et les rapports de bug { #log }
+
+L'application écrit un **fichier journal**, `vibemodem.log`, dans son dossier de données (voir [Réceptions gardées](#stored) pour l'endroit). Il est découpé en cinq fichiers d'au plus 1 Mo : la partie la plus ancienne est oubliée. Il dit ce que l'application a fait et ce qui n'a pas marché : la version, le système, les bibliothèques et appareils audio vus, les réglages changés, chaque Message envoyé (le Preset, le nombre de Fragments, la durée à l'antenne, comment cela s'est terminé), le PTT, les Messages reçus (leurs valeurs) et chaque erreur avec sa trace. Il ne contient **ni son ni texte de Message**.
+
+**Pour signaler un bug**, appuyez sur **Settings → Advanced → Log → Download the log** et joignez le fichier au rapport, avec une ligne sur ce que vous avez fait et ce que vous avez vu. Le numéro de version, et l'état git si vous lancez depuis les sources, sont en bas de la fenêtre des réglages et en tête du journal.
+
+Quand l'application est lancée depuis un terminal, `--log-level debug` rend le journal beaucoup plus détaillé (chaque étape de la carte son, par exemple) ; servez-vous-en quand on vous demande de chercher un bug. Les avertissements et les erreurs s'affichent aussi dans le terminal.
 
 ## Problèmes { #problems }
 

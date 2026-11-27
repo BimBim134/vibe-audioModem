@@ -8,6 +8,7 @@ listening started plus the sound heard since, which is the time of day when the 
 one.
 """
 
+import logging
 import threading
 import time
 from collections import OrderedDict, deque
@@ -51,6 +52,9 @@ STOP_SECONDS = 120.0  # to decode what was heard last, up to 150 s of sound, on 
 
 def _text(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
+
+
+log = logging.getLogger("vibemodem.receiver")
 
 
 class Receiver:
@@ -128,6 +132,7 @@ class Receiver:
         self._search_band = band
 
     def _fail(self, message: str) -> None:
+        log.error("%s", message)
         with self._lock:
             self.last_error = message
 
@@ -202,6 +207,7 @@ class Receiver:
             if started is not None:  # the last of it: nothing more will come to complete a margin
                 self._decode(window, modem, tolerance, started, heard - held, final=True)
         except Exception as error:  # whatever happens, the stream is closed below
+            log.exception("the listening thread failed")
             self._fail(f"listening stopped: {error}")
         finally:
             blocks.close()

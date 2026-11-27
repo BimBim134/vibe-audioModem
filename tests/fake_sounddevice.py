@@ -107,7 +107,16 @@ class FakeOutputStream:
         self.heard_pieces = []
         self.closed = self.aborted = self.stopped = False
         self.fail_to_start = False
+        self.never_finishes = False  # a host that never calls the finished callback
+        self.stalls_after = None  # a card that stops asking for sound after this many pieces
+        self.latency = 0.0
         self._thread = None
+        self._release = threading.Event()
+
+    def stop(self):
+        """Like the real one: wait until what was handed over is played."""
+        if self._thread is not None:
+            self._thread.join(timeout=5)
 
     def start(self):
         if self.fail_to_start:
@@ -117,6 +126,9 @@ class FakeOutputStream:
 
     def _run(self):
         while True:
+            if self.stalls_after is not None and len(self.heard_pieces) >= self.stalls_after:
+                self._release.wait(30)  # nothing more is asked for, and nothing is told
+                return
             outdata = np.zeros((self.PIECE, 1), dtype=np.float32)
             try:
                 self.callback(outdata, self.PIECE, None, None)
@@ -129,9 +141,11 @@ class FakeOutputStream:
                 break
             self.heard_pieces.append(outdata[:, 0].copy())
             time.sleep(self.PIECE / self.rate * self.owner.seconds_per_second)
-        self.finished_callback()
+        if not self.never_finishes:
+            self.finished_callback()
 
     def close(self):
+        self._release.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
         self.closed = True

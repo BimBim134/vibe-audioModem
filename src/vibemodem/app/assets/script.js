@@ -411,6 +411,10 @@ $("open-manual").onclick = () => window.open(manualUrl(), "_blank", "noopener");
 document.addEventListener("keydown", (event) => {
   if (event.key === "F1") { event.preventDefault(); window.open(manualUrl(), "_blank", "noopener"); }
 });
+// The release, for bug reports: shown at the foot of the settings.
+call("/api/about").then((about) => {
+  $("about").textContent = "Vibe AudioModem " + about.version + (about.git ? " (" + about.git + ")" : "");
+}).catch(() => {});
 $("open-settings").onclick = () => $("settings").showModal();
 $("close-settings").onclick = () => $("settings").close();
 let quitting = false;

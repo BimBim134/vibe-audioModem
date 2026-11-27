@@ -264,3 +264,6 @@ dialog .footer .actions { margin-top: 0; flex: none; }
   body { padding: 0.5rem; }
   .frame { padding: 0.6rem; gap: 0.6rem; border-radius: 16px; --lift: 0 1.5rem 5rem 1rem rgb(0 0 0 / 0.5); }
 }
+
+.about { margin: 0 0 0.4rem; font-size: 0.72rem; color: var(--soft); user-select: all; }
+#download-log { color: rgb(var(--accent)); font-size: 0.85rem; }

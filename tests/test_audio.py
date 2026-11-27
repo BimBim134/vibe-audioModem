@@ -284,6 +284,42 @@ def test_the_sound_card_plays_everything_and_lets_it_be_heard_to_the_end(card, s
     assert not stream.heard()[tone(1.0).size :].any()  # and then silence, nothing else
 
 
+def test_a_host_that_never_says_the_sound_is_finished_is_not_a_failure(card, sd, monkeypatch):
+    # Seen on a Linux machine with a USB interface: every sample was handed over and played, but
+    # PortAudio never called the finished callback, and the application gave up after 10 s.
+    monkeypatch.setattr(audio, "END_GRACE_SECONDS", 0.2)
+    original = sd.OutputStream
+
+    def silent_end(**options):
+        stream = original(**options)
+        stream.never_finishes = True
+        return stream
+
+    sd.OutputStream = silent_end
+    began = time.monotonic()
+    card.play(tone(0.5), device="codec")  # no error
+    assert time.monotonic() - began < 3.0
+    (stream,) = sd.output_streams
+    assert stream.closed and np.allclose(stream.heard()[: tone(0.5).size], tone(0.5), atol=1e-6)
+
+
+def test_a_sound_card_that_stops_asking_for_sound_is_a_failure(card, sd, monkeypatch):
+    monkeypatch.setattr(audio, "STALL_SECONDS", 0.4)
+    original = sd.OutputStream
+
+    def stalling(**options):
+        stream = original(**options)
+        stream.stalls_after = 2
+        return stream
+
+    sd.OutputStream = stalling
+    began = time.monotonic()
+    with pytest.raises(NoAudioDeviceError, match="stopped taking the sound"):
+        card.play(tone(2.0), device="codec")
+    assert time.monotonic() - began < 3.0
+    assert sd.output_streams[0].closed
+
+
 def test_a_stop_while_the_sound_card_plays_cuts_the_sound_and_closes_the_stream(card, sd):
     import threading
 

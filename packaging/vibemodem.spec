@@ -3,7 +3,7 @@
 import os
 import sys
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata
 
 here = os.path.abspath(SPECPATH)  # noqa: F821 - provided by PyInstaller
 root = os.path.dirname(here)
@@ -16,6 +16,7 @@ a = Analysis(  # noqa: F821
     datas=[
         (os.path.join(root, "src", "vibemodem", "app", "assets"), "vibemodem/app/assets"),
         (os.path.join(root, "src", "vibemodem", "app", "manual"), "vibemodem/app/manual"),
+        *copy_metadata("vibemodem"),  # the release number, for the log and the page
     ],
 )
 pyz = PYZ(a.pure)  # noqa: F821
