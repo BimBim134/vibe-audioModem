@@ -1,6 +1,7 @@
 """The log file: what the application did and what went wrong, to find the cause of a bug."""
 
 import logging
+import sys
 import threading
 import time
 
@@ -38,12 +39,42 @@ def wait_idle(service):
 # The file and its start-up lines ---------------------------------------------------------------
 
 
-def test_the_log_starts_with_what_is_needed_to_understand_a_report(log_file):
+class FakeSounddevice:
+    __version__ = "0.5.6"
+
+    @staticmethod
+    def get_portaudio_version():
+        return (1246720, "PortAudio V19.6.0-devel")
+
+    @staticmethod
+    def query_hostapis():
+        return [{"name": "ALSA", "default_output_device": 0}]
+
+    @staticmethod
+    def query_devices():
+        return [
+            {"name": "USB Audio CODEC", "max_input_channels": 1, "max_output_channels": 2,
+             "default_samplerate": 48_000.0, "hostapi": 0},
+        ]  # fmt: skip
+
+
+def test_the_log_starts_with_what_is_needed_to_understand_a_report(log_file, monkeypatch):
+    monkeypatch.setitem(sys.modules, "sounddevice", FakeSounddevice)
     logs.banner(["--port", "0"])
     text = written(log_file)
     assert f"Vibe AudioModem {version_module.version()}" in text
-    for word in ("Python ", "system:", "sounddevice", "arguments: --port 0"):
+    for word in (
+        "Python ", "system:", "arguments: --port 0", "sounddevice 0.5.6", "PortAudio V19.6.0",
+        "audio host 0: ALSA", "audio device 0: USB Audio CODEC",
+    ):  # fmt: skip
         assert word in text, word
+
+
+def test_a_machine_without_the_sound_library_says_so_in_the_log(log_file, monkeypatch):
+    monkeypatch.setitem(sys.modules, "sounddevice", None)  # importing it fails
+    logs.banner([])
+    text = written(log_file)
+    assert "WARNING" in text and "sound library cannot be read" in text
 
 
 def test_each_line_has_a_time_a_level_and_the_part_that_wrote_it(log_file):
